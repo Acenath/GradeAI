@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gradia - Sign Up</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href = "{{ url_for('static', filename = 'css/tutorial.css') }}", type = "text/css", rel = 'stylesheet'/>
+</head>
+<body>
+   <div class="nav-bar">
+    <div class="d-flex align-items-center">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
+      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+      <strong> Gradia</strong>
+    </div>
+    <div class="nav-links">
+        <a href="/login">Log in</a>
+        <a href="/signup">Sign up</a>
+        <a href="/about">About Us</a>
+        <a href="/tutorial">Quick Tutorial</a>
+    </div>
+  </div>
+<div class="row">
+    <div class="col-lg-3">
+        <div class="list-group mb-4" id="tutorial-nav">
+            <a href="#teacher" class="list-group-item list-group-item-action">Teacher</a>
+            <a href="#student" class="list-group-item list-group-item-action">Student</a>
+            <a href="#general" class="list-group-item list-group-item-action">General</a>
+        </div>
+    </div>
+    <div class="col-lg-9">
+        <h1 class="mb-4">Quick Tutorial</h1>
+
+
+        <section id="teacher" class="mb-5">
+            <h2>Teacher Guide</h2>
+
+            <h3 class="h5 mt-4">Creating Section</h3>
+            <p>
+                Teachers can create course sections and add students manually or by uploading a CSV file. To create a section:
+            </p>
+            <ol>
+                <li>Navigate to your dashboard</li>
+                <li>Click "Add Section" button</li>
+                <li>Enter course details or upload a CSV with student information</li>
+            </ol>
+
+            <h3 class="h5 mt-4">Rubric Creation Management</h3>
+            <p>
+                Create customized rubrics for evaluating student work:
+            </p>
+            <ol>
+                <li>Go to "Assignments" section</li>
+                <li>Select "Create Assignment"</li>
+                <li>Define rubric criteria, point values, and descriptions</li>
+                <li>Save the rubric for future use</li>
+            </ol>
+        </section>
+
+        <section id="student" class="mb-5">
+            <h2>Student Guide</h2>
+
+            <h3 class="h5 mt-4">Submit Essay</h3>
+            <p>
+                Students can submit essays in a few simple steps:
+            </p>
+            <ol>
+                <li>Log in to your account</li>
+                <li>Select the appropriate course and assignment</li>
+                <li>Upload your essay (supported formats: PDF, DOCX, TXT)</li>
+                <li>Click "Submit" to complete the process</li>
+            </ol>
+
+            <h3 class="h5 mt-4">View Feedback</h3>
+            <p>
+                Once your submission has been graded:
+            </p>
+            <ol>
+                <li>Navigate to the assignment in your dashboard</li>
+                <li>Click on the assignment to see your grade and detailed feedback</li>
+                <li>Review highlighted strengths and areas for improvement</li>
+            </ol>
+        </section>
+
+        <section id="general" class="mb-5">
+            <h2>General Tips</h2>
+            <ul>
+                <li>Regular browser updates ensure the best platform experience</li>
+                <li>Set email notifications to stay informed about deadlines and feedback</li>
+                <li>Use the "Contact Support" feature if you encounter any issues</li>
+            </ul>
+        </section>
+    </div>
+</div>
+
+</body>
+</html>

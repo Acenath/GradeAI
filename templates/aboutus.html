@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gradia - About Us</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel = "stylesheet", type = "text/css", href = "{{ url_for('static', filename = 'css/aboutus.css') }}"/>
+</head>
+<body>
+
+   <!-- Navbar -->
+  <div class="nav-bar">
+    <div class="d-flex align-items-center">
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
+      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+      <strong> Gradia</strong>
+    </div>
+    <div class="nav-links">
+        <a href="/login">Log in</a>
+        <a href="/signup">Sign up</a>
+        <a href="/about">About Us</a>
+        <a href="/tutorial">Quick Tutorial</a>
+    </div>
+  </div>
+
+  <!-- Main Content Container -->
+  <div class="container">
+
+    <!-- Section 1 -->
+    <div class="section">
+      <div class="section-title">About LLM-Based Essay Grading Assistant System</div>
+      <div class="section-content">
+        <div class="card">
+          <div class="card-body">
+            <p>
+              The LLM-Based Essay Grading Assistant System is an AI-powered assistant designed to help educators evaluate student essays efficiently and consistently.
+              By leveraging advanced language models (LLMs) like Llama, this tool automates rubric-based grading while preserving the teacher’s oversight and expertise.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2 -->
+    <div class="section reverse">
+      <div class="section-title">Our Mission</div>
+      <div class="section-content">
+        <div class="card">
+          <div class="card-body">
+            <p>
+              To empower educators with intelligent tools that save time, reduce grading workload, and provide actionable feedback—so teachers can focus on teaching, not paperwork.
+              The system addresses the inefficiencies of manual essay grading, which can be time-consuming and frustrating for teachers.
+            </p>
+            <p>
+              Our Mission: To empower educators with intelligent tools that save time, reduce grading workload, and provide actionable feedback—so teachers can focus on teaching, not paperwork.
+              The system addresses the inefficiencies of manual essay grading, which can be time-consuming and frustrating for teachers.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3 -->
+    <div class="section">
+      <div class="section-title">What We Offer</div>
+      <div class="section-content">
+        <div class="card">
+          <div class="card-body">
+            <ul>
+              <li><strong>Customizable Rubric Creation:</strong> Teachers can define and store grading rubrics, specifying criteria such as grammar, coherence, and argument strength.</li>
+              <li><strong>AI Grading:</strong> Upload essays, set your criteria, and let AI generate scores aligned with your rubric. The LLM evaluates essays based on the provided rubrics and provides scores and feedback, including explanations for the grade and suggestions for improvement.</li>
+              <li><strong>Transparent Feedback:</strong> Highlight strengths/weaknesses in student writing (e.g., grammar, structure, argumentation). The system provides detailed feedback, helping students understand their mistakes.</li>
+              <li><strong>Teacher Control:</strong> Review, adjust, or override AI suggestions before finalizing grades. Teachers can review and modify AI-generated grades, ensuring the final results align with their expectations.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4 -->
+    <div class="section reverse">
+      <div class="section-title">Why LLM-Based Essay Grading Assistant System?</div>
+      <div class="section-content">
+        <div class="card">
+          <div class="card-body">
+            <ul>
+              <li><strong>Time Saver:</strong> Cut grading time. The LLM-Based Essay Grading Assistant System automates the grading process, reducing teachers' workload.</li>
+              <li><strong>Consistency:</strong> Ensure fairness with rubric-driven evaluations. Customizable rubrics allow adaptation to various educational contexts.</li>
+              <li><strong>Student Growth:</strong> Deliver detailed feedback to help learners improve.</li>
+              <li><strong>Addresses Ethical Considerations:</strong> Committed to mitigating bias and ensuring fairness and consistency in automated grading decisions.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="section">
+      <div class="section-title">How It Works</div>
+      <div class="section-content">
+        <div class="card">
+          <div class="card-body">
+            <ol>
+              <li><strong>Upload Rubrics:</strong> Teachers define grading criteria (e.g., "clarity," "evidence").</li>
+              <li><strong>Submit Essays:</strong> Students upload essays via the platform. The system validates file formats and sizes before accepting submissions.</li>
+              <li><strong>AI Grading:</strong> The LLM analyzes essays against the rubric. Rubrics from the database are passed to the model as context for evaluation.</li>
+              <li><strong>Review & Refine:</strong> Teachers approve or adjust grades.</li>
+              <li><strong>Feedback Delivered:</strong> Students receive scores plus AI-generated comments.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    &copy; 2025 Gradia. All rights reserved.
+  </footer>
+
+</body>
+</html>

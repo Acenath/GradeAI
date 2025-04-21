@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gradia - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel = "stylesheet" type = "text/css" href = "{{ url_for('static', filename = 'css/teacher_dashboard.css')}}" />
+
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="nav-bar">
+    <div class="nav-bar-left">
+      <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
+      <strong>Gradia</strong>
+    </div>
+    <div class="nav-links">
+      <a href="#">About Us</a>
+      <a href="#">Quick Tutorial</a>
+    </div>
+  </div>
+
+  <!-- Profile Section -->
+  <div class="profile-section">
+    <div class="profile-pic">
+      <i class="fas fa-user" style="font-size: 40px;"></i>
+    </div>
+    <div class="profile-info">
+      <h2>Welcome Name Surname!</h2>
+      <div class="profile-links">
+        <a href="#">Profile</a>
+        <a href="#">Log Out</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div class="dashboard">
+    <!-- Left Side - Lectures -->
+    <div class="lectures-container">
+      <div class="lecture-cards">
+        <!-- Lecture Card 1 -->
+        <div class="lecture-card">
+          <div class="lecture-header">XXXX</div>
+          <div class="lecture-content">
+            <p>***** ***** ***** ***</p>
+          </div>
+        </div>
+
+        <!-- Lecture Card 2 -->
+        <div class="lecture-card">
+          <div class="lecture-header">XXXX</div>
+          <div class="lecture-content">
+            <p>***** ***** ***** ***</p>
+          </div>
+        </div>
+
+        <!-- Lecture Card 3 -->
+        <div class="lecture-card">
+          <div class="lecture-header">XXXX</div>
+          <div class="lecture-content">
+            <p>***** ***** ***** ***</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Button -->
+      <div class="add-button">
+        <i class="fas fa-plus"></i>
+      </div>
+    </div>
+
+    <!-- Right Side - Sidebar -->
+    <div class="sidebar">
+      <!-- Deadlines Section -->
+      <div class="sidebar-section">
+        <h3>Deadlines</h3>
+
+        <!-- Deadline Item 1 -->
+        <a href="#" class="deadline-item">
+          <div class="deadline-icon">
+            <i class="far fa-file-alt" style="font-size: 24px;"></i>
+          </div>
+          <div class="deadline-info">
+            <div>***** ***** *****</div>
+            <div class="date">Monday, 15th 2025</div>
+          </div>
+        </a>
+
+        <!-- Deadline Item 2 -->
+        <a href="#" class="deadline-item">
+          <div class="deadline-icon">
+            <i class="far fa-file-alt" style="font-size: 24px;"></i>
+          </div>
+          <div class="deadline-info">
+            <div>***** ***** *****</div>
+            <div class="date"><i class="far fa-calendar"></i></div>
+          </div>
+        </a>
+
+        <!-- Deadline Item 3 -->
+        <a href="#" class="deadline-item">
+          <div class="deadline-icon">
+            <i class="far fa-file-alt" style="font-size: 24px;"></i>
+          </div>
+          <div class="deadline-info">
+            <div>***** ***** *****</div>
+            <div class="date"><i class="far fa-calendar"></i></div>
+          </div>
+        </a>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Feedback Section -->
+      <div class="sidebar-section">
+        <h3>Feedback</h3>
+
+        <!-- Feedback Item -->
+        <a href="#" class="feedback-item">
+          <div class="feedback-icon">
+            <i class="far fa-user-circle" style="font-size: 24px;"></i>
+          </div>
+          <div class="feedback-info">
+            <div>***** ***** *****</div>
+            <div class="date">Monday, 12th 2025</div>
+          </div>
+        </a>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Announcement Section -->
+      <div class="sidebar-section">
+        <h3>Announcement</h3>
+
+        <!-- Announcement Item -->
+        <a href="#" class="announcement-item">
+          <div class="announcement-icon">
+            <i class="far fa-user-circle" style="font-size: 24px;"></i>
+          </div>
+          <div class="announcement-info">
+            <div>***** ***** *****</div>
+            <div>***** *****</div>
+            <div class="date">Monday, 10th 2025</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

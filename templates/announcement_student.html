@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradia LMS - Student View</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_student.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="d-flex align-items-center">
+      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+      <strong> Gradia</strong>
+        </div>
+        <div class="navigation">
+            <a href="#">About Us</a>
+            <a href="#">Quick Tutorial</a>
+            <div class="notification-icon">
+                <i class="fas fa-bell" style="font-size: 18px;"></i>
+                <div class="notification-badge">0
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="divider"></div>
+    <div class="content">
+        <div class="sidebar">
+            <a href="#">Homework</a>
+            <a href="#">Announcement</a>
+        </div>
+        <div class="main-content">
+            <h1 class="page-title">Course Name / Announcement</h1>
+            <div class="announcement-container">
+                <div class="announcement">
+                    <div class="announcement-title">
+                        <span class="icon">📝</span>Announcement - 1
+                    </div>
+                    <p class="announcement-desc">This is the description part.</p>
+                </div>
+                <div class="announcement">
+                    <div class="announcement-title">
+                        <span class="icon">📝</span>Announcement - 2
+                    </div>
+                    <p class="announcement-desc">This is the description part.</p>
+                </div>
+                <div class="announcement">
+                    <div class="announcement-title">
+                        <span class="icon">📝</span>Announcement - 3
+                    </div>
+                    <p class="announcement-desc">This is the description part.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

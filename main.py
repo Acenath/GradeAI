@@ -63,6 +63,7 @@ def signup():
     else:
         return render_template("signup.html")
 
+
 @app.route("/home")
 @app.route("/")
 def logout():
@@ -84,15 +85,93 @@ def about():
 def blockview_teacher():
     return render_template("blockview_teacher.html")
 
-
-@app.route('/stıdent_dashboard')
+@app.route('/student_dashboard')
 def student_dashboard():
     return render_template("student_dashboard.html")
-
 
 @app.route('/teacher_dashboard')
 def teacher_dashboard():
     return render_template("teacher_dashboard.html")
+
+@app.route('/announcement_student')
+def announcement_student():
+    return render_template("announcement_student.html")
+
+@app.route('/announcement_teacher')
+def announcement_teacher():
+    return render_template("announcement_teacher.html")
+
+@app.route('/announcement_view_student')
+def announcement_view_student():
+    return render_template("announcement_view_student.html")
+
+@app.route('/announcement_view_teacher')
+def announcement_view_teacher():
+    return render_template("announcement_view_teacher.html")
+
+@app.route('/assignment_creation')
+def assignment_creation():
+    return render_template("assignment_creation.html")
+
+@app.route('/assignment_feedback_teacher')
+def assignment_feedback_teacher():
+    return render_template("assignment_feedback_teacher.html")
+
+@app.route('/assignment_grades_student')
+def assignment_grades_student():
+    return render_template("assignment_grades_student.html")
+
+@app.route('/assignment_student')
+def assignment_student():
+    return render_template("assignment_student.html")
+
+@app.route('/assignment_submit_student')
+def assignment_submit_student():
+    return render_template("assignment_submit_student.html")
+
+@app.route('/assignment_view_teacher')
+def assignment_view_teacher():
+    return render_template("assignment_view_teacher.html")
+
+@app.route('/course_grades_student')
+def course_grades_student():
+    return render_template("course_grades_student.html")
+
+@app.route('/edit_email')
+def edit_email():
+    return render_template("edit_email.html")
+
+@app.route('/edit_image')
+def edit_image():
+    return render_template("edit_image.html")
+
+@app.route('/homework_student')
+def homework_student():
+    return render_template("homework_student.html")
+
+@app.route('/homework_teacher')
+def homework_teacher():
+    return render_template("homework_teacher.html")
+
+@app.route('/login')
+def login():
+    return render_template("login.html")
+
+@app.route('/new_password')
+def new_password():
+    return render_template("new_password.html")
+
+@app.route('/profile_student')
+def profile_student():
+    return render_template("profile_student.html")
+
+@app.route('/profile_teacher')
+def profile_teacher():
+    return render_template("profile_teacher.html")
+
+@app.route('/signup')
+def signup():
+    return render_template("signup.html")
 
 if __name__ == "__main__":
     app.run(debug = True)

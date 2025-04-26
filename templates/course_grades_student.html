@@ -14,8 +14,8 @@
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
-      <a href="#">About Us</a>
-      <a href="#">Quick Tutorial</a>
+      <a href="{{url_for('about')}}">About Us</a>
+      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
       <div class="notification-icon">
         <i class="fas fa-bell" style="font-size: 18px;"></i>
         <div class="notification-badge">0</div>
@@ -27,7 +27,7 @@
     <div class="profile-pic">
       <i class="far fa-smile" style="font-size: 24px;"></i>
     </div>
-    <div class="profile-name">Name Surname</div>
+    <div class="profile-name">{{current_user.first_name}} {{current_user.last_name}}</div>
   </div>
 
   <div class="grades-table">

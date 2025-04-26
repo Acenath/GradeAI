@@ -17,8 +17,8 @@
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
-      <a href="#">About Us</a>
-      <a href="#">Quick Tutorial</a>
+      <a href="{{url_for('about')}}">About Us</a>
+      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
       <div class="user-circle">
         <i class="fas fa-user"></i>
       </div>
@@ -31,10 +31,10 @@
       <i class="fas fa-user" style="font-size: 40px;"></i>
     </div>
     <div class="profile-info">
-      <h2>Welcome Name Surname!</h2>
+      <h2>Welcome {{current_user.first_name}} {{current_user.last_name}}!</h2>
       <div class="profile-links">
-        <a href="#">Profile</a>
-        <a href="#">Log Out</a>
+        <a href="{{url_for('profile_student')}}">Profile</a>
+        <a href="{{url_for('logout')}}">Log Out</a>
       </div>
     </div>
   </div>
@@ -44,6 +44,7 @@
     <!-- Left Side - Lectures -->
     <div class="lectures-container">
       <div class="lecture-cards">
+
         <!-- Lecture Card 1 -->
         <div class="lecture-card">
           <div class="lecture-header">XXXX</div>

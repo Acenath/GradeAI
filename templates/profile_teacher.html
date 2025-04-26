@@ -14,8 +14,8 @@
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
-      <a href="#">About Us</a>
-      <a href="#">Quick Tutorial</a>
+      <a href="url_for('about')">About Us</a>
+      <a href="url_for('tutorial')"">Quick Tutorial</a>
 
     </div>
   </div>
@@ -27,7 +27,7 @@
         <i class="fas fa-pencil-alt"></i>
       </a>
     </div>
-    <div class="profile-name">Name Surname</div>
+    <div class="profile-name">{{current_user.first_name}} {{current_user.last_name}}</div>
   </div>
 
   <!-- Inside <body> -->
@@ -37,12 +37,12 @@
       <div class="info-card">
         <div class="info-title">
           Mail Address
-          <a href="#" class="edit-button" title="Edit Email">
+          <a href="url_for('edit_mail')" class="edit-button" title="Edit Email">
             <i class="fas fa-pencil-alt"></i>
           </a>
         </div>
         <div class="info-content">
-          mail@mail.com
+          {{current_user.email}}
         </div>
       </div>
     </div>

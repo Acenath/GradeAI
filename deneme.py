@@ -1,2 +1,1 @@
-import os
-print(os.environ.get("SECRET_KEY"))
+print(type(int.from_bytes(b'\x00')))

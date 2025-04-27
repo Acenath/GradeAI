@@ -1,10 +1,25 @@
 import datetime
 from hashlib import sha256
+import csv
 
+def enroll_students(cursor, student_csv_file, class_id):
+    with open(student_csv_file, "r") as f:
+        student_rows = csv.reader(f)
+        for row in student_rows:
+            student_id = row[0]
+            if register_positive(cursor, "_", student_id):
+                cursor.execute(''' INSERT INTO Enrollment (enrollment_id, enrolled_at, class_id, student_id)
+                           VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))
+            
+
+def create_class(cursor, course_code, course_name, teacher_id):
+    cursor.execute('''INSERT INTO Class (class_id, name, created_at, teacher_id) 
+                   VALUES (%s, %s, %s, %s)''', (course_code, course_name, datetime.datetime.now(), teacher_id))
+    
 def hash_password(password):
     return sha256(password.encode("utf-8")).hexdigest()
 
-def role_parser(email): # 21SOFT1028@isikun.edu.tr
+def role_parser(email): 
     return email.split("@")[1].split(".")[0][-1: -3: -1] == "nu" # its "un" actually but in reverse you can add [::-1] to make it normal
     
 def register_positive(cursor, email, user_id):

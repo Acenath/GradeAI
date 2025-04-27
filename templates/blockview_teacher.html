@@ -6,7 +6,7 @@
   <title>Gradia - CSV Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel = "stylesheet" type = "text/css" href = "{{ url_for('static', filename = 'css/blockview_teacher.css') }}" /> 
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/blockview_teacher.css') }}" /> 
 </head>
 <body>
   <!-- Navbar -->
@@ -16,94 +16,101 @@
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
-      <a href="{{url_for('about')}}">About Us</a>
-      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+      <a href="{{ url_for('about') }}">About Us</a>
+      <a href="{{ url_for('tutorial') }}">Quick Tutorial</a>
     </div>
   </div>
 
-  <!-- Course Section -->
-  <div class="course-section">
-    <div class="course-header">
-      Course Name / Code
-      <div class="course-inputs">
-        <input type="text" class="course-name-input">
-        / 
-        <input type="text" class="course-code-input">
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Content -->
-  <div class="main-content">
-    <!-- Upload Section -->
-    <div class="upload-section">
-      <h3 class="upload-heading">Upload CSV File</h3>
-      <div class="upload-button">
-        <i class="fas fa-plus"></i>
+  <!-- Wrap everything important inside the form -->
+  <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data">
+    
+    <!-- Course Section -->
+    <div class="course-section">
+      <div class="course-header">
+        Course Name / Code
+        <div class="course-inputs">
+          <input type="text" class="course-name-input" name="course_name" required>
+          / 
+          <input type="text" class="course-code-input" name="course_code" required>
+        </div>
       </div>
     </div>
 
-    <!-- Student Section -->
-    <div class="student-section">
-      <div class="search-bar">
-        <span class="search-label">Search</span>
-        <input type="text" class="search-input" placeholder="search">
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Upload Section -->
+      <div class="upload-section">
+        <h3 class="upload-heading">Upload CSV File</h3>
+
+        <!-- Visible File Upload -->
+        <input type="file" id="fileInput" name="fileInput" accept=".csv" required />
+        
+        <div class="upload-button" id="uploadBtn">
+          <i class="fas fa-plus"></i>
+        </div>
       </div>
 
-      <table class="student-table">
-        <thead>
-          <tr>
-            <th>Student No</th>
-            <th>Student Name</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>21SOFT1013</td>
-            <td>Cansu Zeynep Kars</td>
-            <td>
-              <div class="add-button">
-                <i class="fas fa-plus"></i>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td>21SOFT1032</td>
-            <td>Ece Başra Ökvelek</td>
-            <td>
-              <div class="add-button">
-                <i class="fas fa-plus"></i>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td>21SOFT1028</td>
-            <td>Orhan Murat Tuncer</td>
-            <td>
-              <div class="add-button">
-                <i class="fas fa-plus"></i>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-          <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-          <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+      <script>
+        const uploadButton = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadButton.addEventListener('click', () => {
+          fileInput.click(); // This opens the file picker
+        });
+
+        fileInput.addEventListener('change', (event) => {
+          const file = event.target.files[0];
+          if (file) {
+            console.log('Selected file:', file.name);
+          }
+        });
+      </script>
+
+      <!-- Student Section -->
+      <div class="student-section">
+        <div class="search-bar">
+          <span class="search-label">Search</span>
+          <input type="text" class="search-input" placeholder="search">
+        </div>
+
+        <table class="student-table">
+          <thead>
+            <tr>
+              <th>Student No</th>
+              <th>Student Name</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>21SOFT1013</td>
+              <td>Cansu Zeynep Kars</td>
+              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
+            </tr>
+            <tr>
+              <td>21SOFT1032</td>
+              <td>Ece Başra Ökvelek</td>
+              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
+            </tr>
+            <tr>
+              <td>21SOFT1028</td>
+              <td>Orhan Murat Tuncer</td>
+              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
+            </tr>
+            <!-- empty rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="create-button-section" style="text-align: center; margin-top: 20px;">
+        <button type="submit" class="btn btn-primary" style="padding: 10px 20px; font-size: 18px;">
+          Create
+        </button>
+      </div>
+    </div> <!-- main-content -->
+    
+  </form> <!-- end of form -->
+
 </body>
 </html>

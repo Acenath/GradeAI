@@ -7,7 +7,7 @@ from classes import *
 import os
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"#os.environ.get("SECRET_KEY")
 #Login
 login_manager = LoginManager()
 
@@ -48,9 +48,9 @@ def login():
         update_last_login(cursor, email, password)
         gradeai_db.connection.commit()
         cursor.close()
-        curr_user = User(*user_tuple[0][0: 5]) # password should be denied
+        curr_user = User(*user_tuple[0][0: 5]) # password should be ignored
         login_user(curr_user)
-        if user_tuple[0][5] == 1:
+        if int.from_bytes(user_tuple[0][5]) == 1: # in DB it is stored in bits
             del user_tuple
             return redirect(url_for("teacher_dashboard"))
         
@@ -106,10 +106,24 @@ def tutorial():
 def about():
     return render_template("aboutus.html")
 
-@app.route('/blockview_teacher')
+@app.route('/blockview_teacher', methods = ["GET", "POST"])
 @login_required
 def blockview_teacher():
-    return render_template("blockview_teacher.html")
+    if request.method == "POST":
+        csv_dir = "/home/oran/Desktop/gradeai/csv_files/example.csv"
+        cursor = gradeai_db.connection.cursor()
+        course_name = request.form["course_name"]
+        course_code = request.form["course_code"]
+        student_csv_file = request.files.get("fileInput")
+        student_csv_file.save(csv_dir)
+        create_class(cursor, course_code, course_name, current_user.user_id)
+        enroll_students(cursor, csv_dir, course_code)
+        gradeai_db.connection.commit()
+        cursor.close()
+        return redirect(url_for("teacher_dashboard"))
+
+    else:
+        return render_template("blockview_teacher.html")
 
 @app.route('/student_dashboard')
 @login_required
@@ -141,7 +155,7 @@ def announcement_view_student():
 def announcement_view_teacher():
     return render_template("announcement_view_teacher.html")
 
-@app.route('/assignment_creation')
+@app.route('/assignment_creation', methods = ["GET", "POST"])
 @login_required
 def assignment_creation():
     return render_template("assignment_creation.html")

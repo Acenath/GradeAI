@@ -14,11 +14,12 @@
   <div class="nav-bar">
     <div class="nav-bar-left">
       <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
-      <strong>Gradia</strong>
+      <a href = "{{url_for('index')}}"> <strong>Gradia</strong> </a> 
     </div>
     <div class="nav-links">
       <a href="{{url_for('about')}}">About Us</a>
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+      <a href ="{{url_for('student_dashboard')}}"> Courses </a>
       <div class="user-circle">
         <i class="fas fa-user"></i>
       </div>
@@ -35,6 +36,7 @@
       <div class="profile-links">
         <a href="{{url_for('profile_student')}}">Profile</a>
         <a href="{{url_for('logout')}}">Log Out</a>
+        
       </div>
     </div>
   </div>

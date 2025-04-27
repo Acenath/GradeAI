@@ -36,121 +36,93 @@
     </div>
   </div>
 
-  <!-- Main Dashboard -->
-  <div class="dashboard">
-    <!-- Left Side - Lectures -->
-    <div class="lectures-container">
-      <div class="lecture-cards">
-        <!-- Lecture Card 1 -->
+<!-- Dashboard Section -->
+<div class="dashboard">
+  <!-- Lectures Container -->
+  <div class="lectures-container">
+    <div class="lecture-cards">
+      {% for course in courses %}
         <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
+          <a href="{{ url_for('assignment_creation', course_code=course[2]) }}" class="course-link">
+            <div class="lecture-card-header">
+              <h3>{{ course[1] }}</h3>
+              <span class="course-code">{{ course[2] }}</span>
+            </div>
+            <div class="lecture-card-content">
+              <div class="course-stats">
+                <span><i class="fas fa-users"></i> Students: {{ course[4]|default(0) }}</span>
+                <span><i class="fas fa-book"></i> Lectures: {{ course[5]|default(0) }}</span>
+              </div>
+            </div>
+          </a>
         </div>
-
-        <!-- Lecture Card 2 -->
-        <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
+      {% else %}
+        <div class="no-courses">
+          <p>No courses available.</p>
+          <p>Click the + button to create a new course.</p>
         </div>
+      {% endfor %}
+    </div>
 
-        <!-- Lecture Card 3 -->
-        <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Add Button -->
-      <div class="add-button">
-        <a href = "{{url_for('blockview_teacher')}}">
+    <!-- Add Button -->
+    <div class="add-button">
+      <a href="{{url_for('blockview_teacher')}}">
         <i class="fas fa-plus"></i>
       </a>
-      </div>
-    </div>
-
-    <!-- Right Side - Sidebar -->
-    <div class="sidebar">
-      <!-- Deadlines Section -->
-      <div class="sidebar-section">
-        <h3>Deadlines</h3>
-
-        <!-- Deadline Item 1 -->
-        <a href="#" class="deadline-item">
-          <div class="deadline-icon">
-            <i class="far fa-file-alt" style="font-size: 24px;"></i>
-          </div>
-          <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date">Monday, 15th 2025</div>
-          </div>
-        </a>
-
-        <!-- Deadline Item 2 -->
-        <a href="#" class="deadline-item">
-          <div class="deadline-icon">
-            <i class="far fa-file-alt" style="font-size: 24px;"></i>
-          </div>
-          <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date"><i class="far fa-calendar"></i></div>
-          </div>
-        </a>
-
-        <!-- Deadline Item 3 -->
-        <a href="#" class="deadline-item">
-          <div class="deadline-icon">
-            <i class="far fa-file-alt" style="font-size: 24px;"></i>
-          </div>
-          <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date"><i class="far fa-calendar"></i></div>
-          </div>
-        </a>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Feedback Section -->
-      <div class="sidebar-section">
-        <h3>Feedback</h3>
-
-        <!-- Feedback Item -->
-        <a href="#" class="feedback-item">
-          <div class="feedback-icon">
-            <i class="far fa-user-circle" style="font-size: 24px;"></i>
-          </div>
-          <div class="feedback-info">
-            <div>***** ***** *****</div>
-            <div class="date">Monday, 12th 2025</div>
-          </div>
-        </a>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Announcement Section -->
-      <div class="sidebar-section">
-        <h3>Announcement</h3>
-
-        <!-- Announcement Item -->
-        <a href="#" class="announcement-item">
-          <div class="announcement-icon">
-            <i class="far fa-user-circle" style="font-size: 24px;"></i>
-          </div>
-          <div class="announcement-info">
-            <div>***** ***** *****</div>
-            <div>***** *****</div>
-            <div class="date">Monday, 10th 2025</div>
-          </div>
-        </a>
-      </div>
     </div>
   </div>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <!-- Deadlines Section -->
+    <div class="sidebar-section">
+      <h3>Deadlines</h3>
+      <a href="#" class="deadline-item">
+        <div class="deadline-icon">
+          <i class="far fa-file-alt" style="font-size: 24px;"></i>
+        </div>
+        <div class="deadline-info">
+          <div>***** ***** *****</div>
+          <div class="date">Monday, 15th 2025</div>
+        </div>
+      </a>
+      <!-- More deadlines... -->
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Feedback Section -->
+    <div class="sidebar-section">
+      <h3>Feedback</h3>
+      <a href="#" class="feedback-item">
+        <div class="feedback-icon">
+          <i class="far fa-user-circle" style="font-size: 24px;"></i>
+        </div>
+        <div class="feedback-info">
+          <div>***** ***** *****</div>
+          <div class="date">Monday, 12th 2025</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Announcement Section -->
+    <div class="sidebar-section">
+      <h3>Announcement</h3>
+      <a href="#" class="announcement-item">
+        <div class="announcement-icon">
+          <i class="far fa-user-circle" style="font-size: 24px;"></i>
+        </div>
+        <div class="announcement-info">
+          <div>***** ***** *****</div>
+          <div>***** *****</div>
+          <div class="date">Monday, 10th 2025</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+</div> <!-- End of Dashboard -->
+
 </body>
 </html>

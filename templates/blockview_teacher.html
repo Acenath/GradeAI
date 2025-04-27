@@ -6,7 +6,7 @@
   <title>Gradia - CSV Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/blockview_teacher.css') }}" /> 
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/blockview_teacher.css') }}" />
 </head>
 <body>
   <!-- Navbar -->
@@ -23,14 +23,14 @@
 
   <!-- Wrap everything important inside the form -->
   <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data">
-    
+
     <!-- Course Section -->
     <div class="course-section">
       <div class="course-header">
         Course Name / Code
         <div class="course-inputs">
           <input type="text" class="course-name-input" name="course_name" required>
-          / 
+          /
           <input type="text" class="course-code-input" name="course_code" required>
         </div>
       </div>
@@ -38,79 +38,170 @@
 
     <!-- Main Content -->
     <div class="main-content">
-      <!-- Upload Section -->
-      <div class="upload-section">
-        <h3 class="upload-heading">Upload CSV File</h3>
+      <!-- Student Management Section -->
+      <div class="student-management">
+        <!-- Add Student Section -->
+        <div class="add-student-section">
+          <h3 class="section-heading">Add New Student</h3>
+          <div class="input-group">
+            <label class="input-label">Student Number</label>
+            <input type="text" id="studentNo" class="student-input" placeholder="e.g. 21SOFT1013">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Student Name</label>
+            <input type="text" id="studentName" class="student-input" placeholder="e.g. John Doe">
+          </div>
+          <button type="button" id="addStudentBtn" class="add-student-button">
+            <i class="fas fa-plus"></i> Add Student
+          </button>
 
-        <!-- Visible File Upload -->
-        <input type="file" id="fileInput" name="fileInput" accept=".csv" required />
-        
-        <div class="upload-button" id="uploadBtn">
-          <i class="fas fa-plus"></i>
+          <div class="csv-option">
+            <p>Or upload CSV file</p>
+            <div class="file-input-container">
+              <label for="fileInput" class="file-upload-btn">
+                <i class="fas fa-file-upload"></i> Choose File
+              </label>
+              <input type="file" id="fileInput" name="fileInput" accept=".csv">
+              <span id="fileName">No file chosen</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student List Section -->
+        <div class="student-list-section">
+          <div class="search-bar">
+            <span class="search-label">Search</span>
+            <input type="text" id="searchInput" class="search-input" placeholder="search">
+          </div>
+
+          <table class="student-table">
+            <thead>
+              <tr>
+                <th>Student No</th>
+                <th>Student Name</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody">
+              <!--Students will be added here-->
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <script>
-        const uploadButton = document.getElementById('uploadBtn');
-        const fileInput = document.getElementById('fileInput');
-
-        uploadButton.addEventListener('click', () => {
-          fileInput.click(); // This opens the file picker
-        });
-
-        fileInput.addEventListener('change', (event) => {
-          const file = event.target.files[0];
-          if (file) {
-            console.log('Selected file:', file.name);
-          }
-        });
-      </script>
-
-      <!-- Student Section -->
-      <div class="student-section">
-        <div class="search-bar">
-          <span class="search-label">Search</span>
-          <input type="text" class="search-input" placeholder="search">
-        </div>
-
-        <table class="student-table">
-          <thead>
-            <tr>
-              <th>Student No</th>
-              <th>Student Name</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>21SOFT1013</td>
-              <td>Cansu Zeynep Kars</td>
-              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
-            </tr>
-            <tr>
-              <td>21SOFT1032</td>
-              <td>Ece Başra Ökvelek</td>
-              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
-            </tr>
-            <tr>
-              <td>21SOFT1028</td>
-              <td>Orhan Murat Tuncer</td>
-              <td><div class="add-button"><i class="fas fa-plus"></i></div></td>
-            </tr>
-            <!-- empty rows -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Submit Button -->
-      <div class="create-button-section" style="text-align: center; margin-top: 20px;">
-        <button type="submit" class="btn btn-primary" style="padding: 10px 20px; font-size: 18px;">
+      <!-- Create Button - Now below all content -->
+      <div class="create-button-section">
+        <button type="submit" class="create-button">
           Create
         </button>
       </div>
+
+      <!-- Hidden input to store student data -->
+      <input type="hidden" id="studentsData" name="studentsData" value="">
     </div> <!-- main-content -->
-    
+
   </form> <!-- end of form -->
 
+  <script>
+    // Function to add a new student to the table
+    function addStudent() {
+      const studentNo = document.getElementById('studentNo').value.trim();
+      const studentName = document.getElementById('studentName').value.trim();
+
+      // Validate inputs
+      if (studentNo === '' || studentName === '') {
+        alert('Please enter both student number and name');
+        return;
+      }
+
+      // Create a new row
+      const tableBody = document.getElementById('studentTableBody');
+      const newRow = document.createElement('tr');
+
+      // Build the row content
+      newRow.innerHTML = `
+        <td>${studentNo}</td>
+        <td>${studentName}</td>
+        <td>
+          <div class="remove-button" onclick="removeStudent(this)">
+            <i class="fas fa-times"></i>
+          </div>
+        </td>
+      `;
+
+      // Add the row to the table
+      tableBody.appendChild(newRow);
+
+      // Clear the input fields
+      document.getElementById('studentNo').value = '';
+      document.getElementById('studentName').value = '';
+
+      // Update the hidden input with student data
+      updateStudentsData();
+    }
+
+    // Function to remove a student
+    function removeStudent(button) {
+      const row = button.closest('tr');
+      row.remove();
+
+      // Update the hidden input with student data
+      updateStudentsData();
+    }
+
+    // Function to update the hidden input with all student data
+    function updateStudentsData() {
+      const tableBody = document.getElementById('studentTableBody');
+      const rows = tableBody.querySelectorAll('tr');
+      const studentsData = [];
+
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        studentsData.push({
+          studentNo: cells[0].textContent,
+          studentName: cells[1].textContent
+        });
+      });
+
+      document.getElementById('studentsData').value = JSON.stringify(studentsData);
+    }
+
+    // Function to filter students based on search
+    function searchStudents() {
+      const searchValue = document.getElementById('searchInput').value.toLowerCase();
+      const tableRows = document.getElementById('studentTableBody').querySelectorAll('tr');
+
+      tableRows.forEach(row => {
+        const studentNo = row.cells[0].textContent.toLowerCase();
+        const studentName = row.cells[1].textContent.toLowerCase();
+
+        if (studentNo.includes(searchValue) || studentName.includes(searchValue)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Event listener for the add student button
+    document.getElementById('addStudentBtn').addEventListener('click', addStudent);
+
+    // Event listener for the search input
+    document.getElementById('searchInput').addEventListener('input', searchStudents);
+
+    // File input handling
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('fileName').textContent = file.name;
+
+        // Here you could add code to parse the CSV and add students automatically
+        // This would require a CSV parsing library or custom implementation
+        console.log('Selected file:', file.name);
+      } else {
+        document.getElementById('fileName').textContent = 'No file chosen';
+      }
+    });
+  </script>
 </body>
 </html>

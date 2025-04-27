@@ -1,54 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gradia LMS - Teacher View</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_teacher.css') }}">
-</head>
-<body>
-    <div class="header">
-        <div class="d-flex align-items-center">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
-            <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-            <strong> Gradia</strong>
-        </div>
-        <div class="navigation">
-            <a href="{{url_for('about')}}">About Us</a>
-            <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-        </div>
+{% extends "teacher_course_base.html" %}
+
+{% block title %}Announcements - Gradia{% endblock %}
+
+{% block page_title %}Announcements{% endblock %}
+
+{% block content %}
+<div class="announcements-container">
+    <!-- Create New Announcement Button -->
+    <div class="create-announcement">
+        <button class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New Announcement
+        </button>
     </div>
-    <div class="divider"></div>
-    <div class="content">
-        <div class="sidebar">
-            <a href="#">Homework</a>
-            <a href="#">Announcement</a>
+
+    <!-- Announcements List -->
+    <div class="announcements-list">
+        <!-- Example announcement items -->
+        <div class="announcement-item">
+            <div class="announcement-header">
+                <h4>Assignment Deadline Extended</h4>
+                <span class="announcement-date">Posted: March 15, 2024</span>
+            </div>
+            <div class="announcement-content">
+                <p>Due to technical difficulties, the deadline for Assignment 1 has been extended to March 20, 2024. Please make sure to submit your work before the new deadline.</p>
+            </div>
+            <div class="announcement-footer">
+                <button class="btn btn-secondary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+            </div>
         </div>
-        <div class="main-content">
-            <h1 class="page-title">Course Name / Announcement</h1>
-            <div class="announcement-container">
-                <div class="announcement">
-                    <div class="announcement-title">
-                        <span class="icon">📝</span>Announcement - 1
-                    </div>
-                    <p class="announcement-desc">This is the description part.</p>
-                </div>
-                <div class="announcement">
-                    <div class="announcement-title">
-                        <span class="icon">📝</span>Announcement - 2
-                    </div>
-                    <p class="announcement-desc">This is the description part.</p>
-                </div>
-                <div class="announcement">
-                    <div class="announcement-title">
-                        <span class="icon">📝</span>Announcement - 3
-                    </div>
-                    <p class="announcement-desc">This is the description part.</p>
-                </div>
-                <div class="add-button">+</div>
+
+        <div class="announcement-item">
+            <div class="announcement-header">
+                <h4>New Course Material Available</h4>
+                <span class="announcement-date">Posted: March 14, 2024</span>
+            </div>
+            <div class="announcement-content">
+                <p>New course materials for Week 5 have been uploaded. Please review them before the next class.</p>
+            </div>
+            <div class="announcement-footer">
+                <button class="btn btn-secondary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

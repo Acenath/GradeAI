@@ -81,6 +81,15 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    overflow: hidden;
+  }
+  .lecture-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
   .lecture-header {
     padding: 5px;
@@ -137,4 +146,48 @@ body {
     height: 1px;
     background-color: #000;
     margin: 20px 0;
+  }
+  .course-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+  }
+  .lecture-card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  .lecture-card-header h3 {
+    margin: 0;
+    color: #333;
+  }
+  .course-code {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #f0f0f0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
+  }
+  .lecture-card-content {
+    padding: 1.5rem;
+  }
+  .lecture-card-content p {
+    margin: 0 0 1rem 0;
+    color: #666;
+  }
+  .course-stats {
+    display: flex;
+    gap: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+  }
+  .course-stats span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .course-stats i {
+    color: #007bff;
   }

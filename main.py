@@ -1,10 +1,12 @@
-from flask import Flask, render_template, url_for, request, session, redirect
+from flask import Flask, render_template, url_for, request, session, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_mysqldb import MySQL
 from flask_login import *
 from helpers import *
 from classes import *
 import os
+import json
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"#os.environ.get("SECRET_KEY")
@@ -106,24 +108,51 @@ def tutorial():
 def about():
     return render_template("aboutus.html")
 
-@app.route('/blockview_teacher', methods = ["GET", "POST"])
+@app.route('/blockview_teacher', methods=["GET", "POST"])
 @login_required
 def blockview_teacher():
     if request.method == "POST":
-        csv_dir = "/home/oran/Desktop/gradeai/csv_files/example.csv"
         cursor = gradeai_db.connection.cursor()
-        course_name = request.form["course_name"]
-        course_code = request.form["course_code"]
+        course_name = request.form.get("course_name")
+        course_code = request.form.get("course_code")
         student_csv_file = request.files.get("fileInput")
-        student_csv_file.save(csv_dir)
+        students_data = request.form.get("studentsData")
+
         create_class(cursor, course_code, course_name, current_user.user_id)
-        enroll_students(cursor, csv_dir, course_code)
+        
+        if student_csv_file:
+            uploads_folder = "/home/oran/Desktop/gradeai/csv_files/"
+            os.makedirs(uploads_folder, exist_ok=True)  # Make sure folder exists
+            filename = secure_filename(student_csv_file.filename)
+            csv_path = os.path.join(uploads_folder, filename)
+            student_csv_file.save(csv_path)
+
+            enroll_students(cursor, csv_path, course_code)
+        elif students_data:
+            try:
+                students = json.loads(students_data)
+                for student in students:
+                    cursor.execute(
+                        "INSERT INTO student (student_id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = %s",
+                        (student['studentNo'], student['studentName'], student['studentName'])
+                    )
+                    cursor.execute(
+                        "INSERT INTO enrollment (student_id, course_code) VALUES (%s, %s)",
+                        (student['studentNo'], course_code)
+                    )
+            except json.JSONDecodeError:
+                flash("Error processing student data", "error")
+                return redirect(url_for("blockview_teacher"))
+        else:
+            flash("No students added!", "error")
+            return redirect(url_for("blockview_teacher"))
+
         gradeai_db.connection.commit()
         cursor.close()
+
         return redirect(url_for("teacher_dashboard"))
 
-    else:
-        return render_template("blockview_teacher.html")
+    return render_template("blockview_teacher.html")
 
 @app.route('/student_dashboard')
 @login_required
@@ -133,7 +162,12 @@ def student_dashboard():
 @app.route('/teacher_dashboard')
 @login_required
 def teacher_dashboard():
-    return render_template("teacher_dashboard.html")
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute("SELECT * FROM class WHERE teacher_id = %s", (current_user.user_id,))
+    courses = cursor.fetchall()
+    cursor.close()
+    return render_template("teacher_dashboard.html", courses=courses)
+
 
 @app.route('/announcement_student')
 @login_required

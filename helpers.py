@@ -2,15 +2,35 @@ import datetime
 from hashlib import sha256
 import csv
 
-def enroll_students(cursor, student_csv_file, class_id):
+def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
+    for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
+        create_rubric(cursor, f"rubric_{fold}", rubric_val, rubric_desc, user_id, class_id, assignment_title)
+
+def create_rubric(cursor, name, score, description, created_by, class_id, assignment_title):
+    cursor.execute('''INSERT INTO Rubric (rubric_id, name, score, description, created_at, created_by)
+                   VALUES (%s, %s, %s, %s, %s, %s)''', (f"{class_id}_{assignment_title}", name, score, description, datetime.datetime.now(), created_by))
+
+def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
+    assignment_id = f"{class_id}_{assignment_title}"
+    cursor.execute(''' INSERT INTO Assignment (assignment_id, title, description, deadline, class_id, total_score) 
+                   VALUES (%s, %s, %s, %s, %s, %s)''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
+
+def fetch_classes(cursor, user_id):
+    cursor.execute("SELECT * FROM Class WHERE teacher_id = %s", (user_id,))
+    courses = cursor.fetchall()
+    return courses
+
+def enroll_students(cursor, student_id, class_id):
+    cursor.execute(''' INSERT INTO Enrollment (enrollment_id, enrolled_at, class_id, student_id)
+                           VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))
+
+def csv_to_enroll(cursor, student_csv_file, class_id):
     with open(student_csv_file, "r") as f:
         student_rows = csv.reader(f)
         for row in student_rows:
             student_id = row[0]
             if register_positive(cursor, "_", student_id):
-                cursor.execute(''' INSERT INTO Enrollment (enrollment_id, enrolled_at, class_id, student_id)
-                           VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))
-            
+                enroll_students(cursor, student_id, class_id)            
 
 def create_class(cursor, course_code, course_name, teacher_id):
     cursor.execute('''INSERT INTO Class (class_id, name, created_at, teacher_id) 

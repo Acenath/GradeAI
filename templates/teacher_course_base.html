@@ -18,7 +18,7 @@
                     <h3>{{ course_code }}</h3>
                 </div>
                 <div class="sidebar-menu">
-                    <a href="{{ url_for('assignment_creation', course_code=course_code) }}" 
+                    <a href="{{ url_for('assignment_creation', course_name=course_name, course_id = course_code) }}" 
                        class="menu-item {% if request.endpoint == 'assignment_creation' %}active{% endif %}">
                         <i class="fas fa-tasks"></i>
                         <span>Assignments</span>

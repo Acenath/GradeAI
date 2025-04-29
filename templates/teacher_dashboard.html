@@ -43,15 +43,14 @@
     <div class="lecture-cards">
       {% for course in courses %}
         <div class="lecture-card">
-          <a href="{{ url_for('assignment_creation', course_code=course[2]) }}" class="course-link">
+          <a href="{{ url_for('assignment_creation', course_name = course[1], course_id = course[0]) }}" class="course-link">
             <div class="lecture-card-header">
-              <h3>{{ course[1] }}</h3>
-              <span class="course-code">{{ course[2] }}</span>
+              <h3>{{ course[0] }}</h3>
+              <span class="course-name">{{ course[1] }}</span>
             </div>
             <div class="lecture-card-content">
               <div class="course-stats">
                 <span><i class="fas fa-users"></i> Students: {{ course[4]|default(0) }}</span>
-                <span><i class="fas fa-book"></i> Lectures: {{ course[5]|default(0) }}</span>
               </div>
             </div>
           </a>

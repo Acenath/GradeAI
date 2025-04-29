@@ -113,33 +113,30 @@ def about():
 def blockview_teacher():
     if request.method == "POST":
         cursor = gradeai_db.connection.cursor()
+        DIR = "/home/oran/Desktop/gradeai/csv_files/example.csv"
         course_name = request.form.get("course_name")
         course_code = request.form.get("course_code")
         student_csv_file = request.files.get("fileInput")
+        
         students_data = request.form.get("studentsData")
 
         create_class(cursor, course_code, course_name, current_user.user_id)
         
         if student_csv_file:
-            uploads_folder = "/home/oran/Desktop/gradeai/csv_files/"
-            os.makedirs(uploads_folder, exist_ok=True)  # Make sure folder exists
-            filename = secure_filename(student_csv_file.filename)
-            csv_path = os.path.join(uploads_folder, filename)
-            student_csv_file.save(csv_path)
+            student_csv_file.save(DIR)
+            csv_to_enroll(cursor, DIR, course_code)
+            gradeai_db.connection.commit()
 
-            enroll_students(cursor, csv_path, course_code)
-        elif students_data:
+        if students_data:
             try:
                 students = json.loads(students_data)
                 for student in students:
-                    cursor.execute(
-                        "INSERT INTO student (student_id, name) VALUES (%s, %s) ON DUPLICATE KEY UPDATE name = %s",
-                        (student['studentNo'], student['studentName'], student['studentName'])
-                    )
-                    cursor.execute(
-                        "INSERT INTO enrollment (student_id, course_code) VALUES (%s, %s)",
-                        (student['studentNo'], course_code)
-                    )
+                    if register_positive(cursor, "_", student["studentNo"]):
+                        enroll_students(cursor, student["studentNo"], course_code)
+
+                    else:
+                        flash("User with id {} doesn't exist!".format(student["studentNo"]))
+
             except json.JSONDecodeError:
                 flash("Error processing student data", "error")
                 return redirect(url_for("blockview_teacher"))
@@ -163,8 +160,7 @@ def student_dashboard():
 @login_required
 def teacher_dashboard():
     cursor = gradeai_db.connection.cursor()
-    cursor.execute("SELECT * FROM class WHERE teacher_id = %s", (current_user.user_id,))
-    courses = cursor.fetchall()
+    courses = fetch_classes(cursor, current_user.user_id)
     cursor.close()
     return render_template("teacher_dashboard.html", courses=courses)
 
@@ -189,10 +185,34 @@ def announcement_view_student():
 def announcement_view_teacher():
     return render_template("announcement_view_teacher.html")
 
-@app.route('/assignment_creation', methods = ["GET", "POST"])
+@app.route('/assignment_creation/<course_name>/<course_id>', methods=["GET", "POST"])
 @login_required
-def assignment_creation():
-    return render_template("assignment_creation.html")
+def assignment_creation(course_name, course_id):
+    if request.method == "POST":
+        cursor = gradeai_db.connection.cursor()
+        assignment_title = request.form.get("title")
+        assignment_desc = request.form.get("description")
+        assignment_files = request.files.getlist("attachments")
+
+        os.makedirs("/home/oran/Desktop/gradeai/assignment_files/{}".format(course_id), exist_ok = True)
+        print(assignment_files)
+        for course_file in assignment_files:
+            print(course_file.name)
+            course_file.save("/home/oran/Desktop/gradeai/assignment_files/{}/{}".format(course_id, course_file.name))
+
+
+        deadline = request.form.get("Date")
+        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist("rubric_values[]")
+        total_score = sum([int(i) for i in rubric_vals])
+
+        create_assignment(cursor, assignment_title, assignment_desc, deadline, course_id, total_score)
+        zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_id, assignment_title)
+        
+        gradeai_db.connection.commit()
+        cursor.close()
+        return render_template("assignment_creation.html", course_name=course_name, course_id = course_id)
+    else:
+        return render_template("assignment_creation.html", course_name=course_name, course_id = course_id)
 
 @app.route('/assignment_feedback_teacher')
 @login_required

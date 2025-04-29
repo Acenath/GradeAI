@@ -1,1 +1,0 @@
-print(type(int.from_bytes(b'\x00')))

@@ -1,0 +1,31 @@
+{% extends "teacher_course_base.html" %}
+
+{% block title %}Create Feedback - Gradia{% endblock %}
+
+{% block page_title %}Create Feedback{% endblock %}
+
+{% block content %}
+<form action="{{ url_for('create_feedback') }}" method="POST" enctype="multipart/form-data">
+    <div class="form-group mb-3">
+        <label for="studentName">Student Name</label>
+        <input type="text" class="form-control" id="studentName" name="studentName" placeholder="Enter student name" required>
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="assignmentTitle">Assignment Title</label>
+        <input type="text" class="form-control" id="assignmentTitle" name="assignmentTitle" placeholder="Enter assignment title" required>
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="feedbackDescription">Feedback Description</label>
+        <textarea class="form-control" id="feedbackDescription" name="feedbackDescription" rows="5" placeholder="Write your feedback here..." required></textarea>
+    </div>
+
+    <div class="form-group mb-3">
+        <label for="attachment">Attach File (optional)</label>
+        <input type="file" class="form-control" id="attachment" name="attachment">
+    </div>
+
+    <button type="submit" class="btn btn-success">Create Feedback</button>
+</form>
+{% endblock %}

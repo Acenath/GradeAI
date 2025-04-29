@@ -1,10 +1,21 @@
 import datetime
 from hashlib import sha256
 import csv
+import os
+#VARIABLES
+STUDENT_LIST_DIR = "/home/oran/Desktop/gradeai/csv_files/student_list.csv"
+ASSIGNMENT_FILES_DIR = "/home/oran/Desktop/gradeai/assignment_files"
+
+#FUNCTIONS
+
+def save_files(assignment_files, course_id, assignment_title):
+    os.makedirs(ASSIGNMENT_FILES_DIR + "/{}/{}".format(course_id, assignment_title), exist_ok = True)
+    for course_file in assignment_files:
+        course_file.save(ASSIGNMENT_FILES_DIR + "/{}/{}/{}".format(course_id, assignment_title, course_file.filename))
 
 def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
     for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
-        create_rubric(cursor, f"rubric_{fold}", rubric_val, rubric_desc, user_id, class_id, assignment_title)
+        create_rubric(cursor, f"{assignment_title}_rubric_{fold}", rubric_val, rubric_desc, user_id, class_id, assignment_title)
 
 def create_rubric(cursor, name, score, description, created_by, class_id, assignment_title):
     cursor.execute('''INSERT INTO Rubric (rubric_id, name, score, description, created_at, created_by)
@@ -24,8 +35,8 @@ def enroll_students(cursor, student_id, class_id):
     cursor.execute(''' INSERT INTO Enrollment (enrollment_id, enrolled_at, class_id, student_id)
                            VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))
 
-def csv_to_enroll(cursor, student_csv_file, class_id):
-    with open(student_csv_file, "r") as f:
+def csv_to_enroll(cursor, csv_dir, class_id):
+    with open(csv_dir, "r") as f:
         student_rows = csv.reader(f)
         for row in student_rows:
             student_id = row[0]

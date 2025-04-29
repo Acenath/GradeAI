@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Announcement Detail</title>
+  <title>Gradia - Create Announcement</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_view_teacher.css') }}">
@@ -23,46 +23,32 @@
 
   <!-- Content Container -->
   <div class="content-container">
-    <div class="page-title">Course Name / Announcement</div>
+    <div class="page-title">Create New Announcement</div>
 
-    <div class="description-section">
-      <div class="section-title">Description</div>
-      <div class="description-text">
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-        <br><br>
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-        <br><br>
-        Ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium.
-        <br><br>
-        Ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-        <br><br>
-        Ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium.
-      </div>
-    </div>
-
-    <div class="attachments-section">
-      <div class="section-title">Attachments</div>
-      <div class="attachment-container">
-        <div class="attachment-card">
-          <i class="far fa-file-alt file-icon"></i>
-          <div class="file-text">
-            ***** *****<br>
-            ***** *****
-          </div>
+    <form action="{{ url_for('announcement_view_teacher') }}" method="POST" enctype="multipart/form-data">
+      <div class="description-section">
+        <div class="form-group mb-3">
+          <label for="title" class="section-title">Title</label>
+          <input type="text" class="form-control" id="title" name="title" placeholder="Enter announcement title" required>
         </div>
 
-        <div class="meta-info">
-          <div><strong>Given on</strong></div>
-          <div><i class="far fa-calendar"></i> Monday, 15th 2023</div>
-          <div><strong>Given by</strong></div>
-          <div>Admin</div>
+        <div class="form-group mb-3">
+          <label for="description" class="section-title">Description</label>
+          <textarea class="form-control" id="description" name="description" rows="8" placeholder="Write announcement details..." required></textarea>
         </div>
       </div>
-    </div>
 
-    <div class="button-container">
-      <button class="create-btn">Create Announcement</button>
-    </div>
+      <div class="attachments-section">
+        <div class="section-title">Attachments</div>
+        <div class="form-group mb-3">
+          <input type="file" class="form-control" id="attachment" name="attachment">
+        </div>
+      </div>
+
+      <div class="button-container">
+        <button type="submit" class="create-btn btn btn-success">Create Announcement</button>
+      </div>
+    </form>
   </div>
 </body>
 </html>

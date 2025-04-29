@@ -5,6 +5,10 @@
 {% block page_title %}Feedback{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('create_feedback') }}" class="btn btn-success">Create Feedback</a>
+</div>
+
 <div class="feedback-list">
     <!-- Example feedback items -->
     <div class="feedback-item">

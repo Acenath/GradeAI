@@ -113,7 +113,6 @@ def about():
 def blockview_teacher():
     if request.method == "POST":
         cursor = gradeai_db.connection.cursor()
-        DIR = "/home/oran/Desktop/gradeai/csv_files/example.csv"
         course_name = request.form.get("course_name")
         course_code = request.form.get("course_code")
         student_csv_file = request.files.get("fileInput")
@@ -123,9 +122,20 @@ def blockview_teacher():
         create_class(cursor, course_code, course_name, current_user.user_id)
         
         if student_csv_file:
-            student_csv_file.save(DIR)
-            csv_to_enroll(cursor, DIR, course_code)
+            student_csv_file.save(STUDENT_LIST_DIR)
+            csv_to_enroll(cursor, STUDENT_LIST_DIR, course_code)
             gradeai_db.connection.commit()
+
+        #FIXME CANSU
+        #TODO
+        # First check if user exist
+        # If user exist than show it in the table
+        # Be sure that it works with csv file uploading system properly at the same time
+        # Flash errors are optional
+        # Before chaning any existing function PLEASE CONTROL IT BEFORE CHANGING IT
+        # Be sure of consistency of the HTML file when you are about to changing it
+        # Also check after user wants to remove added student check feature works properly
+        #TODO END
 
         if students_data:
             try:
@@ -143,6 +153,7 @@ def blockview_teacher():
         else:
             flash("No students added!", "error")
             return redirect(url_for("blockview_teacher"))
+        #FIXME end
 
         gradeai_db.connection.commit()
         cursor.close()
@@ -180,31 +191,43 @@ def announcement_teacher():
 def announcement_view_student():
     return render_template("announcement_view_student.html")
 
-@app.route('/announcement_view_teacher')
+
+@app.route('/announcement_view_teacher', methods=["GET", "POST"])
 @login_required
 def announcement_view_teacher():
+    if request.method == "POST":
+        title = request.form.get("title")
+        description = request.form.get("description")
+        attachment = request.files.get("attachment")
+        if attachment:
+            uploads_folder = "static/uploads/"
+            os.makedirs(uploads_folder, exist_ok=True)
+            filename = secure_filename(attachment.filename)
+            attachment.save(os.path.join(uploads_folder, filename))
+
+        #Save the announcement into database
+        #flash("Announcement created successfully!", "success")
+        #return redirect(url_for("announcement_teacher"))  # Go back to announcement list
+
     return render_template("announcement_view_teacher.html")
 
 @app.route('/assignment_creation/<course_name>/<course_id>', methods=["GET", "POST"])
 @login_required
 def assignment_creation(course_name, course_id):
+    #TODO #CANSU
+    # Add needed features such as going back...
+    # After changing HTML files PLEASE BU SURE IT WORKS FINE
+    #TODO END
     if request.method == "POST":
         cursor = gradeai_db.connection.cursor()
         assignment_title = request.form.get("title")
         assignment_desc = request.form.get("description")
         assignment_files = request.files.getlist("attachments")
-
-        os.makedirs("/home/oran/Desktop/gradeai/assignment_files/{}".format(course_id), exist_ok = True)
-        print(assignment_files)
-        for course_file in assignment_files:
-            print(course_file.name)
-            course_file.save("/home/oran/Desktop/gradeai/assignment_files/{}/{}".format(course_id, course_file.name))
-
-
         deadline = request.form.get("Date")
         rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist("rubric_values[]")
         total_score = sum([int(i) for i in rubric_vals])
 
+        save_files(assignment_files, course_id, assignment_title)
         create_assignment(cursor, assignment_title, assignment_desc, deadline, course_id, total_score)
         zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_id, assignment_title)
         
@@ -237,6 +260,13 @@ def assignment_submit_student():
 @app.route('/assignment_view_teacher')
 @login_required
 def assignment_view_teacher():
+    #TODO Cansu
+    # Make sure that assignment files are listed and show properly
+    # Redirect the proper url when clicked on student names or ids 
+    # You are allowed to change HTML file based on your desire
+    # You may add relevant buttons such as going back or you may add table of contens for convinient routing
+    # PLEASE MAKE SURE THAT IT WORKS PROPERLY 
+    #TODO END
     return render_template("assignment_view_teacher.html")
 
 @app.route('/course_grades_student')
@@ -277,6 +307,25 @@ def profile_student():
 @login_required
 def profile_teacher():
     return render_template("profile_teacher.html")
+
+@app.route('/create_feedback', methods=["GET", "POST"])
+@login_required
+def create_feedback():
+    if request.method == "POST":
+        student_name = request.form.get("studentName")
+        assignment_title = request.form.get("assignmentTitle")
+        feedback_description = request.form.get("feedbackDescription")
+        attachment = request.files.get("attachment")
+        if attachment:
+            uploads_folder = "static/uploads/"
+            os.makedirs(uploads_folder, exist_ok=True)
+            filename = secure_filename(attachment.filename)
+            attachment.save(os.path.join(uploads_folder, filename))
+
+       # flash("Feedback created successfully!", "success")
+       # return redirect(url_for("assignment_feedback_teacher"))
+
+    return render_template("create_feedback.html")
 
 if __name__ == "__main__":
     app.run(debug = True)

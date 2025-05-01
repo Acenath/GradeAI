@@ -1,54 +1,107 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Create Announcement</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_view_teacher.css') }}">
-</head>
-<body>
-  <!-- Navbar -->
-  <div class="nav-bar">
-    <div class="logo-container">
-      <i class="fas fa-brain logo-icon" style="font-size: 20px; color: #000;"></i>
-      <strong>Gradia</strong>
+{% extends "teacher_course_base.html" %}
+
+{% block title %}Create Announcement - Gradia{% endblock %}
+
+{% block page_title %}Create New Announcement{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/announcement_view_teacher.css') }}">
+{% endblock %}
+
+{% block content %}
+<form action="{{ url_for('announcement_view_teacher', course_name=course_name, course_code=course_code) }}" method="POST" enctype="multipart/form-data">
+  <div class="description-section">
+    <div class="form-group mb-3">
+      <label for="title" class="section-title">Title</label>
+      <input type="text" class="form-control" id="title" name="title" placeholder="Enter announcement title" required>
     </div>
-    <div class="nav-links">
-      <a href="{{url_for('about')}}">About Us</a>
-      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+
+    <div class="form-group mb-3">
+      <label for="description" class="section-title">Description</label>
+      <textarea class="form-control" id="description" name="description" rows="8" placeholder="Write announcement details..." required></textarea>
     </div>
   </div>
 
-  <!-- Content Container -->
-  <div class="content-container">
-    <div class="page-title">Create New Announcement</div>
+  <!-- Attachments -->
+  <div class="section-box">
+    <div class="section-title">Attachments</div>
 
-    <form action="{{ url_for('announcement_view_teacher') }}" method="POST" enctype="multipart/form-data">
-      <div class="description-section">
-        <div class="form-group mb-3">
-          <label for="title" class="section-title">Title</label>
-          <input type="text" class="form-control" id="title" name="title" placeholder="Enter announcement title" required>
-        </div>
+    <div class="text-center" id="upload-area" style="cursor: pointer; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; background-color: #f9f9f9;">
+      <i class="fas fa-upload fa-2x mb-2"></i>
+      <div>Drag and drop files here or click to upload</div>
+    </div>
 
-        <div class="form-group mb-3">
-          <label for="description" class="section-title">Description</label>
-          <textarea class="form-control" id="description" name="description" rows="8" placeholder="Write announcement details..." required></textarea>
-        </div>
-      </div>
+    <!-- Hidden real file input -->
+    <input type="file" id="attachmentInput" name="attachments" multiple style="display: none;" />
 
-      <div class="attachments-section">
-        <div class="section-title">Attachments</div>
-        <div class="form-group mb-3">
-          <input type="file" class="form-control" id="attachment" name="attachment">
-        </div>
-      </div>
-
-      <div class="button-container">
-        <button type="submit" class="create-btn btn btn-success">Create Announcement</button>
-      </div>
-    </form>
+    <!-- Uploaded file list -->
+    <div id="fileList" class="mt-3"></div>
   </div>
-</body>
-</html>
+
+  <div class="button-container">
+    <button type="submit" class="btn btn-primary">Create Announcement</button>
+  </div>
+</form>
+
+<script>
+  const uploadArea = document.getElementById('upload-area');
+  const attachmentInput = document.getElementById('attachmentInput');
+  const fileList = document.getElementById('fileList');
+
+  let allFiles = []; // Hold all selected files here
+
+  function displayFiles(files) {
+    fileList.innerHTML = ""; // Clear previous display
+
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+
+    files.forEach(file => {
+      const li = document.createElement('li');
+      li.style.display = 'flex';
+      li.style.alignItems = 'center';
+      li.style.marginBottom = '10px';
+
+      li.innerHTML = `
+        <i class="fas fa-file-alt me-2" style="color: #555;"></i>
+        <span>${file.name}</span>
+      `;
+
+      ul.appendChild(li);
+    });
+
+    fileList.appendChild(ul);
+  }
+
+  uploadArea.addEventListener('click', () => {
+    attachmentInput.click(); // Open hidden file input
+  });
+
+  attachmentInput.addEventListener('change', () => {
+    // Add new files to the array
+    allFiles = [...allFiles, ...Array.from(attachmentInput.files)];
+    displayFiles(allFiles);
+  });
+
+  // Optional: Drag-and-drop support
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#eef"; // highlight
+  });
+
+  uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#f9f9f9"; // reset
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#f9f9f9"; // reset
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    allFiles = [...allFiles, ...droppedFiles];
+    displayFiles(allFiles);
+  });
+</script>
+{% endblock %}

@@ -5,11 +5,13 @@
 {% block page_title %}Create Feedback{% endblock %}
 
 {% block content %}
+
 <form action="{{ url_for('create_feedback') }}" method="POST" enctype="multipart/form-data">
     <div class="form-group mb-3">
         <label for="studentName">Student Name</label>
         <input type="text" class="form-control" id="studentName" name="studentName" placeholder="Enter student name" required>
     </div>
+
 
     <div class="form-group mb-3">
         <label for="assignmentTitle">Assignment Title</label>
@@ -25,7 +27,5 @@
         <label for="attachment">Attach File (optional)</label>
         <input type="file" class="form-control" id="attachment" name="attachment">
     </div>
-
-    <button type="submit" class="btn btn-success">Create Feedback</button>
-</form>
+    <button class="feedback-btn">Create Feedback</button></form>
 {% endblock %}

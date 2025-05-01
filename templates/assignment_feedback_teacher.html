@@ -6,47 +6,26 @@
 
 {% block content %}
 <div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('create_feedback') }}" class="btn btn-success">Create Feedback</a>
+    <a href="{{ url_for('create_feedback') }}" class="feedback-btn">Create Feedback</a>
 </div>
 
 <div class="feedback-list">
-    <!-- Example feedback items -->
+    {% for fb in feedbacks %}
     <div class="feedback-item">
         <div class="feedback-header">
-            <h4>Assignment 1 - John Doe</h4>
-            <span class="submission-date">Submitted: March 15, 2024</span>
+            <h4>{{ fb[0] }} - {{ fb[1] }}</h4> <!-- Assignment title - Student name -->
+            <span class="submission-date">Submitted: {{ fb[3] }}</span>
         </div>
         <div class="feedback-content">
-            <p>Great work on the implementation! Here are some suggestions for improvement:</p>
-            <ul>
-                <li>Consider adding more comments to explain complex logic</li>
-                <li>The UI could be more responsive on mobile devices</li>
-                <li>Add error handling for edge cases</li>
-            </ul>
+            <p>{{ fb[2] }}</p> <!-- Feedback description -->
         </div>
         <div class="feedback-footer">
             <button class="btn btn-primary">Edit Feedback</button>
             <button class="btn btn-secondary">View Submission</button>
         </div>
     </div>
-
-    <div class="feedback-item">
-        <div class="feedback-header">
-            <h4>Assignment 1 - Jane Smith</h4>
-            <span class="submission-date">Submitted: March 14, 2024</span>
-        </div>
-        <div class="feedback-content">
-            <p>Excellent work! Your implementation shows good understanding of the concepts.</p>
-            <ul>
-                <li>Very clean and well-organized code</li>
-                <li>Good use of design patterns</li>
-                <li>Comprehensive documentation</li>
-            </ul>
-        </div>
-        <div class="feedback-footer">
-            <button class="btn btn-primary">Edit Feedback</button>
-            <button class="btn btn-secondary">View Submission</button>
-        </div>
-    </div>
+    {% else %}
+    <p>No feedback available.</p>
+    {% endfor %}
 </div>
 {% endblock %}

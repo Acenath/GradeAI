@@ -6,7 +6,7 @@
     <title>{% block title %}Gradia{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/assignment_creation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/teacher_course_base.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -18,22 +18,22 @@
                     <h3>{{ course_code }}</h3>
                 </div>
                 <div class="sidebar-menu">
-                    <a href="{{ url_for('teacher_dashboard', course_name = course_name, course_id = course_code) }}"
+                    <a href="{{ url_for('teacher_dashboard', course_name = course_name, course_code = course_code) }}"
                        class="menu-item {% if request.endpoint == 'teacher_dashboard' %}active{% endif %}">
                         <i class="fas fa-arrow-left"></i>
                         <span>Back</span>
                     </a>
-                    <a href="{{ url_for('assignment_creation', course_name = course_name, course_id = course_code) }}" 
+                    <a href="{{ url_for('assignment_creation', course_name = course_name, course_code = course_code) }}" 
                        class="menu-item {% if request.endpoint == 'assignment_creation' %}active{% endif %}">
                         <i class="fas fa-tasks"></i>
                         <span>Assignments</span>
                     </a>
-                    <a href="{{ url_for('assignment_feedback_teacher', course_code=course_code) }}" 
+                    <a href="{{ url_for('assignment_feedback_teacher', course_name = course_name, course_code = course_code) }}"
                        class="menu-item {% if request.endpoint == 'assignment_feedback_teacher' %}active{% endif %}">
                         <i class="fas fa-comments"></i>
                         <span>Feedback</span>
                     </a>
-                    <a href="{{ url_for('announcement_teacher', course_code=course_code) }}" 
+                    <a href="{{ url_for('announcement_teacher', course_name=course_name, course_code=course_code) }}"
                        class="menu-item {% if request.endpoint == 'announcement_teacher' %}active{% endif %}">
                         <i class="fas fa-bullhorn"></i>
                         <span>Announcements</span>

@@ -9,22 +9,22 @@ class User(UserMixin):
 
     @staticmethod
     def get(cursor, user_id):
-        cursor.execute(''' SELECT * FROM Users WHERE user_id = %s ''', (user_id, ))
-        user_id_tuple = cursor.fetchall()
+        cursor.execute(''' SELECT * FROM Users WHERE user_id = %s ''', (user_id,))
+        user_rows = cursor.fetchall()
         cursor.close()
-        user_data = user_id_tuple[0]
-        if not user_data:
+        if not user_rows:
             return None
-        
+
+        user_data = user_rows[0]
         return User(
-            user_id = user_data[0],
-            email = user_data[1],
-            _ = None,  
-            first_name = user_data[3],
-            last_name = user_data[4]
+            user_id=user_data[0],
+            email=user_data[1],
+            _=None,
+            first_name=user_data[3],
+            last_name=user_data[4]
         )
-        
-    
+
+
     def is_authenticated(self, cursor):
         return True
     

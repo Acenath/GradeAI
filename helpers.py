@@ -2,17 +2,25 @@ import datetime
 from hashlib import sha256
 import csv
 import os
+
+from werkzeug.utils import secure_filename
+
 #VARIABLES
 STUDENT_LIST_DIR = "/home/oran/Desktop/gradeai/csv_files/student_list.csv"
 ASSIGNMENT_FILES_DIR = "/home/oran/Desktop/gradeai/assignment_files"
-
+ANNOUNCEMENT_FILES_DIR = "/home/oran/Desktop/gradeai/announcements"
 #FUNCTIONS
 
 def save_files(assignment_files, course_id, assignment_title):
     os.makedirs(ASSIGNMENT_FILES_DIR + "/{}/{}".format(course_id, assignment_title), exist_ok = True)
     for course_file in assignment_files:
         course_file.save(ASSIGNMENT_FILES_DIR + "/{}/{}/{}".format(course_id, assignment_title, course_file.filename))
-
+def save_announcement(announcement_files, course_id, announcement_title):
+    os.makedirs(os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_id), announcement_title), exist_ok=True)
+    for announcement_file in announcement_files:
+        filename = secure_filename(announcement_file.filename)
+        file_path = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_id), announcement_title, filename)
+        announcement_file.save(file_path)
 def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
     for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
         create_rubric(cursor, f"{assignment_title}_rubric_{fold}", rubric_val, rubric_desc, user_id, class_id, assignment_title)
@@ -74,3 +82,22 @@ def add_user(cursor, email, first_name, last_name, user_id, password):
     role = role_parser(email)
     cursor.execute(''' INSERT INTO Users (user_id, email, password, first_name, last_name, role, profile_picture_url, created_at, last_login)
                    VALUE(%s, %s, %s, %s, %s, %s, NULL, %s, NULL) ''', (user_id, email, hash_password(password), first_name, last_name, role, datetime.datetime.now()))
+
+def fetch_feedbacks_by_teacher(cursor, teacher_id):
+        query = """
+            SELECT 
+                a.title AS assignment_title,
+                CONCAT(u.first_name, ' ', u.last_name) AS student_name,
+                s.submitted_at AS submission_date,
+                g.feedback
+            FROM Grade g
+            INNER JOIN Submission s ON g.submission_id = s.submission_id
+            INNER JOIN Assignment a ON s.assignment_id = a.assignment_id
+            INNER JOIN Users u ON s.student_id = u.user_id
+            WHERE a.class_id IN (
+                SELECT class_id FROM Class WHERE teacher_id = %s
+            )
+            ORDER BY s.submitted_at DESC
+        """
+        cursor.execute(query, (teacher_id,))
+        return cursor.fetchall()

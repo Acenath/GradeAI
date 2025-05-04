@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request, session, redirect, flash
+from flask import Flask, render_template, url_for, request, session, redirect, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_mysqldb import MySQL
 from flask_login import *
@@ -56,7 +56,7 @@ def login():
         cursor.close()
         curr_user = User(*user_tuple[0][0: 5])  # password should be ignored
         login_user(curr_user)
-        if int.from_bytes(user_tuple[0][5]) == 1:  # in DB it is stored in bits
+        if int.from_bytes(user_tuple[0][5], byteorder='big') == 1:  # in DB it is stored in bits
             del user_tuple
             return redirect(url_for("teacher_dashboard"))
 
@@ -89,7 +89,7 @@ def signup():
             cursor.close()
             return redirect(url_for("login"))
 
-        return render_template("signup.html", error_message="This account already exist!")
+        return render_template("signup.html", error_message="This account already exists!")
 
     else:
         return render_template("signup.html")
@@ -121,55 +121,55 @@ def about():
 @login_required
 def blockview_teacher():
     if request.method == "POST":
-        cursor = gradeai_db.connection.cursor()
         course_name = request.form.get("course_name")
         course_code = request.form.get("course_code")
+
+        cursor = gradeai_db.connection.cursor()
+        
+        handle_class_creation(cursor, course_code, course_name, current_user.user_id)
+        
+        # Process CSV file
         student_csv_file = request.files.get("fileInput")
+        if student_csv_file and student_csv_file.filename:
+            result = save_and_process_csv(cursor, student_csv_file, course_code)
+            if result['success']:
+                flash(f"{result['added']} students added successfully.", "success")
+                if result['existing'] > 0:
+                    flash(f"{result['existing']} students were already enrolled.", "warning")
+                if result['not_found'] > 0:
+                    flash(f"{result['not_found']} students not found in system.", "error")
+            else:
+                flash("Error processing CSV file.", "error")
 
-        students_data = request.form.get("studentsData")
-
-        create_class(cursor, course_code, course_name, current_user.user_id)
-
-        if student_csv_file:
-            student_csv_file.save(STUDENT_LIST_DIR)
-            csv_to_enroll(cursor, STUDENT_LIST_DIR, course_code)
-            gradeai_db.connection.commit()
-
-        # FIXME CANSU
-        # TODO
-        # First check if user exist
-        # If user exist than show it in the table
-        # Be sure that it works with csv file uploading system properly at the same time
-        # Flash errors are optional
-        # Before chaning any existing function PLEASE CONTROL IT BEFORE CHANGING IT
-        # Be sure of consistency of the HTML file when you are about to changing it
-        # Also check after user wants to remove added student check feature works properly
-        # TODO END
-
+        students_data = request.form.get("studentsData")        
         if students_data:
-            try:
-                students = json.loads(students_data)
-                for student in students:
-                    if register_positive(cursor, "_", student["studentNo"]):
-                        enroll_students(cursor, student["studentNo"], course_code)
-
-                    else:
-                        flash("User with id {} doesn't exist!".format(student["studentNo"]))
-
-            except json.JSONDecodeError:
-                flash("Error processing student data", "error")
-                return redirect(url_for("blockview_teacher"))
-        else:
-            flash("No students added!", "error")
-            return redirect(url_for("blockview_teacher"))
-        # FIXME end
+            handle_student_enrollment(cursor, students_data, course_code)
+        
+        deleted_students = request.form.get("deleteStudents")
+        if deleted_students:
+            removed = handle_student_removal(cursor, deleted_students, course_code)
+            if removed:
+                flash(f"{len(removed)} students removed from the course.", "success")
 
         gradeai_db.connection.commit()
+        
+        enrolled_students = get_enrolled_students(cursor, course_code)
         cursor.close()
-
-        return redirect(url_for("teacher_dashboard"))
+        
+        return render_template("blockview_teacher.html", 
+                              course_name=course_name, 
+                              course_code=course_code,
+                              enrolled_students=enrolled_students)
 
     return render_template("blockview_teacher.html")
+
+@app.route('/get_student_info/<student_id>', methods=["GET"])
+@login_required
+def get_student_info(student_id):
+    cursor = gradeai_db.connection.cursor()
+    student_info = fetch_student_info(cursor, student_id)
+    cursor.close()
+    return jsonify(student_info)
 
 @app.route('/student_dashboard')
 @login_required
@@ -181,8 +181,18 @@ def student_dashboard():
 def teacher_dashboard():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
+    upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id)
+    
+    recent_feedback = fetch_recent_feedback(cursor, current_user.user_id)
+    
+    recent_announcements = fetch_recent_announcements(cursor, current_user.user_id)
+    
     cursor.close()
-    return render_template("teacher_dashboard.html", courses=courses)
+    return render_template("teacher_dashboard.html", 
+                          courses=courses,
+                          upcoming_deadlines=upcoming_deadlines,
+                          recent_feedback=recent_feedback,
+                          recent_announcements=recent_announcements)
 
 @app.route('/announcement_student')
 @login_required
@@ -292,17 +302,37 @@ def announcement_view_teacher(course_name, course_code):
     return render_template("announcement_view_teacher.html", course_name=course_name, course_code=course_code)
 
 
-@app.route('/assignment_creation/<course_name>/<course_code>', methods=["GET", "POST"])
+@app.route('/assignments/<course_code>')
 @login_required
-def assignment_creation(course_name, course_code):
+def view_assignments(course_code):
+    cursor = gradeai_db.connection.cursor()
+    
+    # Get course name
+    course = get_course_name(cursor, course_code)
+    if not course:
+        flash("Course not found", "error")
+        return redirect(url_for("teacher_dashboard"))
+    
+    # Get all assignments for this course
+    assignments = get_course_assignments(cursor, course_code)
+    
+    cursor.close()
+    
+    return render_template("assignments.html",
+                         course_name=course[0],
+                         course_code=course_code,
+                         assignments=assignments)
+
+@app.route('/assignment_creation/<course_code>', methods=["GET", "POST"])
+@login_required
+def assignment_creation(course_code):
     if request.method == "POST":
         cursor = gradeai_db.connection.cursor()
         assignment_title = request.form.get("title")
         assignment_desc = request.form.get("description")
         assignment_files = request.files.getlist("attachments")
         deadline = request.form.get("Date")
-        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist(
-            "rubric_values[]")
+        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist("rubric_values[]")
         total_score = sum([int(i) for i in rubric_vals])
 
         save_files(assignment_files, course_code, assignment_title)
@@ -311,10 +341,22 @@ def assignment_creation(course_name, course_code):
 
         gradeai_db.connection.commit()
         cursor.close()
-        return render_template("assignment_creation.html", course_name=course_name, course_code=course_code)
-    else:
-        return render_template("assignment_creation.html", course_name=course_name, course_code=course_code)
-
+        
+        flash("Assignment created successfully", "success")
+        return redirect(url_for("view_assignments", course_code=course_code))
+    
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute("SELECT name FROM Class WHERE class_id = %s", (course_code,))
+    course = cursor.fetchone()
+    cursor.close()
+    
+    if not course:
+        flash("Course not found", "error")
+        return redirect(url_for("teacher_dashboard"))
+    
+    return render_template("assignment_creation.html", 
+                         course_name=course[0],
+                         course_code=course_code)
 
 
 @app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
@@ -344,17 +386,35 @@ def assignment_submit_student():
     return render_template("assignment_submit_student.html")
 
 
-@app.route('/assignment_view_teacher')
+@app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
 @login_required
-def assignment_view_teacher():
-    # TODO Cansu
-    # Make sure that assignment files are listed and show properly
-    # Redirect the proper url when clicked on student names or ids
-    # You are allowed to change HTML file based on your desire
-    # You may add relevant buttons such as going back or you may add table of contens for convinient routing
-    # PLEASE MAKE SURE THAT IT WORKS PROPERLY
-    # TODO END
-    return render_template("assignment_view_teacher.html")
+def assignment_view_teacher(course_code, assignment_id):
+    cursor = gradeai_db.connection.cursor()
+    
+    # Get assignment details
+    assignment = get_assignment_details(cursor, assignment_id, course_code)
+    if not assignment:
+        flash("Assignment not found", "error")
+        return redirect(url_for("teacher_dashboard"))
+    
+    # Get assignment files
+    assignment_files = get_assignment_files(course_code, assignment[0])
+    
+    # Get student submissions
+    students = get_student_submissions(cursor, assignment_id, course_code)
+    
+    cursor.close()
+    
+    return render_template("assignment_view_teacher.html",
+                         course_name=assignment[4],
+                         assignment_title=assignment[0],
+                         description=assignment[1],
+                         deadline=assignment[2],
+                         total_score=assignment[3],
+                         assignment_files=assignment_files,
+                         students=students,
+                         course_code=course_code,
+                         assignment_id=assignment_id)
 
 
 @app.route('/course_grades_student')
@@ -423,6 +483,82 @@ def create_feedback():
         return redirect(url_for("assignment_feedback_teacher"))
 
     return render_template("create_feedback.html")
+
+
+@app.route('/view_submission/<course_code>/<assignment_id>/<submission_id>')
+@login_required
+def view_submission(course_code, assignment_id, submission_id):
+    cursor = gradeai_db.connection.cursor()
+    
+    # Get submission details
+    submission = get_submission_details(cursor, submission_id, course_code)
+    if not submission:
+        flash("Submission not found", "error")
+        return redirect(url_for("teacher_dashboard"))
+    
+    cursor.close()
+    
+    return render_template("view_submission.html",
+                         submission=submission,
+                         course_code=course_code,
+                         assignment_id=assignment_id)
+
+@app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>', methods=['GET', 'POST'])
+@login_required
+def grade_submission(course_code, assignment_id, submission_id):
+    cursor = gradeai_db.connection.cursor()
+    
+    if request.method == 'POST':
+        score = request.form.get('score')
+        feedback = request.form.get('feedback')
+        
+        # Get assignment total score
+        total_score = get_assignment_total_score(cursor, assignment_id)
+        
+        # Validate score
+        try:
+            score = float(score)
+            if score < 0 or score > total_score:
+                flash("Score must be between 0 and " + str(total_score), "error")
+                return redirect(url_for("grade_submission", 
+                                     course_code=course_code,
+                                     assignment_id=assignment_id,
+                                     submission_id=submission_id))
+        except ValueError:
+            flash("Invalid score format", "error")
+            return redirect(url_for("grade_submission",
+                                 course_code=course_code,
+                                 assignment_id=assignment_id,
+                                 submission_id=submission_id))
+        
+        # Check if grade already exists
+        existing_grade = check_existing_grade(cursor, submission_id)
+        
+        if existing_grade:
+            # Update existing grade
+            update_grade(cursor, submission_id, score, feedback)
+        else:
+            # Insert new grade
+            insert_grade(cursor, submission_id, score, feedback)
+        
+        gradeai_db.connection.commit()
+        flash("Grade submitted successfully", "success")
+        return redirect(url_for("assignment_view_teacher",
+                             course_code=course_code,
+                             assignment_id=assignment_id))
+    
+    # Get submission details for grading
+    submission = get_submission_for_grading(cursor, submission_id, course_code)
+    if not submission:
+        flash("Submission not found", "error")
+        return redirect(url_for("teacher_dashboard"))
+    
+    cursor.close()
+    
+    return render_template("grade_submission.html",
+                         submission=submission,
+                         course_code=course_code,
+                         assignment_id=assignment_id)
 
 
 if __name__ == "__main__":

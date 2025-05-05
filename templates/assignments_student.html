@@ -1,0 +1,31 @@
+{% extends "student_course_base.html" %}
+
+{% block title %}Assignments - Gradia{% endblock %}
+
+{% block page_title %} {{ course_name }} - Assignments{% endblock %}
+
+{% block content %}
+<div class="assignments-container">
+    <div class="lecture-cards">
+        {% if assignments %}
+            {% for assignment in assignments %}
+                <div class="lecture-card">
+                    <a href="{{ url_for('assignment_submit_student', course_code=course_code, course_name = course_name, assignment_id=assignment[0]) }}" class="course-link">
+                        <div class="lecture-card-header">
+                            <h3>{{ assignment[1] }}</h3>
+                            <span class="course-name">Deadline: {{ assignment[3] }}</span>
+                        </div>
+                        <div class="lecture-card-content">
+                            <p class="description">{{ assignment[2][:100] }}{% if assignment[2]|length > 100 %}...{% endif %}</p>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-courses">
+                <p>No assignments available for this course.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

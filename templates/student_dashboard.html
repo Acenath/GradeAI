@@ -6,163 +6,133 @@
   <title>Gradia - Student Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel = "stylesheet" type = "text/css" href = "{{ url_for('static', filename = 'css/student_dashboard.css') }}" />
-  
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/teacher_dashboard.css') }}" />
 </head>
 <body>
-  <!-- Navbar -->
-  <div class="nav-bar">
-    <div class="nav-bar-left">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
-      <a href = "{{url_for('index')}}"> <strong>Gradia</strong> </a> 
+
+<!-- Navbar -->
+<div class="nav-bar">
+  <div class="nav-bar-left">
+    <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
+    <strong>Gradia</strong>
+  </div>
+  <div class="nav-links">
+    <a href="{{url_for('about')}}">About Us</a>
+    <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+  </div>
+</div>
+
+<!-- Profile Section -->
+<div class="profile-section">
+  <div class="profile-pic">
+    <i class="fas fa-user" style="font-size: 40px;"></i>
+  </div>
+  <div class="profile-info">
+    <h2>Welcome {{current_user.first_name}} {{current_user.last_name}}!</h2>
+    <div class="profile-links">
+      <a href="{{url_for('profile_student')}}">Profile</a>
+      <a href="{{url_for('logout')}}">Log Out</a>
     </div>
-    <div class="nav-links">
-      <a href="{{url_for('about')}}">About Us</a>
-      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-      <a href ="{{url_for('student_dashboard')}}"> Courses </a>
-      <div class="user-circle">
-        <i class="fas fa-user"></i>
-      </div>
+  </div>
+</div>
+
+<!-- Dashboard Section -->
+<div class="dashboard">
+  <!-- Enrolled Courses -->
+  <div class="lectures-container">
+    <div class="lecture-cards">
+      {% for row in courses_and_instructors %}
+        <div class="lecture-card">
+          <a href="{{ url_for('assignments_student', course_code=row[0], course_name = row[2]) }}" class="course-link">
+            <div class="lecture-card-header">
+              <h3>{{ row[0] }}</h3><!-- Course Code -->
+              <span class="course-name">{{ row[2] }}</span> <!-- Course Name -->
+            </div>
+            <div class="lecture-card-content">
+              <div class="course-stats">
+                <span><i class="fas fa-user-tie"></i> Instructor: {{ row[1] }}</span> <!-- Teacher ID -->
+              </div>
+            </div>
+          </a>
+        </div>
+      {% else %}
+        <div class="no-courses">
+          <p>You are not enrolled in any courses yet.</p>
+        </div>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- Profile Section -->
-  <div class="profile-section">
-    <div class="profile-pic">
-      <i class="fas fa-user" style="font-size: 40px;"></i>
-    </div>
-    <div class="profile-info">
-      <h2>Welcome {{current_user.first_name}} {{current_user.last_name}}!</h2>
-      <div class="profile-links">
-        <a href="{{url_for('profile_student')}}">Profile</a>
-        <a href="{{url_for('logout')}}">Log Out</a>
-        
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Dashboard -->
-  <div class="dashboard">
-    <!-- Left Side - Lectures -->
-    <div class="lectures-container">
-      <div class="lecture-cards">
-
-        <!-- Lecture Card 1 -->
-        <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
-        </div>
-
-        <!-- Lecture Card 2 -->
-        <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
-        </div>
-
-        <!-- Lecture Card 3 -->
-        <div class="lecture-card">
-          <div class="lecture-header">XXXX</div>
-          <div class="lecture-content">
-            <p>***** ***** ***** ***</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Side - Sidebar -->
-    <div class="sidebar">
-      <!-- Deadlines Section -->
-      <div class="sidebar-section">
-        <h3>Deadlines</h3>
-
-        <!-- Deadline Item 1 -->
-        <a href="#" class="deadline-item">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <!-- Deadlines -->
+    <div class="sidebar-section">
+      <h3>Upcoming Deadlines</h3>
+      {% for deadline in upcoming_deadlines %}
+        <a href="{{ url_for('assignments_student', course_code=deadline[3], course_name = deadline[4], assignment_id=deadline[0]) }}" class="deadline-item">
           <div class="deadline-icon">
             <i class="far fa-file-alt" style="font-size: 24px;"></i>
           </div>
           <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date">
-              <i class="far fa-calendar"></i>
-              Monday, 15th 2025
-            </div>
+            <div>{{ deadline[1] }}</div>
+            <div class="course-code">{{ deadline[3] }} - {{ deadline[4] }}</div>
+            <div class="date">{{ deadline[2].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>
+      {% else %}
+        <div class="empty-section">
+          <p>No upcoming deadlines</p>
+        </div>
+      {% endfor %}
+    </div>
 
-        <!-- Deadline Item 2 -->
-        <a href="#" class="deadline-item">
-          <div class="deadline-icon">
-            <i class="far fa-file-alt" style="font-size: 24px;"></i>
-          </div>
-          <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date">
-              <i class="far fa-calendar"></i>
-            </div>
-          </div>
-        </a>
+    <div class="divider"></div>
 
-        <!-- Deadline Item 3 -->
-        <a href="#" class="deadline-item">
-          <div class="deadline-icon">
-            <i class="far fa-file-alt" style="font-size: 24px;"></i>
-          </div>
-          <div class="deadline-info">
-            <div>***** ***** *****</div>
-            <div class="date">
-              <i class="far fa-calendar"></i>
-            </div>
-          </div>
-        </a>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Feedback Section -->
-      <div class="sidebar-section">
-        <h3>Feedback</h3>
-
-        <!-- Feedback Item -->
+    <!-- Feedback -->
+    <div class="sidebar-section">
+      <h3>Recent Feedback</h3>
+      {% for feedback in recent_feedback %}
         <a href="#" class="feedback-item">
           <div class="feedback-icon">
-            <i class="far fa-user-circle" style="font-size: 24px;"></i>
+            <i class="fas fa-comments" style="font-size: 24px;"></i>
           </div>
           <div class="feedback-info">
-            <div>***** ***** *****</div>
-            <div class="date">
-              <i class="far fa-calendar"></i>
-              Monday, 12th 2025
-            </div>
+            <div>{{ feedback[2] }}</div> <!-- Feedback summary or score -->
+            <div class="assignment-title">{{ feedback[1] }}</div> <!-- Assignment name -->
+            <div class="date">{{ feedback[3].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>
-      </div>
+      {% else %}
+        <div class="empty-section">
+          <p>No recent feedback</p>
+        </div>
+      {% endfor %}
+    </div>
 
-      <div class="divider"></div>
+    <div class="divider"></div>
 
-      <!-- Announcement Section -->
-      <div class="sidebar-section">
-        <h3>Announcement</h3>
-
-        <!-- Announcement Item -->
-        <a href="#" class="announcement-item">
+    <!-- Announcements -->
+    <div class="sidebar-section">
+      <h3>Announcements</h3>
+      {% for announcement in recent_announcements %}
+        <a href="{{ url_for('announcement_student', course_name=announcement[4], course_code=announcement[3]) }}" class="announcement-item">
           <div class="announcement-icon">
-            <i class="far fa-user-circle" style="font-size: 24px;"></i>
+            <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>
           <div class="announcement-info">
-            <div>***** ***** *****</div>
-            <div>***** *****</div>
-            <div class="date">
-              <i class="far fa-calendar"></i>
-              Monday, 10th 2025
-            </div>
+            <div>{{ announcement[1]|truncate(40) }}</div>
+            <div class="course-code">{{ announcement[3] }} - {{ announcement[4] }}</div>
+            <div class="date">{{ announcement[2].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>
-      </div>
+      {% else %}
+        <div class="empty-section">
+          <p>No recent announcements</p>
+        </div>
+      {% endfor %}
     </div>
   </div>
+</div> <!-- End of Dashboard -->
+
 </body>
 </html>

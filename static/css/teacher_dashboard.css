@@ -141,6 +141,8 @@ body {
   }
   .date {
     font-size: 0.9rem;
+    color: #666;
+    margin-top: 3px;
   }
   .divider {
     height: 1px;
@@ -162,13 +164,9 @@ body {
     color: #333;
   }
   .course-code {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    background: #f0f0f0;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: #666;
-    margin-top: 0.5rem;
+    margin-top: 2px;
   }
   .lecture-card-content {
     padding: 1.5rem;
@@ -190,4 +188,15 @@ body {
   }
   .course-stats i {
     color: #007bff;
+  }
+  .empty-section {
+    padding: 10px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+  .assignment-title {
+    font-size: 0.9rem;
+    color: #555;
+    font-style: italic;
   }

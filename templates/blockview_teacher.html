@@ -6,7 +6,7 @@
   <title>Gradia - CSV Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'css/blockview_teacher.css') }}" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/blockview_teacher.css') }}" />
 </head>
 <body>
   <!-- Navbar -->
@@ -21,9 +21,21 @@
     </div>
   </div>
 
-  <!-- Wrap everything important inside the form -->
-  <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data">
+  <!--Flash Messages-->
+  <div class="container flash-messages">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
 
+  <!-- Wrap everything important inside the form -->
+  <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" id="classForm">
     <!-- Course Section -->
     <div class="course-section">
       <div class="course-header">
@@ -75,128 +87,216 @@
               <tr>
                 <th>Student No</th>
                 <th>Student Name</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="studentTableBody">
-              <!--Students will be added here-->
+              {% if enrolled_students %}
+                {% for student in enrolled_students %}
+                  <tr data-student-no="{{ student[0] }}">
+                    <td>{{ student[0] }}</td>
+                    <td>{{ student[1] }} {{ student[2] }}</td>
+                    <td>
+                      <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
+                        <i class="fas fa-trash"></i> Remove
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <!-- Students will be added here dynamically -->
+              {% endif %}
             </tbody>
           </table>
+
+          {% if not enrolled_students %}
+          <div class="no-students-message" id="noStudentsMessage">
+            No students added yet. Add students manually or upload a CSV file.
+          </div>
+          {% endif %}
         </div>
       </div>
 
-      <!-- Create Button - Now below all content -->
+      <!-- Create Button  -->
       <div class="create-button-section">
         <button type="submit" class="create-button">
-          Create
+          {% if course_code %}Update{% else %}Create{% endif %} Class
         </button>
       </div>
 
       <!-- Hidden input to store student data -->
       <input type="hidden" id="studentsData" name="studentsData" value="">
+      <input type="hidden" id="deleteStudents" name="deleteStudents" value="[]">
     </div> <!-- main-content -->
-
   </form> <!-- end of form -->
 
   <script>
-    // Function to add a new student to the table
+    document.addEventListener('DOMContentLoaded', function() {
+      updateNoStudentsMessage();
+      updateStudentsData();
+    });
+    
+    // Track deleted students
+    const deletedStudents = new Set();
+
     function addStudent() {
       const studentNo = document.getElementById('studentNo').value.trim();
-      const studentName = document.getElementById('studentName').value.trim();
-
-      // Validate inputs
-      if (studentNo === '' || studentName === '') {
-        alert('Please enter both student number and name');
+      
+      if (!studentNo) {
+        alert('Please enter a student number');
         return;
       }
-
-      // Create a new row
-      const tableBody = document.getElementById('studentTableBody');
-      const newRow = document.createElement('tr');
-
-      // Build the row content
-      newRow.innerHTML = `
+      
+      // Check for duplicates
+      const existingRows = document.querySelectorAll('#studentTableBody tr');
+      for (let row of existingRows) {
+        if (row.dataset.studentNo === studentNo) {
+          alert('This student is already in the list');
+          return;
+        }
+      }
+      
+      // Add row with loading state
+      const row = document.createElement('tr');
+      row.dataset.studentNo = studentNo;
+      row.innerHTML = `
         <td>${studentNo}</td>
-        <td>${studentName}</td>
+        <td><span class="loader"></span> Loading...</td>
         <td>
-          <div class="remove-button" onclick="removeStudent(this)">
-            <i class="fas fa-times"></i>
-          </div>
+          <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
+            <i class="fas fa-trash"></i> Remove
+          </button>
         </td>
       `;
-
-      // Add the row to the table
-      tableBody.appendChild(newRow);
-
-      // Clear the input fields
-      document.getElementById('studentNo').value = '';
-      document.getElementById('studentName').value = '';
-
-      // Update the hidden input with student data
+      document.getElementById('studentTableBody').appendChild(row);
+      
+      // Fetch student info
+      fetch(`/get_student_info/${studentNo}`)
+        .then(response => response.json())
+        .then(data => {
+          const nameCell = row.cells[1];
+          if (data.success) {
+            nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
+          } else {
+            nameCell.innerHTML = `<span class="text-danger">Not in system</span>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching student info:', error);
+          const nameCell = row.cells[1];
+          nameCell.innerHTML = `<span class="text-danger">Error fetching info</span>`;
+        });
+      
+      document.getElementById('studentNo').value = ''; // Clear input
+      updateNoStudentsMessage();
       updateStudentsData();
     }
 
-    // Function to remove a student
     function removeStudent(button) {
       const row = button.closest('tr');
+      const studentNo = row.dataset.studentNo; 
+      
+      deletedStudents.add(studentNo); 
+      document.getElementById('deleteStudents').value = JSON.stringify(Array.from(deletedStudents));
       row.remove();
-
-      // Update the hidden input with student data
+      updateNoStudentsMessage();
       updateStudentsData();
     }
 
-    // Function to update the hidden input with all student data
     function updateStudentsData() {
-      const tableBody = document.getElementById('studentTableBody');
-      const rows = tableBody.querySelectorAll('tr');
-      const studentsData = [];
-
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        studentsData.push({
-          studentNo: cells[0].textContent,
-          studentName: cells[1].textContent
-        });
-      });
-
-      document.getElementById('studentsData').value = JSON.stringify(studentsData);
+      const students = Array.from(document.querySelectorAll('#studentTableBody tr')).map(row =>
+        row.cells[0].textContent.trim()
+      );
+      document.getElementById('studentsData').value = JSON.stringify(students);
     }
 
-    // Function to filter students based on search
-    function searchStudents() {
-      const searchValue = document.getElementById('searchInput').value.toLowerCase();
-      const tableRows = document.getElementById('studentTableBody').querySelectorAll('tr');
-
-      tableRows.forEach(row => {
-        const studentNo = row.cells[0].textContent.toLowerCase();
-        const studentName = row.cells[1].textContent.toLowerCase();
-
-        if (studentNo.includes(searchValue) || studentName.includes(searchValue)) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
-    }
-
-    // Event listener for the add student button
-    document.getElementById('addStudentBtn').addEventListener('click', addStudent);
-
-    // Event listener for the search input
-    document.getElementById('searchInput').addEventListener('input', searchStudents);
-
-    // File input handling
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      const file = event.target.files[0];
-      if (file) {
-        document.getElementById('fileName').textContent = file.name;
-
-        // Here you could add code to parse the CSV and add students automatically
-        // This would require a CSV parsing library or custom implementation
-        console.log('Selected file:', file.name);
-      } else {
-        document.getElementById('fileName').textContent = 'No file chosen';
+    function updateNoStudentsMessage() {
+      const hasStudents = document.querySelectorAll('#studentTableBody tr').length > 0;
+      const noStudentsMessage = document.getElementById('noStudentsMessage');
+      
+      if (noStudentsMessage) {
+        noStudentsMessage.style.display = hasStudents ? 'none' : 'block';
       }
+    }
+
+    function processCSVFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const csvData = event.target.result;
+        const lines = csvData.split('\n');
+        
+        // Process each line
+        lines.forEach(line => {
+          const studentNo = line.trim();
+          if (!studentNo) return; // Skip empty lines
+          
+          // Check for duplicates
+          const existingRows = document.querySelectorAll('#studentTableBody tr');
+          let isDuplicate = false;
+          for (let row of existingRows) {
+            if (row.dataset.studentNo === studentNo) {
+              isDuplicate = true;
+              break;
+            }
+          }
+          
+          if (!isDuplicate) {
+            // Add row with loading state
+            const row = document.createElement('tr');
+            row.dataset.studentNo = studentNo;
+            row.innerHTML = `
+              <td>${studentNo}</td>
+              <td><span class="loader"></span> Loading...</td>
+              <td>
+                <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
+                  <i class="fas fa-trash"></i> Remove
+                </button>
+              </td>
+            `;
+            document.getElementById('studentTableBody').appendChild(row);
+            
+            // Fetch student info
+            fetch(`/get_student_info/${studentNo}`)
+              .then(response => response.json())
+              .then(data => {
+                const nameCell = row.cells[1];
+                if (data.success) {
+                  nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
+                } else {
+                  nameCell.innerHTML = `<span class="text-danger">Not in system</span>`;
+                }
+              })
+              .catch(error => {
+                console.error('Error fetching student info:', error);
+                const nameCell = row.cells[1];
+                nameCell.innerHTML = `<span class="text-danger">Error fetching info</span>`;
+              });
+          }
+        });
+        
+        updateNoStudentsMessage();
+        updateStudentsData();
+      };
+      reader.readAsText(file);
+    }
+
+    document.getElementById('addStudentBtn').addEventListener('click', addStudent);
+    
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      document.getElementById('fileName').textContent = file.name;
+      processCSVFile(file);
+    });
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function() {
+      const term = this.value.toLowerCase();
+      document.querySelectorAll('#studentTableBody tr').forEach(row => {
+        const text = row.cells[0].textContent.toLowerCase() + ' ' + row.cells[1].textContent.toLowerCase();
+        row.style.display = text.includes(term) ? '' : 'none';
+      });
     });
   </script>
 </body>

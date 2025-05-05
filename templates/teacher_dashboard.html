@@ -43,7 +43,7 @@
     <div class="lecture-cards">
       {% for course in courses %}
         <div class="lecture-card">
-          <a href="{{ url_for('assignment_creation', course_name=course[1], course_code=course[0]) }}" class="course-link">
+          <a href="{{ url_for('assignments_teacher', course_code=course[0], course_name = course[1]) }}" class="course-link">
             <div class="lecture-card-header">
               <h3>{{ course[0] }}</h3>
               <span class="course-name">{{ course[1] }}</span>
@@ -75,16 +75,22 @@
     <!-- Deadlines Section -->
     <div class="sidebar-section">
       <h3>Deadlines</h3>
-      <a href="#" class="deadline-item">
-        <div class="deadline-icon">
-          <i class="far fa-file-alt" style="font-size: 24px;"></i>
+      {% for deadline in upcoming_deadlines %}
+        <a href="{{ url_for('assignment_view_teacher', course_code=deadline[3], assignment_id=deadline[0]) }}" class="deadline-item">
+          <div class="deadline-icon">
+            <i class="far fa-file-alt" style="font-size: 24px;"></i>
+          </div>
+          <div class="deadline-info">
+            <div>{{ deadline[1] }}</div>
+            <div class="course-code">{{ deadline[3] }} - {{ deadline[4] }}</div>
+            <div class="date">{{ deadline[2].strftime('%A, %b %d %Y') }}</div>
+          </div>
+        </a>
+      {% else %}
+        <div class="empty-section">
+          <p>No upcoming deadlines</p>
         </div>
-        <div class="deadline-info">
-          <div>***** ***** *****</div>
-          <div class="date">Monday, 15th 2025</div>
-        </div>
-      </a>
-      <!-- More deadlines... -->
+      {% endfor %}
     </div>
 
     <div class="divider"></div>
@@ -92,36 +98,47 @@
     <!-- Feedback Section -->
     <div class="sidebar-section">
       <h3>Feedback</h3>
-      <a href="#" class="feedback-item">
-        <div class="feedback-icon">
-          <i class="far fa-user-circle" style="font-size: 24px;"></i>
+      {% for feedback in recent_feedback %}
+        <a href="#" class="feedback-item">
+          <div class="feedback-icon">
+            <i class="far fa-user-circle" style="font-size: 24px;"></i>
+          </div>
+          <div class="feedback-info">
+            <div>{{ feedback[3] }} {{ feedback[4] }}</div>
+            <div class="assignment-title">{{ feedback[5] }}</div>
+            <div class="date">{{ feedback[6].strftime('%A, %b %d %Y') }}</div>
+          </div>
+        </a>
+      {% else %}
+        <div class="empty-section">
+          <p>No recent feedback</p>
         </div>
-        <div class="feedback-info">
-          <div>***** ***** *****</div>
-          <div class="date">Monday, 12th 2025</div>
-        </div>
-      </a>
+      {% endfor %}
     </div>
 
     <div class="divider"></div>
 
     <!-- Announcement Section -->
     <div class="sidebar-section">
-      <h3>Announcement</h3>
-      <a href="#" class="announcement-item">
-        <div class="announcement-icon">
-          <i class="far fa-user-circle" style="font-size: 24px;"></i>
+      <h3>Announcements</h3>
+      {% for announcement in recent_announcements %}
+        <a href="{{ url_for('announcement_teacher', course_name=announcement[4], course_code=announcement[3]) }}" class="announcement-item">
+          <div class="announcement-icon">
+            <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
+          </div>
+          <div class="announcement-info">
+            <div>{{ announcement[1]|truncate(40) }}</div>
+            <div class="course-code">{{ announcement[3] }} - {{ announcement[4] }}</div>
+            <div class="date">{{ announcement[2].strftime('%A, %b %d %Y') }}</div>
+          </div>
+        </a>
+      {% else %}
+        <div class="empty-section">
+          <p>No recent announcements</p>
         </div>
-        <div class="announcement-info">
-          <div>***** ***** *****</div>
-          <div>***** *****</div>
-          <div class="date">Monday, 10th 2025</div>
-        </div>
-      </a>
+      {% endfor %}
     </div>
   </div>
-
 </div> <!-- End of Dashboard -->
-
 </body>
 </html>

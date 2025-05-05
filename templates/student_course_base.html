@@ -20,23 +20,23 @@
                     <h3>{{ course_code }}</h3>
                 </div>
                 <div class="sidebar-menu">
-                    <a href="{{ url_for('teacher_dashboard', course_code = course_code, course_name = course_name) }}"
-                       class="menu-item {% if request.endpoint == 'teacher_dashboard' %}active{% endif %}">
+                    <a href="{{ url_for('student_dashboard') }}"
+                       class="menu-item {% if request.endpoint == 'student_dashboard' %}active{% endif %}">
                         <i class="fas fa-arrow-left"></i>
                         <span>Back</span>
                     </a>
-                    <a href="{{ url_for('assignments_teacher', course_code = course_code, course_name = course_name) }}" 
-                       class="menu-item {% if request.endpoint == 'view_assignments' %}active{% endif %}">
+                    <a href="{{ url_for('assignments_student', course_code=course_code, course_name = course_name) }}"
+                       class="menu-item {% if request.endpoint == 'assignments_student' %}active{% endif %}">
                         <i class="fas fa-tasks"></i>
                         <span>Assignments</span>
                     </a>
-                    <a href="{{ url_for('assignment_feedback_teacher', course_code = course_code, course_name = course_name) }}"
-                       class="menu-item {% if request.endpoint == 'assignment_feedback_teacher' %}active{% endif %}">
+                    <a href="{{ url_for('assignment_grades_student', course_code=course_code, course_name = course_name) }}"
+                       class="menu-item {% if request.endpoint == 'student_feedback' %}active{% endif %}">
                         <i class="fas fa-comments"></i>
                         <span>Feedback</span>
                     </a>
-                    <a href="{{ url_for('announcement_teacher', course_code=course_code, course_name=course_name) }}"
-                       class="menu-item {% if request.endpoint == 'announcement_teacher' %}active{% endif %}">
+                    <a href="{{ url_for('announcement_view_student', course_name=course_name, course_code=course_code) }}"
+                       class="menu-item {% if request.endpoint == 'announcement_student' %}active{% endif %}">
                         <i class="fas fa-bullhorn"></i>
                         <span>Announcements</span>
                     </a>
@@ -56,4 +56,4 @@
     </div>
     {% block extra_js %}{% endblock %}
 </body>
-</html> 
+</html>

@@ -1,5 +1,6 @@
 from flask_login import UserMixin
 from helpers import *
+
 class User(UserMixin):
     def __init__(self, user_id, email, _, first_name, last_name):
         self.user_id = user_id
@@ -9,7 +10,7 @@ class User(UserMixin):
 
     @staticmethod
     def get(cursor, user_id):
-        cursor.execute(''' SELECT * FROM Users WHERE user_id = %s ''', (user_id,))
+        cursor.execute(''' SELECT * FROM users WHERE user_id = %s ''', (user_id,))
         user_rows = cursor.fetchall()
         cursor.close()
         if not user_rows:

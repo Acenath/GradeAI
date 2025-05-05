@@ -36,7 +36,7 @@ def save_announcement(announcement_files, course_id, announcement_title):
             announcement_file.save(file_path)
 
 def handle_class_creation(cursor, course_code, course_name, teacher_id):
-    cursor.execute("SELECT * FROM Class WHERE class_id = %s", (course_code,))
+    cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
     existing_class = cursor.fetchone()
     
     if not existing_class:
@@ -62,7 +62,7 @@ def handle_student_enrollment(cursor, students_data, course_code):
             continue
             
         # First check if student exists in the system
-        cursor.execute(''' SELECT * FROM Users WHERE user_id = %s ''', (student_id,))
+        cursor.execute(''' SELECT * FROM users WHERE user_id = %s ''', (student_id,))
         student_exists = cursor.fetchone()
         
         if not student_exists:
@@ -131,7 +131,7 @@ def save_and_process_csv(cursor, csv_file, class_id):
                 # First check if student exists in the system
                 cursor.execute(''' 
                     SELECT user_id, first_name, last_name 
-                    FROM Users 
+                    FROM users 
                     WHERE user_id = %s
                 ''', (student_id,))
                 student = cursor.fetchone()
@@ -173,14 +173,14 @@ def save_and_process_csv(cursor, csv_file, class_id):
         return {'success': False}
 
 def is_student_enrolled(cursor, student_id, class_id):
-    cursor.execute(''' SELECT * FROM Enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
+    cursor.execute(''' SELECT * FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
     enrollment_tuple = cursor.fetchall()
     if enrollment_tuple:
         return True
     return False
 
 def remove_student(cursor, student_id, class_id):
-    cursor.execute(''' DELETE FROM Enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
+    cursor.execute(''' DELETE FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
 
 def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
     for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
@@ -188,39 +188,39 @@ def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
 
 def create_rubric(cursor, name, score, description, created_by, class_id, assignment_title):
     # First check if rubric exists
-    cursor.execute('''SELECT rubric_id FROM Rubric WHERE rubric_id = %s''', (f"{class_id}_{assignment_title}",))
+    cursor.execute('''SELECT rubric_id FROM rubric WHERE rubric_id = %s''', (f"{class_id}_{assignment_title}",))
     existing_rubric = cursor.fetchone()
     
     if existing_rubric:
         # Update existing rubric
         cursor.execute('''
-            UPDATE Rubric 
+            UPDATE rubric 
             SET name = %s, score = %s, description = %s, created_at = %s, created_by = %s
             WHERE rubric_id = %s
         ''', (name, score, description, datetime.datetime.now(), created_by, f"{class_id}_{assignment_title}"))
     else:
         # Insert new rubric
         cursor.execute('''
-            INSERT INTO Rubric (rubric_id, name, score, description, created_at, created_by)
+            INSERT INTO rubric (rubric_id, name, score, description, created_at, created_by)
             VALUES (%s, %s, %s, %s, %s, %s)
         ''', (f"{class_id}_{assignment_title}", name, score, description, datetime.datetime.now(), created_by))
 
 def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
     assignment_id = f"{class_id}_{assignment_title}"
-    cursor.execute(''' INSERT INTO Assignment (assignment_id, title, description, deadline, class_id, total_score) 
+    cursor.execute(''' INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
                    VALUES (%s, %s, %s, %s, %s, %s)''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
 
 def fetch_classes(cursor, user_id):
-    cursor.execute("SELECT * FROM Class WHERE teacher_id = %s", (user_id,))
+    cursor.execute("SELECT * FROM class WHERE teacher_id = %s", (user_id,))
     courses = cursor.fetchall()
     return courses
 
 def enroll_students(cursor, student_id, class_id):
-    cursor.execute(''' INSERT INTO Enrollment (enrollment_id, enrolled_at, class_id, student_id)
+    cursor.execute(''' INSERT INTO enrollment (enrollment_id, enrolled_at, class_id, student_id)
                            VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))     
 
 def create_class(cursor, course_code, course_name, teacher_id):
-    cursor.execute('''INSERT INTO Class (class_id, name, created_at, teacher_id) 
+    cursor.execute('''INSERT INTO class (class_id, name, created_at, teacher_id) 
                    VALUES (%s, %s, %s, %s)''', (course_code, course_name, datetime.datetime.now(), teacher_id))
     
 def hash_password(password):
@@ -230,7 +230,7 @@ def role_parser(email):
     return email.split("@")[1].split(".")[0][-1: -3: -1] == "nu" # its "un" actually but in reverse you can add [::-1] to make it normal
     
 def register_positive(cursor, email, user_id):
-    cursor.execute(''' SELECT * FROM Users WHERE email = %s OR user_id = %s ''', (email, user_id))
+    cursor.execute(''' SELECT * FROM users WHERE email = %s OR user_id = %s ''', (email, user_id))
     user_tuple = cursor.fetchall()
 
     if user_tuple:
@@ -239,16 +239,16 @@ def register_positive(cursor, email, user_id):
     return True
 
 def update_last_login(cursor, email, password):
-    cursor.execute(''' UPDATE Users SET last_login = %s WHERE email = %s and password = %s ''', (datetime.datetime.now(), email, hash_password(password)))
+    cursor.execute(''' UPDATE users SET last_login = %s WHERE email = %s and password = %s ''', (datetime.datetime.now(), email, hash_password(password)))
 
 def fetch_user(cursor, email, password):
-    cursor.execute(''' SELECT * FROM Users WHERE email = %s and password = %s''', (email, hash_password((password))))
+    cursor.execute(''' SELECT * FROM users WHERE email = %s and password = %s''', (email, hash_password((password))))
     user_tuple = cursor.fetchall()
     return user_tuple
 
 def add_user(cursor, email, first_name, last_name, user_id, password):
     role = role_parser(email)
-    cursor.execute(''' INSERT INTO Users (user_id, email, password, first_name, last_name, role, profile_picture_url, created_at, last_login)
+    cursor.execute(''' INSERT INTO users (user_id, email, password, first_name, last_name, role, profile_picture_url, created_at, last_login)
                    VALUE(%s, %s, %s, %s, %s, %s, NULL, %s, NULL) ''', (user_id, email, hash_password(password), first_name, last_name, role, datetime.datetime.now()))
 
 def fetch_feedbacks_by_teacher(cursor, teacher_id):
@@ -258,12 +258,12 @@ def fetch_feedbacks_by_teacher(cursor, teacher_id):
                 CONCAT(u.first_name, ' ', u.last_name) AS student_name,
                 s.submitted_at AS submission_date,
                 g.feedback
-            FROM Grade g
-            INNER JOIN Submission s ON g.submission_id = s.submission_id
-            INNER JOIN Assignment a ON s.assignment_id = a.assignment_id
-            INNER JOIN Users u ON s.student_id = u.user_id
+            FROM grade g
+            INNER JOIN submission s ON g.submission_id = s.submission_id
+            INNER JOIN assignment a ON s.assignment_id = a.assignment_id
+            INNER JOIN users u ON s.student_id = u.user_id
             WHERE a.class_id IN (
-                SELECT class_id FROM Class WHERE teacher_id = %s
+                SELECT class_id FROM class WHERE teacher_id = %s
             )
             ORDER BY s.submitted_at DESC
         """
@@ -271,7 +271,7 @@ def fetch_feedbacks_by_teacher(cursor, teacher_id):
         return cursor.fetchall()
 
 def fetch_student_info(cursor, student_id):
-    cursor.execute("""SELECT first_name, last_name FROM Users WHERE user_id = %s""", (student_id,))
+    cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id,))
     student = cursor.fetchone()
     if student:
         return {
@@ -287,15 +287,15 @@ def fetch_student_info(cursor, student_id):
 def get_enrolled_students(cursor, class_id):
     cursor.execute("""
         SELECT u.user_id, u.first_name, u.last_name 
-        FROM Users u 
-        INNER JOIN Enrollment e ON u.user_id = e.student_id 
+        FROM users u 
+        INNER JOIN enrollment e ON u.user_id = e.student_id 
         WHERE e.class_id = %s
         ORDER BY u.first_name, u.last_name
     """, (class_id,))
     return cursor.fetchall()
 
 def get_course_name(cursor, course_code):
-    cursor.execute("SELECT name FROM Class WHERE class_id = %s", (course_code,))
+    cursor.execute("SELECT name FROM class WHERE class_id = %s", (course_code,))
     return cursor.fetchone()
 
 def get_course_assignments(cursor, course_code):
@@ -308,9 +308,9 @@ def get_course_assignments(cursor, course_code):
             a.total_score,
             COUNT(DISTINCT s.submission_id) as submission_count,
             COUNT(DISTINCT g.grade_id) as graded_count
-        FROM Assignment a
-        LEFT JOIN Submission s ON a.assignment_id = s.assignment_id
-        LEFT JOIN Grade g ON s.submission_id = g.grade_id
+        FROM assignment a
+        LEFT JOIN submission s ON a.assignment_id = s.assignment_id
+        LEFT JOIN grade g ON s.submission_id = g.grade_id
         WHERE a.class_id = %s
         GROUP BY a.assignment_id
         ORDER BY a.deadline DESC
@@ -320,8 +320,8 @@ def get_course_assignments(cursor, course_code):
 def get_assignment_details(cursor, assignment_id, course_code):
     cursor.execute("""
         SELECT a.title, a.description, a.deadline, a.total_score, c.name as course_name
-        FROM Assignment a
-        JOIN Class c ON a.class_id = c.class_id
+        FROM assignment a
+        JOIN class c ON a.class_id = c.class_id
         WHERE a.assignment_id = %s AND a.class_id = %s
     """, (assignment_id, course_code))
     return cursor.fetchone()
@@ -339,11 +339,11 @@ def get_student_submissions(cursor, assignment_id, course_code):
             u.first_name, u.last_name, u.user_id,
             s.submission_id, s.submitted_at,
             g.score, g.feedback
-        FROM Users u
-        LEFT JOIN Submission s ON u.user_id = s.student_id AND s.assignment_id = %s
-        LEFT JOIN Grade g ON s.submission_id = g.submission_id
+        FROM users u
+        LEFT JOIN submission s ON u.user_id = s.student_id AND s.assignment_id = %s
+        LEFT JOIN grade g ON s.submission_id = g.submission_id
         WHERE u.user_id IN (
-            SELECT student_id FROM Enrollment WHERE class_id = %s
+            SELECT student_id FROM enrollment WHERE class_id = %s
         )
         ORDER BY u.first_name, u.last_name
     """, (assignment_id, course_code))
@@ -361,11 +361,11 @@ def get_submission_details(cursor, submission_id, course_code):
             u.user_id,
             a.title as assignment_title,
             c.name as course_name
-        FROM Submission s
-        JOIN Users u ON s.student_id = u.user_id
-        JOIN Assignment a ON s.assignment_id = a.assignment_id
-        JOIN Class c ON a.class_id = c.class_id
-        LEFT JOIN Grade g ON s.submission_id = g.submission_id
+        FROM submission s
+        JOIN users u ON s.student_id = u.user_id
+        JOIN assignment a ON s.assignment_id = a.assignment_id
+        JOIN class c ON a.class_id = c.class_id
+        LEFT JOIN grade g ON s.submission_id = g.submission_id
         WHERE s.submission_id = %s AND a.class_id = %s
     """, (submission_id, course_code))
     return cursor.fetchone()
@@ -384,10 +384,10 @@ def get_submission_for_grading(cursor, submission_id, course_code):
             a.total_score,
             c.name as course_name
         FROM Submission s
-        JOIN Users u ON s.student_id = u.user_id
-        JOIN Assignment a ON s.assignment_id = a.assignment_id
-        JOIN Class c ON a.class_id = c.class_id
-        LEFT JOIN Grade g ON s.submission_id = g.submission_id
+        JOIN users u ON s.student_id = u.user_id
+        JOIN assignment a ON s.assignment_id = a.assignment_id
+        JOIN class c ON a.class_id = c.class_id
+        LEFT JOIN grade g ON s.submission_id = g.submission_id
         WHERE s.submission_id = %s AND a.class_id = %s
     """, (submission_id, course_code))
     return cursor.fetchone()
@@ -395,7 +395,7 @@ def get_submission_for_grading(cursor, submission_id, course_code):
 def get_assignment_total_score(cursor, assignment_id):
     cursor.execute("""
         SELECT total_score
-        FROM Assignment
+        FROM assignment
         WHERE assignment_id = %s
     """, (assignment_id,))
     return cursor.fetchone()[0]
@@ -403,7 +403,7 @@ def get_assignment_total_score(cursor, assignment_id):
 def check_existing_grade(cursor, submission_id):
     cursor.execute("""
         SELECT grade_id
-        FROM Grade
+        FROM grade
         WHERE submission_id = %s
     """, (submission_id,))
     return cursor.fetchone()
@@ -417,7 +417,7 @@ def update_grade(cursor, submission_id, score, feedback):
 
 def insert_grade(cursor, submission_id, score, feedback):
     cursor.execute("""
-        INSERT INTO Grade (submission_id, score, feedback, created_at)
+        INSERT INTO grade (submission_id, score, feedback, created_at)
         VALUES (%s, %s, %s, %s)
     """, (submission_id, score, feedback, datetime.datetime.now()))
 
@@ -440,49 +440,37 @@ def insert_grade(cursor, submission_id, score, feedback):
         print(f"Error checking/adding created_at column: {e}")
         return False'''
 
-def fetch_upcoming_deadlines(cursor, teacher_id, limit=5):
-    """Fetch upcoming assignment deadlines for the teacher's courses"""
-    cursor.execute("""
-        SELECT 
-            a.assignment_id,
-            a.title,
-            a.deadline,
-            c.class_id,
-            c.name AS course_name
-        FROM Assignment a
-        JOIN Class c ON a.class_id = c.class_id
-        WHERE c.teacher_id = %s
-        AND a.deadline >= CURDATE()
-        ORDER BY a.deadline ASC
-        LIMIT %s
-    """, (teacher_id, limit))
-    return cursor.fetchall()
 
-def fetch_recent_feedback(cursor, teacher_id, limit=5):
-    """Fetch recent feedback given by the teacher"""
-    try:
-        # Try with created_at field first
+def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
+    """Fetch upcoming assignment deadlines for the teacher's courses"""
+    if is_teacher:
         cursor.execute("""
             SELECT 
-                g.grade_id,
-                g.feedback,
-                g.score,
-                u.first_name,
-                u.last_name,
-                a.title AS assignment_title,
-                g.created_at
-            FROM Grade g
-            JOIN Submission s ON g.submission_id = s.submission_id
-            JOIN Assignment a ON s.assignment_id = a.assignment_id
-            JOIN Class c ON a.class_id = c.class_id
-            JOIN Users u ON s.student_id = u.user_id
+                a.assignment_id,
+                a.title,
+                a.deadline,
+                c.class_id,
+                c.name AS course_name
+            FROM assignment a
+            JOIN class c ON a.class_id = c.class_id
             WHERE c.teacher_id = %s
-            ORDER BY g.created_at DESC
+            AND a.deadline >= CURDATE()
+            ORDER BY a.deadline ASC
             LIMIT %s
-        """, (teacher_id, limit))
-        return cursor.fetchall()
-    except Exception:
-        # Fallback if created_at doesn't exist - use submission date instead
+        """, (user_id, limit))
+
+    elif not is_teacher:
+        cursor.execute('''SELECT a.assignment_id, a.title, a.deadline, a.class_id, c.name
+                       FROM enrollment as e NATURAL JOIN assignment as a NATURAL JOIN class as c  
+                       WHERE e.student_id = %s AND a.deadline >= CURDATE()
+                       ORDER BY a.deadline ASC
+                       LIMIT %s''', (user_id, limit))
+        
+    return cursor.fetchall()
+
+def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
+    """Fetch recent feedback given by the teacher"""
+    if is_teacher:
         cursor.execute("""
             SELECT 
                 g.grade_id,
@@ -492,30 +480,70 @@ def fetch_recent_feedback(cursor, teacher_id, limit=5):
                 u.last_name,
                 a.title AS assignment_title,
                 s.submitted_at
-            FROM Grade g
-            JOIN Submission s ON g.submission_id = s.submission_id
-            JOIN Assignment a ON s.assignment_id = a.assignment_id
-            JOIN Class c ON a.class_id = c.class_id
-            JOIN Users u ON s.student_id = u.user_id
+            FROM grade g
+            JOIN submission s ON g.submission_id = s.submission_id
+            JOIN assignment a ON s.assignment_id = a.assignment_id
+            JOIN class c ON a.class_id = c.class_id
+            JOIN users u ON s.student_id = u.user_id
             WHERE c.teacher_id = %s
             ORDER BY s.submitted_at DESC
             LIMIT %s
-        """, (teacher_id, limit))
-        return cursor.fetchall()
+        """, (user_id, limit))
 
-def fetch_recent_announcements(cursor, teacher_id, limit=5):
+    elif not is_teacher:
+        cursor.execute(''' SELECT g.grade_id, g.feedback, g.score, u.first_name, u.last_name, a.title, s.submitted_at 
+                       FROM submission as s NATURAL JOIN grade as g
+                       JOIN assignment as a ON a.assignment_id = s.assignment_id
+                       JOIN class as c ON c.class_id = a.class_id
+                       JOIN users as u ON u.user_id = s.student_id 
+                       WHERE s.student_id = %s
+                       ORDER BY s.submitted_at DESC
+                       LIMIT %s ''', (user_id, limit))
+    return cursor.fetchall()
+
+def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
     """Fetch recent announcements made by the teacher"""
-    cursor.execute("""
-        SELECT 
-            a.announcement_id,
-            a.content,
-            a.posted_at,
-            c.class_id,
-            c.name AS course_name
-        FROM Announcement a
-        JOIN Class c ON a.class_id = c.class_id
-        WHERE c.teacher_id = %s
-        ORDER BY a.posted_at DESC
-        LIMIT %s
-    """, (teacher_id, limit))
+    if is_teacher:
+        cursor.execute("""
+            SELECT 
+                a.announcement_id,
+                a.content,
+                a.posted_at,
+                c.class_id,
+                c.name AS course_name
+            FROM announcement a
+            JOIN class c ON a.class_id = c.class_id
+            WHERE c.teacher_id = %s
+            ORDER BY a.posted_at DESC
+            LIMIT %s
+        """, (user_id, limit))
+
+    elif not is_teacher:
+        cursor.execute(''' SELECT * 
+                       FROM enrollment as e NATURAL JOIN announcement as a NATURAL JOIN class as c
+                       WHERE e.student_id = %s
+                       ORDER BY a.posted_at DESC
+                       LIMIT %s''', (user_id, limit, ))
+        
+    return cursor.fetchall()
+
+def fetch_recent_class_announcements(cursor, course_code):
+    cursor.execute('''
+        SELECT announcement_id, content, posted_at
+        FROM announcement
+        WHERE class_id = %s
+        ORDER BY posted_at DESC
+    ''', (course_code,))
+    return cursor.fetchall()
+
+def create_announcement(cursor, course_code, title, desc):
+    cursor.execute(''' 
+            INSERT INTO announcement (announcement_id, class_id, content, posted_at)
+            VALUES (%s, %s, %s, %s)
+        ''', ("{}_{}".format(course_code, title), course_code, desc, datetime.datetime.now()))
+    
+def fetch_enrollments(cursor, user_id):
+    cursor.execute(''' SELECT e.class_id, c.teacher_id, c.name  
+                   FROM enrollment as e LEFT JOIN class as c ON e.class_id = c.class_id 
+                   WHERE e.student_id = %s''', (user_id,))
     return cursor.fetchall()

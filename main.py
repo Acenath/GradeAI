@@ -17,7 +17,7 @@ login_manager = LoginManager()
 app.config['MYSQL_HOST'] = '127.0.0.1'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'GradeAI'
+app.config['MYSQL_DB'] = 'gradeai'
 
 gradeai_db = MySQL(app)
 login_manager.init_app(app)
@@ -174,18 +174,28 @@ def get_student_info(student_id):
 @app.route('/student_dashboard')
 @login_required
 def student_dashboard():
-    return render_template("student_dashboard.html")
+    cursor = gradeai_db.connection.cursor()
+    courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
+    upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 0)
+    recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 0)
+    recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
+    cursor.close()
+    return render_template("student_dashboard.html", 
+                          courses_and_instructors=courses_and_instructors,
+                          upcoming_deadlines=upcoming_deadlines,
+                          recent_feedback=recent_feedback,
+                          recent_announcements=recent_announcements)
 
 @app.route('/teacher_dashboard')
 @login_required
 def teacher_dashboard():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
-    upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id)
+    upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
     
-    recent_feedback = fetch_recent_feedback(cursor, current_user.user_id)
+    recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
     
-    recent_announcements = fetch_recent_announcements(cursor, current_user.user_id)
+    recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
     
     cursor.close()
     return render_template("teacher_dashboard.html", 
@@ -208,17 +218,8 @@ def announcement_view_student():
 @login_required
 def announcement_teacher(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
-    cursor.execute('''
-        SELECT announcement_id, content, posted_at
-        FROM Announcement
-        WHERE class_id = %s
-        ORDER BY posted_at DESC
-    ''', (course_code,))
-    announcements = cursor.fetchall()
+    announcements = fetch_recent_class_announcements(cursor, course_code)
     cursor.close()
-    for announcement in announcements:
-        print(f"Announcement: {announcement}")
-    
     return render_template("announcement_teacher.html", 
                          course_name=course_name, 
                          course_code=course_code,
@@ -282,17 +283,10 @@ def announcement_view_teacher(course_name, course_code):
     if request.method == "POST":
         cursor = gradeai_db.connection.cursor()
         title = request.form.get("title")
-        description = request.form.get("description")
+        desc = request.form.get("description")
         attachments = request.files.get("attachments")
-        
-        import datetime
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        announcement_id = f"{course_code}_{title}"
 
-        cursor.execute(''' 
-            INSERT INTO Announcement (announcement_id, class_id, content, posted_at)
-            VALUES (%s, %s, %s, %s)
-        ''', (announcement_id, course_code, description, datetime.datetime.now()))
+        create_announcement(cursor, course_code, title, desc)
 
         gradeai_db.connection.commit()
         cursor.close()
@@ -302,24 +296,15 @@ def announcement_view_teacher(course_name, course_code):
     return render_template("announcement_view_teacher.html", course_name=course_name, course_code=course_code)
 
 
-@app.route('/assignments/<course_code>')
+@app.route('/assignments/<course_code>/<course_name>')
 @login_required
-def view_assignments(course_code):
+def assignments_teacher(course_code, course_name):
     cursor = gradeai_db.connection.cursor()
-    
-    # Get course name
-    course = get_course_name(cursor, course_code)
-    if not course:
-        flash("Course not found", "error")
-        return redirect(url_for("teacher_dashboard"))
-    
     # Get all assignments for this course
     assignments = get_course_assignments(cursor, course_code)
-    
     cursor.close()
-    
-    return render_template("assignments.html",
-                         course_name=course[0],
+    return render_template("assignments_teacher.html",
+                         course_name=course_name,
                          course_code=course_code,
                          assignments=assignments)
 
@@ -374,10 +359,13 @@ def assignment_grades_student():
     return render_template("assignment_grades_student.html")
 
 
-@app.route('/assignment_student')
+@app.route('/assignments_student/<course_code>/<course_name>')
 @login_required
-def assignment_student():
-    return render_template("assignment_student.html")
+def assignments_student(course_code, course_name):
+    cursor = gradeai_db.connection.cursor()
+    course_assignments = get_course_assignments(cursor, course_code)
+    cursor.close()
+    return render_template("assignments_student.html", assignments = course_assignments, course_code = course_code, course_name= course_name)
 
 
 @app.route('/assignment_submit_student')
@@ -503,6 +491,10 @@ def view_submission(course_code, assignment_id, submission_id):
                          course_code=course_code,
                          assignment_id=assignment_id)
 
+@app.route("/grade")
+@login_required
+def grade():
+    return render_template("grade.html")
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>', methods=['GET', 'POST'])
 @login_required
 def grade_submission(course_code, assignment_id, submission_id):

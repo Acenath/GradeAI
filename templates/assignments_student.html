@@ -10,10 +10,15 @@
         {% if assignments %}
             {% for assignment in assignments %}
                 <div class="lecture-card">
-                    <a href="{{ url_for('assignment_submit_student', course_code=course_code, course_name = course_name, assignment_id=assignment[0]) }}" class="course-link">
+                    <a href="{{ url_for('assignment_submit_student', course_code=course_code, course_name=course_name, assignment_id=assignment[0]) }}" class="course-link">
                         <div class="lecture-card-header">
                             <h3>{{ assignment[1] }}</h3>
-                            <span class="course-name">Deadline: {{ assignment[3] }}</span>
+                            <div class="assignment-meta">
+                                <span class="course-name">Deadline: {{ assignment[3] }}</span>
+                                <span class="submission-status {% if assignment[4] %}submitted{% else %}not-submitted{% endif %}">
+                                    {{ "Submitted" if assignment[4] else "Not Submitted" }}
+                                </span>
+                            </div>
                         </div>
                         <div class="lecture-card-content">
                             <p class="description">{{ assignment[2][:100] }}{% if assignment[2]|length > 100 %}...{% endif %}</p>
@@ -28,4 +33,30 @@
         {% endif %}
     </div>
 </div>
+
+<style>
+    .assignment-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+    
+    .submission-status {
+        font-size: 0.9em;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .submitted {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .not-submitted {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+</style>
 {% endblock %}

@@ -1,100 +1,284 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Sign Up</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href = "{{ url_for('static', filename = 'css/tutorial.css') }}", type = "text/css", rel = 'stylesheet'/>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Gradia - Tutorial</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="{{ url_for('static', filename='css/tutorial.css') }}" type="text/css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-   <div class="nav-bar">
-    <div class="d-flex align-items-center">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-      <strong> Gradia</strong>
-    </div>
-    <div class="nav-links">
-        {% if not current_user %}
-        <a href="/login">Log in</a>
-        <a href="/signup">Sign up</a>
-        {% endif %}
-        <a href="/about">About Us</a>
-        <a href="/tutorial">Quick Tutorial</a>
-    </div>
-  </div>
-<div class="row">
-    <div class="col-lg-3">
-        <div class="list-group mb-4" id="tutorial-nav">
-            <a href="#teacher" class="list-group-item list-group-item-action">Teacher</a>
-            <a href="#student" class="list-group-item list-group-item-action">Student</a>
-            <a href="#general" class="list-group-item list-group-item-action">General</a>
+    <div class="nav-bar">
+        <div class="d-flex align-items-center">
+            <button onclick="goBack()" class="back-button">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+            <strong> Gradia</strong>
+        </div>
+        <div class="nav-links">
+            {% if not current_user %}
+            <a href="/login">Log in</a>
+            <a href="/signup">Sign up</a>
+            {% endif %}
+            <a href="/about">About Us</a>
+            <a href="/tutorial">Quick Tutorial</a>
         </div>
     </div>
-    <div class="col-lg-9">
-        <h1 class="mb-4">Quick Tutorial</h1>
 
+    <div class="container tutorial-container">
+        <div class="row">
+            <div class="col-lg-3">
+                <div class="tutorial-sidebar">
+                    <h3>Quick Navigation</h3>
+                    <div class="list-group" id="tutorial-nav">
+                        <a href="#getting-started" class="list-group-item list-group-item-action">
+                            <i class="fas fa-rocket"></i> Getting Started
+                        </a>
+                        <a href="#teacher" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chalkboard-teacher"></i> Teacher Guide
+                        </a>
+                        <a href="#student" class="list-group-item list-group-item-action">
+                            <i class="fas fa-user-graduate"></i> Student Guide
+                        </a>
+                        <a href="#features" class="list-group-item list-group-item-action">
+                            <i class="fas fa-star"></i> Key Features
+                        </a>
+                        <a href="#tips" class="list-group-item list-group-item-action">
+                            <i class="fas fa-lightbulb"></i> Tips & Tricks
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-9">
+                <div class="tutorial-content">
+                    <h1>Welcome to Gradia</h1>
+                    <p class="lead">Your comprehensive guide to using our AI-powered grading platform</p>
 
-        <section id="teacher" class="mb-5">
-            <h2>Teacher Guide</h2>
+                    <section id="getting-started" class="tutorial-section">
+                        <h2><i class="fas fa-rocket"></i> Getting Started</h2>
+                        <div class="card">
+                            <div class="card-body">
+                                <h3>First Steps</h3>
+                                <ol>
+                                    <li>Create your account using the Sign Up button</li>
+                                    <li>Choose your role (Teacher or Student)</li>
+                                    <li>Complete your profile information</li>
+                                    <li>Start exploring the platform!</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </section>
 
-            <h3 class="h5 mt-4">Creating Section</h3>
-            <p>
-                Teachers can create course sections and add students manually or by uploading a CSV file. To create a section:
-            </p>
-            <ol>
-                <li>Navigate to your dashboard</li>
-                <li>Click "Add Section" button</li>
-                <li>Enter course details or upload a CSV with student information</li>
-            </ol>
+                    <section id="teacher" class="tutorial-section">
+                        <h2><i class="fas fa-chalkboard-teacher"></i> Teacher Guide</h2>
+                        
+                        <div class="feature-card">
+                            <h3>Course Management</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-book"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Create and manage your courses efficiently:</p>
+                                    <ul>
+                                        <li>Create new course sections with unique codes</li>
+                                        <li>Add students manually or via CSV upload</li>
+                                        <li>Manage course materials and announcements</li>
+                                        <li>Track student progress and engagement</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
 
-            <h3 class="h5 mt-4">Rubric Creation Management</h3>
-            <p>
-                Create customized rubrics for evaluating student work:
-            </p>
-            <ol>
-                <li>Go to "Assignments" section</li>
-                <li>Select "Create Assignment"</li>
-                <li>Define rubric criteria, point values, and descriptions</li>
-                <li>Save the rubric for future use</li>
-            </ol>
-        </section>
+                        <div class="feature-card">
+                            <h3>Assignment Creation</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-tasks"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Create comprehensive assignments with AI-powered grading:</p>
+                                    <ul>
+                                        <li>Set up detailed assignment descriptions</li>
+                                        <li>Create custom rubrics with specific criteria</li>
+                                        <li>Upload supporting materials and resources</li>
+                                        <li>Set deadlines and submission requirements</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
 
-        <section id="student" class="mb-5">
-            <h2>Student Guide</h2>
+                        <div class="feature-card">
+                            <h3>Grading & Feedback</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-comment-dots"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Provide detailed feedback and grades:</p>
+                                    <ul>
+                                        <li>Use AI-assisted grading for efficiency</li>
+                                        <li>Add personalized feedback and comments</li>
+                                        <li>Track grading progress and statistics</li>
+                                        <li>Export grades and feedback reports</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
-            <h3 class="h5 mt-4">Submit Essay</h3>
-            <p>
-                Students can submit essays in a few simple steps:
-            </p>
-            <ol>
-                <li>Log in to your account</li>
-                <li>Select the appropriate course and assignment</li>
-                <li>Upload your essay (supported formats: PDF, DOCX, TXT)</li>
-                <li>Click "Submit" to complete the process</li>
-            </ol>
+                    <section id="student" class="tutorial-section">
+                        <h2><i class="fas fa-user-graduate"></i> Student Guide</h2>
+                        
+                        <div class="feature-card">
+                            <h3>Course Access</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-door-open"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Access your courses and materials:</p>
+                                    <ul>
+                                        <li>Join courses using provided course codes</li>
+                                        <li>View course materials and announcements</li>
+                                        <li>Track assignment deadlines and submissions</li>
+                                        <li>Monitor your progress and grades</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
 
-            <h3 class="h5 mt-4">View Feedback</h3>
-            <p>
-                Once your submission has been graded:
-            </p>
-            <ol>
-                <li>Navigate to the assignment in your dashboard</li>
-                <li>Click on the assignment to see your grade and detailed feedback</li>
-                <li>Review highlighted strengths and areas for improvement</li>
-            </ol>
-        </section>
+                        <div class="feature-card">
+                            <h3>Assignment Submission</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-upload"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Submit your assignments easily:</p>
+                                    <ul>
+                                        <li>Upload files in supported formats (PDF, DOCX, TXT)</li>
+                                        <li>Add comments or notes to your submission</li>
+                                        <li>Track submission status and deadlines</li>
+                                        <li>Resubmit if allowed by the instructor</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
 
-        <section id="general" class="mb-5">
-            <h2>General Tips</h2>
-            <ul>
-                <li>Regular browser updates ensure the best platform experience</li>
-                <li>Set email notifications to stay informed about deadlines and feedback</li>
-                <li>Use the "Contact Support" feature if you encounter any issues</li>
-            </ul>
-        </section>
+                        <div class="feature-card">
+                            <h3>Feedback & Grades</h3>
+                            <div class="feature-content">
+                                <div class="feature-icon">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="feature-text">
+                                    <p>Review your feedback and grades:</p>
+                                    <ul>
+                                        <li>View detailed feedback on your submissions</li>
+                                        <li>Track your progress across assignments</li>
+                                        <li>Access grade history and statistics</li>
+                                        <li>Download feedback and grade reports</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="features" class="tutorial-section">
+                        <h2><i class="fas fa-star"></i> Key Features</h2>
+                        <div class="features-grid">
+                            <div class="feature-item">
+                                <i class="fas fa-robot"></i>
+                                <h4>AI-Powered Grading</h4>
+                                <p>Advanced AI algorithms assist in providing consistent and fair grading</p>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-chart-line"></i>
+                                <h4>Progress Tracking</h4>
+                                <p>Monitor student progress and performance over time</p>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-comments"></i>
+                                <h4>Rich Feedback</h4>
+                                <p>Provide detailed, constructive feedback on student work</p>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-bell"></i>
+                                <h4>Notifications</h4>
+                                <p>Stay updated with real-time notifications for important events</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="tips" class="tutorial-section">
+                        <h2><i class="fas fa-lightbulb"></i> Tips & Tricks</h2>
+                        <div class="tips-container">
+                            <div class="tip-card">
+                                <h4>For Teachers</h4>
+                                <ul>
+                                    <li>Use the bulk upload feature for efficient student management</li>
+                                    <li>Create detailed rubrics for consistent grading</li>
+                                    <li>Utilize the announcement feature for important updates</li>
+                                    <li>Export grade reports for record-keeping</li>
+                                </ul>
+                            </div>
+                            <div class="tip-card">
+                                <h4>For Students</h4>
+                                <ul>
+                                    <li>Enable notifications to stay updated on deadlines</li>
+                                    <li>Submit assignments early to avoid technical issues</li>
+                                    <li>Review feedback carefully to improve future work</li>
+                                    <li>Keep track of your progress using the dashboard</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Back button functionality
+        function goBack() {
+            window.history.back();
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Highlight active section in navigation
+        const sections = document.querySelectorAll('.tutorial-section');
+        const navLinks = document.querySelectorAll('#tutorial-nav a');
+
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 60) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href').substring(1) === current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

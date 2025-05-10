@@ -1,122 +1,147 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Assignment</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href = "{{ url_for('static', filename = 'css/assignment_submit_student.css') }}", type = 'text/css', rel = 'stylesheet'/>
-</head>
-<body>
-  <!-- Navbar -->
-  <div class="nav-bar">
-    <div class="logo-container">
-      <i class="fas fa-brain logo-icon" style="color: #000;"></i>
-      <strong>Gradia</strong>
-    </div>
-    <div class="nav-links">
-      <a href="{{url_for('about')}}">About Us</a>
-      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-      <div class="notification-icon">
-        <i class="fas fa-bell" style="font-size: 18px;"></i>
-        <div class="notification-badge">0</div>
-      </div>
-    </div>
-  </div>
+{% extends "student_course_base.html" %}
 
-  <!-- Content Container -->
-  <div class="content-container">
-    <div class="page-title">Course Name / Assignment - 1</div>
+{% block title %}Assignment Submission - {{ assignment.title }}{% endblock %}
 
-    <div class="section">
-      <div class="section-title">Description</div>
-      <div class="description-text">
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-        <br><br>
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-      </div>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/assignments.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/assignment_submit_student.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="content-container">
+    <div class="page-header">
+        <h1 class="page-title">{{ assignment.title }}</h1>
+        <div class="assignment-meta">
+            <span class="due-date"><i class="far fa-calendar"></i> Due: {{ assignment.due_date }}</span>
+            <span class="status {% if assignment.is_submitted %}submitted{% else %}pending{% endif %}">
+                {% if assignment.is_submitted %}Submitted{% else %}Not Submitted{% endif %}
+            </span>
+        </div>
     </div>
 
     <div class="section">
-      <div class="section-title">Attachments</div>
-      <div style="display: flex; justify-content: space-between;">
-        <div class="attachment-card">
-          <i class="far fa-file-alt file-icon"></i>
-          <div class="file-text">
-            ***** *****<br>
-            ***** *****
-          </div>
+        <div class="section-title">Description</div>
+        <div class="description-text">
+            {{ assignment.description }}
         </div>
-
-        <div class="due-date">
-          <div><strong>Due Date</strong></div>
-          <div><i class="far fa-calendar"></i> Monday, 5th 2023</div>
-        </div>
-      </div>
     </div>
 
-    <div class="section feedback-section">
-      <div class="section-title">Feedback</div>
-      <div class="description-text">
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque. Amet magna pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-        <br><br>
-        Lorem ipsum dolor sit amet consectetur adipiscing elit ut blandit magna consectetur sit posuere sit volutpat pretium pellentesque gravida eget amet praesent pellentesque posuere pretium eget sit volutpat sit sit pellentesque.
-      </div>
-    </div>
-
+    {% if assignment.attachments %}
     <div class="section">
-      <div class="section-title">Attachments</div>
-      <div style="display: flex; justify-content: space-between;">
-        <div class="attachment-card">
-          <i class="far fa-file-alt file-icon"></i>
-          <div class="file-text">
-            ***** *****<br>
-            ***** *****
-          </div>
+        <div class="section-title">Assignment Files</div>
+        <div class="attachments-grid">
+            {% for attachment in assignment.attachments %}
+            <div class="attachment-card">
+                <i class="far fa-file-alt file-icon"></i>
+                <div class="file-text">
+                    {{ attachment.filename }}
+                </div>
+                <a href="{{ url_for('static', filename='uploads/assignments/' + course_code + '/' + assignment.title + '/' + attachment.filename) }}" class="download-link">
+                    <i class="fas fa-download"></i> Download
+                </a>
+            </div>
+            {% endfor %}
         </div>
+    </div>
+    {% endif %}
 
-        <div class="given-on">
-          <div><strong>Given on</strong></div>
-          <div><i class="far fa-calendar"></i> Monday, 6th 2023</div>
-          <div><strong>Given by</strong></div>
-          <div>Admin</div>
-        </div>
-      </div>
+    <div class="section submission-section">
+        <div class="section-title">Your Submission</div>
+        <form action="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" method="POST" enctype="multipart/form-data">
+            <div class="file-upload-area">
+                <div class="upload-box" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag and drop files here or click to browse</p>
+                    <input type="file" name="files" multiple id="fileInput" style="display: none;">
+                </div>
+                <div class="selected-files" id="selectedFiles"></div>
+            </div>
+            
+            <div class="button-container">
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-paper-plane"></i> Submit Assignment
+                </button>
+                <a href="{{ url_for('assignments_student', course_code=course_code, course_name=course_name) }}" class="cancel-btn">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
     </div>
 
+    {% if assignment.submission %}
     <div class="section submitted-files">
-      <div class="section-title">Submitted Files</div>
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div style="display: flex; gap: 15px;">
-          <div class="attachment-card">
-            <i class="far fa-file-alt file-icon"></i>
-            <div class="file-text">
-              ***** *****<br>
-              ***** *****
+        <div class="section-title">Your Submitted Files</div>
+        <div class="attachments-grid">
+            {% for file in assignment.submission.files %}
+            <div class="attachment-card">
+                <i class="far fa-file-alt file-icon"></i>
+                <div class="file-text">
+                    {{ file.filename }}
+                </div>
+                <div class="submission-meta">
+                    <span class="submission-date">Submitted: {{ file.submitted_at }}</span>
+                </div>
             </div>
-            <div style="font-size: 0.8rem;">Grade: 50/50</div>
-          </div>
-
-          <div class="attachment-card">
-            <i class="far fa-file-alt file-icon"></i>
-            <div class="file-text">
-              ***** *****<br>
-              ***** *****
-            </div>
-            <div style="font-size: 0.8rem;">Grade: 50/50</div>
-          </div>
+            {% endfor %}
         </div>
-
-        <div class="total-grade">
-          <span class="grade-label">Total Grade</span>
-          <span class="grade-value">100</span>
-        </div>
-      </div>
     </div>
+    {% endif %}
+</div>
+{% endblock %}
 
-    <div class="button-container">
-      <button class="submit-btn">Submit</button>
-    </div>
-  </div>
-</body>
-</html>
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const selectedFiles = document.getElementById('selectedFiles');
+
+    // Handle drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    // Handle click to upload
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        selectedFiles.innerHTML = '';
+        Array.from(files).forEach(file => {
+            const fileElement = document.createElement('div');
+            fileElement.className = 'selected-file';
+            fileElement.innerHTML = `
+                <i class="far fa-file"></i>
+                <span>${file.name}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+            `;
+            selectedFiles.appendChild(fileElement);
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

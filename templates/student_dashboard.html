@@ -115,7 +115,7 @@
     <div class="sidebar-section">
       <h3>Announcements</h3>
       {% for announcement in recent_announcements %}
-        <a href="{{ url_for('announcement_student', course_name=announcement[4], course_code=announcement[3]) }}" class="announcement-item">
+        <a href="{{ url_for('announcement_view_student', course_name=announcement[4], course_code=announcement[3]) }}" class="announcement-item">
           <div class="announcement-icon">
             <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>

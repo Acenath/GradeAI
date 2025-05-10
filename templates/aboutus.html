@@ -6,13 +6,16 @@
   <title>Gradia - About Us</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel = "stylesheet", type = "text/css", href = "{{ url_for('static', filename = 'css/aboutus.css') }}"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
    <!-- Navbar -->
   <div class="nav-bar">
     <div class="d-flex align-items-center">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
+      <button onclick="goBack()" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+      </button>
       <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
       <strong> Gradia</strong>
     </div>
@@ -35,7 +38,7 @@
           <div class="card-body">
             <p>
               The LLM-Based Essay Grading Assistant System is an AI-powered assistant designed to help educators evaluate student essays efficiently and consistently.
-              By leveraging advanced language models (LLMs) like Llama, this tool automates rubric-based grading while preserving the teacher’s oversight and expertise.
+              By leveraging advanced language models (LLMs) like Llama, this tool automates rubric-based grading while preserving the teacher's oversight and expertise.
             </p>
           </div>
         </div>
@@ -119,6 +122,13 @@
   <footer>
     &copy; 2025 Gradia. All rights reserved.
   </footer>
+
+  <script>
+    // Back button functionality
+    function goBack() {
+        window.history.back();
+    }
+  </script>
 
 </body>
 </html>

@@ -11,6 +11,7 @@ from flask import flash
 STUDENT_LIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv_files", "student_list.csv")
 ASSIGNMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "assignments")
 ANNOUNCEMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "announcements")
+ASSIGNMENT_SUBMISSIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "submissions")
 #FUNCTIONS
 
 def save_files(assignment_files, course_id, assignment_title):
@@ -28,12 +29,22 @@ def save_files(assignment_files, course_id, assignment_title):
 def save_announcement(announcement_files, course_id, announcement_title):
     announcement_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_id), announcement_title)
     os.makedirs(announcement_dir, exist_ok=True)
-    
-    for announcement_file in announcement_files:
-        if announcement_file and announcement_file.filename:
-            filename = secure_filename(announcement_file.filename)
+
+    for file in announcement_files:
+        if file and hasattr(file, 'filename') and file.filename:
+            filename = secure_filename(file.filename)
             file_path = os.path.join(announcement_dir, filename)
-            announcement_file.save(file_path)
+            file.save(file_path)
+
+
+def save_submissions(assignment_files, course_id, assignment_title):
+    assignment_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_id, assignment_title)
+    os.makedirs(assignment_dir, exist_ok=True)
+    for course_file in assignment_files:
+        if course_file and course_file.filename:
+            filename = secure_filename(course_file.filename)
+            file_path = os.path.join(assignment_dir, filename)
+            course_file.save(file_path)
 
 def handle_class_creation(cursor, course_code, course_name, teacher_id):
     cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))

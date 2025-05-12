@@ -113,9 +113,7 @@ def handle_student_removal(cursor, deleted_students, course_code):
     return removed_students
 
 def save_and_process_csv(cursor, csv_file, class_id):
-    if not csv_file or not csv_file.filename:
-        return {'success': False}
-    
+
     csv_dir = os.path.dirname(STUDENT_LIST_DIR)
     os.makedirs(csv_dir, exist_ok=True)
     filename = secure_filename(csv_file.filename)
@@ -131,9 +129,10 @@ def save_and_process_csv(cursor, csv_file, class_id):
     }
     
     try:
-        with open(save_path, 'r') as f:
+        with open(save_path, 'r+') as f:
             csv_reader = csv.reader(f)
             for row in csv_reader:
+                print(row)
                 if not row or not row[0].strip():  # skip empty rows
                     continue
                 
@@ -282,16 +281,18 @@ def fetch_feedbacks_by_teacher(cursor, teacher_id):
         return cursor.fetchall()
 
 def fetch_student_info(cursor, student_id):
-    cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id,))
+    cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id.split(",")[0],))
     student = cursor.fetchone()
     if student:
         return {
             'success': True,
-            'firstName': student[0],
-            'lastName': student[1]
+            'first_name': student[0],
+            'last_name': student[1]
         }
     return {
         'success': False,
+        'first_name': None,
+        'last_name': None,
         'message': 'Student not found'
     }
 

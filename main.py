@@ -138,8 +138,11 @@ def blockview_teacher():
         handle_class_creation(cursor, course_code, course_name, current_user.user_id)
         
         # Process CSV file
+        #TODO:
+        # Save csv file first
+        # 
         student_csv_file = request.files.get("fileInput")
-        if student_csv_file and student_csv_file.filename:
+        if student_csv_file:
             result = save_and_process_csv(cursor, student_csv_file, course_code)
             if result['success']:
                 flash(f"{result['added']} students added successfully.", "success")
@@ -172,13 +175,26 @@ def blockview_teacher():
 
     return render_template("blockview_teacher.html")
 
-@app.route('/get_student_info/<student_id>', methods=["GET"])
+@app.route('/get_student_info/<student_id>', methods=["GET", "POST"])
 @login_required
 def get_student_info(student_id):
     cursor = gradeai_db.connection.cursor()
-    student_info = fetch_student_info(cursor, student_id)
+    student = fetch_student_info(cursor, student_id)
     cursor.close()
-    return jsonify(student_info)
+    print(student)
+
+    if student["success"]:
+        return jsonify({
+            "success": True,
+            "firstName": student["first_name"],
+            "lastName": student["last_name"]
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "message": student.get("message", "Student not found")
+        })
+
 
 @app.route('/student_dashboard')
 @login_required
@@ -282,7 +298,7 @@ def announcement_edit(course_name, course_code, announcement_id):
     cursor = gradeai_db.connection.cursor()
     cursor.execute('''
         SELECT content
-        FROM Announcement
+        FROM announcement
         WHERE announcement_id = %s AND class_id = %s
     ''', (announcement_id, course_code))
     announcement = cursor.fetchone()

@@ -30,11 +30,11 @@ def save_announcement(announcement_files, course_id, announcement_title):
     announcement_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_id), announcement_title)
     os.makedirs(announcement_dir, exist_ok=True)
 
-    for file in announcement_files:
-        if file and hasattr(file, 'filename') and file.filename:
-            filename = secure_filename(file.filename)
+    for f in announcement_files:
+        if f and f.filename:
+            filename = secure_filename(f.filename)
             file_path = os.path.join(announcement_dir, filename)
-            file.save(file_path)
+            f.save(file_path)
 
 
 def save_submissions(assignment_files, course_id, assignment_title):
@@ -552,7 +552,7 @@ def create_announcement(cursor, course_code, title, desc):
     cursor.execute(''' 
             INSERT INTO announcement (announcement_id, class_id, content, posted_at)
             VALUES (%s, %s, %s, %s)
-        ''', ("{}_{}".format(course_code, title), course_code, desc, datetime.datetime.now()))
+        ''', ("{}_{}".format(course_code, title), course_code, desc, datetime.datetime.now()))      
     
 def fetch_enrollments(cursor, user_id):
     cursor.execute(''' SELECT e.class_id, c.teacher_id, c.name  

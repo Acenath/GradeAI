@@ -1,64 +1,46 @@
 {% extends "student_course_base.html" %}
 
 {% block content %}
-<div class="content-container">
+  <div class="content-container">
     <div class="page-title">
-        <a href="{{ url_for('announcement_view_student', course_code=course_code, course_name=course_name) }}" class="back-link">
-            <i class="fas fa-arrow-left"></i> Back to Announcements
-        </a>
-        {{ course_name }} / Announcement Details
+      <a
+        href="{{ url_for('announcement_view_student', course_code=course_code, course_name=course_name) }}"
+        class="back-link"
+      >
+        <i class="fas fa-arrow-left"></i> Back to Announcements
+      </a>
+      {{ course_name }} / Announcement Details
     </div>
 
     <div class="announcement-detail">
-        {% if announcement %}
-            <div class="announcement-header">
-                <h2>{{ announcement[0].split('_')[1] }}</h2>
-                <span class="announcement-date">Posted: {{ announcement[2].strftime('%B %d, %Y') }}</span>
-            </div>
-            <div class="announcement-content">
-                <p>{{ announcement[1] }}</p>
-            </div>
-            
-            {% if announcement[3] %}
-            <div class="section">
-                <div class="section-title">Announcement Files</div>
-                <div class="attachments-grid">
-                    <div class="attachment-card">
-                        <i class="far fa-file-alt file-icon"></i>
-                        <div class="file-text">
-                            {{ announcement[3].split('/')[-1] }}
-                        </div>
-                        <a href="{{ url_for('static', filename='uploads/announcements/' + announcement.class_id + '/' + announcement.content[:50]|replace(' ', '_') + '/' + announcement.attachments_url) }}" class="download-link"> Download Attachment</a>
-                        <i class="fas fa-download"></i> Download
-                        </a>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-         {% if announcement.attachments %}
-    <div class="section">
-        <div class="section-title">Announcement Files</div>
-        <div class="attachments-grid">
-            {% for attachment in announcement.attachments %}
-            <div class="attachment-card">
-                <i class="far fa-file-alt file-icon"></i>
-                <div class="file-text">
-                    {{ attachment.filename }}
-                </div>
-                <a href="{{ url_for('static', filename='uploads/assignments/' + course_code + '/' + assignment.title + '/' + attachment.filename) }}" class="download-link">
-                    <i class="fas fa-download"></i> Download
-                </a>
-            </div>
-            {% endfor %}
+      {% if announcement %}
+        <div class="announcement-header">
+          <h2>{{ announcement[0].split('_')[1] }}</h2>
+          <span class="announcement-date">
+            Posted: {{ announcement[2].strftime('%B %d, %Y') }}
+          </span>
         </div>
-    </div>
-    {% endif %}
-        {% else %}
-            <div class="alert alert-info">
-                Announcement not found.
-            </div>
-        {% endif %}
-    </div>
-</div>
 
-{% endblock %}
+        <div class="announcement-content">
+          <p>{{ announcement[1] }}</p>
+        </div>
+
+        {% if attachments %}
+          {% for file in attachments %}
+            <div class="attachment-card">
+              <i class="far fa-file-alt file-icon"></i>
+              <div class="file-text">{{ file }}</div>
+              <a
+                href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + folder_name + '/' + file) }}"
+                class="download-link"
+                download
+              >
+                Download {{ file }}
+              </a>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

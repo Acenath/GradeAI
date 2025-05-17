@@ -233,30 +233,43 @@ def teacher_dashboard():
 @login_required
 def announcement_student(course_code, course_name, announcement_id):
     cursor = gradeai_db.connection.cursor()
+    attachments = []
+
     cursor.execute("""
-        SELECT announcement_id, content, posted_at, attachments_url
+        SELECT announcement_id, content, posted_at
         FROM announcement
         WHERE announcement_id = %s AND class_id = %s
     """, (announcement_id, course_code))
     announcement = cursor.fetchone()
+
+    folder_name = announcement_id.split("_")[1]
+    file_dir = os.path.join(app.root_path, "static", "uploads", "announcements", course_code, folder_name)
+
+    if os.path.exists(file_dir):
+        for filename in os.listdir(file_dir):
+            attachments.append(filename)
+
     cursor.close()
 
     return render_template('announcement_student.html',
                          course_code=course_code,
                          course_name=course_name,
-                         announcement=announcement)
+                         announcement=announcement,
+                         attachments=attachments,
+                         folder_name=folder_name)
 
 @app.route('/announcement_view_student/<course_name>/<course_code>')
 @login_required
 def announcement_view_student(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
     cursor.execute("""
-        SELECT announcement_id, content, posted_at, attachments_url
+        SELECT announcement_id, class_id, content, posted_at
         FROM announcement
         WHERE class_id = %s
         ORDER BY posted_at DESC
     """, (course_code,))
     announcements = cursor.fetchall()
+    print(announcements)
     cursor.close()
     
     return render_template("announcement_view_student.html",
@@ -336,11 +349,8 @@ def announcement_view_teacher(course_name, course_code):
         desc = request.form.get("description")
         attachments = request.files.getlist("attachments")
 
-        save_announcement(attachments, course_code, title)
-
         create_announcement(cursor, course_code, title, desc)
         save_announcement(attachments, course_code, title)
-
         gradeai_db.connection.commit()
         cursor.close()
 
@@ -395,7 +405,7 @@ def assignment_creation(course_code):
         return redirect(url_for("view_assignments", course_code=course_code))
 
     cursor = gradeai_db.connection.cursor()
-    cursor.execute("SELECT name FROM Class WHERE class_id = %s", (course_code,))
+    cursor.execute("SELECT name FROM class WHERE class_id = %s", (course_code,))
     course = cursor.fetchone()
     cursor.close()
 

@@ -1,46 +1,80 @@
 {% extends "student_course_base.html" %}
 
 {% block content %}
-  <div class="content-container">
-    <div class="page-title">
-      <a
-        href="{{ url_for('announcement_view_student', course_code=course_code, course_name=course_name) }}"
-        class="back-link"
-      >
+<div class="content-container">
+  <div class="announcement-header-section">
+    <div class="breadcrumb">
+      <a href="{{ url_for('announcement_view_student', course_code=course_code, course_name=course_name) }}" class="back-link">
         <i class="fas fa-arrow-left"></i> Back to Announcements
       </a>
-      {{ course_name }} / Announcement Details
+      <span class="separator">/</span>
+      <span class="current-page">{{ course_name }}</span>
     </div>
+    <h1 class="page-title">Announcement Details</h1>
+  </div>
 
-    <div class="announcement-detail">
-      {% if announcement %}
-        <div class="announcement-header">
+  <div class="announcement-detail">
+    {% if announcement %}
+      <div class="announcement-header">
+        <div class="announcement-title-section">
           <h2>{{ announcement[0].split('_')[1] }}</h2>
           <span class="announcement-date">
+            <i class="far fa-calendar-alt"></i>
             Posted: {{ announcement[2].strftime('%B %d, %Y') }}
           </span>
         </div>
+      </div>
 
-        <div class="announcement-content">
+      <div class="announcement-content">
+        <div class="content-wrapper">
           <p>{{ announcement[1] }}</p>
         </div>
+      </div>
 
-        {% if attachments %}
-          {% for file in attachments %}
-            <div class="attachment-card">
-              <i class="far fa-file-alt file-icon"></i>
-              <div class="file-text">{{ file }}</div>
-              <a
-                href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + folder_name + '/' + file) }}"
-                class="download-link"
-                download
-              >
-                Download {{ file }}
-              </a>
-            </div>
-          {% endfor %}
-        {% endif %}
+      {% if attachments %}
+        <div class="attachments-section">
+          <h3 class="section-title">
+            <i class="fas fa-paperclip"></i>
+            Attachments
+          </h3>
+          <div class="attachments-grid">
+            {% for file in attachments %}
+              <div class="attachment-card">
+                <div class="attachment-icon">
+                  {% if file.lower().endswith(('.pdf')) %}
+                    <i class="far fa-file-pdf"></i>
+                  {% elif file.lower().endswith(('.doc', '.docx')) %}
+                    <i class="far fa-file-word"></i>
+                  {% elif file.lower().endswith(('.xls', '.xlsx')) %}
+                    <i class="far fa-file-excel"></i>
+                  {% elif file.lower().endswith(('.ppt', '.pptx')) %}
+                    <i class="far fa-file-powerpoint"></i>
+                  {% elif file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
+                    <i class="far fa-file-image"></i>
+                  {% else %}
+                    <i class="far fa-file-alt"></i>
+                  {% endif %}
+                </div>
+                <div class="attachment-info">
+                  <div class="file-text">{{ file }}</div>
+                  <a href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + folder_name + '/' + file) }}"
+                     class="download-link"
+                     download>
+                    <i class="fas fa-download"></i>
+                    Download
+                  </a>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
       {% endif %}
-    </div>
+    {% else %}
+      <div class="no-announcement">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>No announcement found.</p>
+      </div>
+    {% endif %}
   </div>
+</div>
 {% endblock content %}

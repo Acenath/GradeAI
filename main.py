@@ -566,18 +566,6 @@ def edit_image():
     return render_template("edit_image.html")
 
 
-@app.route('/homework_student')
-@login_required
-def homework_student():
-    return render_template("homework_student.html")
-
-
-@app.route('/homework_teacher')
-@login_required
-def homework_teacher():
-    return render_template("homework_teacher.html")
-
-
 @app.route('/new_password')
 def new_password():
     return render_template("new_password.html")

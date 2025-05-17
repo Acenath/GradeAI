@@ -1,58 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Log In</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href = "{{ url_for('static', filename = 'css/login.css') }}", type = 'text/css', rel = 'stylesheet'/>
-</head>
-<body>
+{% extends "layout.html" %}
 
-
-  <!-- Navbar -->
-  <div class="nav-bar">
-    <div class="d-flex align-items-center">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-      <strong> Gradia</strong>
-    </div>
-    <div class="nav-links">
-      <a href="/login">Log in</a>
-      <a href="/signup">Sign up</a>
-      <a href="/about">About Us</a>
-      <a href="/tutorial">Quick Tutorial</a>
-    </div>
+{% block content %}
+<div class="main-content">
+  <!-- Left placeholder -->
+  <div class="left-placeholder">
+    <img src="https://www.hiclipart.com/free-transparent-background-png-clipart-bdrzu" alt="Brain Icon" style="width: 100%; max-width: 300px; height: auto; object-fit: contain;">
   </div>
 
-  <!-- Main content -->
-  <div class="main-content">
-    <!-- Left placeholder -->
-    <div class="left-placeholder">
-      <img src="" alt="Placeholder Image">
-    </div>
-
-    <!-- Login form -->
-    <div class="login-card">
-      <h2>Enter Your Credentials</h2>
-      {% if error_message %}
-        <div class="alert alert-warning" role="alert">
-        {{ error_message }}
-        </div>
-      {% endif %}
-      <form method="POST" action="{{ url_for('login') }}">
-        <div class="mb-3">
-          <input type="email" class="form-control" name="email" placeholder="Email address*" required>
-        </div>
-        <div class="mb-3">
-          <input type="password" class="form-control" name="password" placeholder="Password*" required>
-        </div>
-        <div class="signup-redirect">
-          <a href="{{ url_for('forgot_password') }}">Forgot Password? </a>
-        </div>
-        <button type="submit" class="login-btn">Log in</button>
-      </form>
-    </div>
+  <!-- Login form -->
+  <div class="login-card">
+    <h2>Enter Your Credentials</h2>
+    {% if error_message %}
+      <div class="alert alert-warning" role="alert">
+      {{ error_message }}
+      </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('login') }}">
+      <div class="form-group">
+        <input type="email" class="form-control" name="email" placeholder="Email address*" required>
+      </div>
+      <div class="form-group">
+        <input type="password" class="form-control" name="password" placeholder="Password*" required>
+      </div>
+      <div class="signup-redirect">
+        <a href="{{ url_for('forgot_password') }}">Forgot Password? </a>
+      </div>
+      <button type="submit" class="login-btn">Log in</button>
+    </form>
   </div>
-</body>
-</html>
+</div>
+{% endblock content %}

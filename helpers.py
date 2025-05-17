@@ -559,3 +559,88 @@ def fetch_enrollments(cursor, user_id):
                    FROM enrollment as e LEFT JOIN class as c ON e.class_id = c.class_id 
                    WHERE e.student_id = %s''', (user_id,))
     return cursor.fetchall()
+
+
+
+
+
+"""
+
+
+def create_notifications_table():
+    with app.app_context():
+        cursor = gradeai_db.connection.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notifications (
+                notification_id varchar(255) NOT NULL,
+                user_id varchar(255) NOT NULL,
+                type varchar(50) NOT NULL,
+                title varchar(255) NOT NULL,
+                message varchar(1000) NOT NULL,
+                created_at datetime NOT NULL,
+                is_read bit(1) NOT NULL DEFAULT b'0',
+                PRIMARY KEY (notification_id),
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+        ''')
+        gradeai_db.connection.commit()
+        cursor.close()
+
+def create_notification(cursor, user_id, type, title, message):
+    notification_id = f"{user_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    cursor.execute('''
+        INSERT INTO notifications (notification_id, user_id, type, title, message, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    ''', (notification_id, user_id, type, title, message, datetime.datetime.now()))
+
+def get_student_notifications(cursor, user_id):
+    cursor.execute('''
+        SELECT notification_id, type, title, message, created_at, is_read
+        FROM notifications
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+    ''', (user_id,))
+    return cursor.fetchall()
+
+@app.route('/get_notifications')
+@login_required
+def get_notifications():
+    cursor = gradeai_db.connection.cursor()
+    notifications = get_student_notifications(cursor, current_user.user_id)
+    cursor.close()
+    return jsonify([{
+        'id': n[0],
+        'type': n[1],
+        'title': n[2],
+        'message': n[3],
+        'time': n[4].strftime('%Y-%m-%d %H:%M:%S'),
+        'is_read': n[5]
+    } for n in notifications])
+
+@app.route('/mark_notification_read/<notification_id>')
+@login_required
+def mark_notification_read(notification_id):
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute('''
+        UPDATE notifications
+        SET is_read = TRUE
+        WHERE notification_id = %s AND user_id = %s
+    ''', (notification_id, current_user.user_id))
+    gradeai_db.connection.commit()
+    cursor.close()
+    return jsonify({'success': True})
+
+@app.route('/mark_all_notifications_read')
+@login_required
+def mark_all_notifications_read():
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute('''
+        UPDATE notifications
+        SET is_read = TRUE
+        WHERE user_id = %s
+    ''', (current_user.user_id,))
+    gradeai_db.connection.commit()
+    cursor.close()
+    return jsonify({'success': True})
+
+"""

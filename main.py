@@ -575,13 +575,19 @@ def new_password():
 @app.route('/profile_student')
 @login_required
 def profile_student():
-    return render_template("profile_student.html")
+    cursor = gradeai_db.connection.cursor()
+    courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
+    cursor.close()
+    return render_template("profile_student.html", courses_and_instructors=courses_and_instructors)
 
 
 @app.route('/profile_teacher')
 @login_required
 def profile_teacher():
-    return render_template("profile_teacher.html")
+    cursor = gradeai_db.connection.cursor()
+    courses = fetch_classes(cursor, current_user.user_id)
+    cursor.close()
+    return render_template("profile_teacher.html", courses=courses)
 
 
 @app.route('/create_feedback', methods=["GET", "POST"])
@@ -810,6 +816,50 @@ def submit_assignment(assignment_id):
     return redirect(url_for("assignments_student", 
                           course_code=assignment[1], 
                           course_name=assignment[2]))
+
+@app.route('/upload_profile_pic', methods=['POST'])
+@login_required
+def upload_profile_pic():
+    if 'profile_pic' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(request.referrer)
+    
+    file = request.files['profile_pic']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(request.referrer)
+    
+    if file and allowed_file(file.filename):
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join('static', 'uploads', 'profile_pics')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        filename = secure_filename(f"{current_user.user_id}_{file.filename}")
+        file_path = os.path.join(upload_dir, filename)
+        
+        # Save the file
+        file.save(file_path)
+        
+        # Update database with profile picture path
+        cursor = gradeai_db.connection.cursor()
+        cursor.execute("""
+            UPDATE users 
+            SET profile_pic = %s 
+            WHERE user_id = %s
+        """, (filename, current_user.user_id))
+        gradeai_db.connection.commit()
+        cursor.close()
+        
+        flash('Profile picture updated successfully', 'success')
+    else:
+        flash('Invalid file type. Please upload an image.', 'error')
+    
+    return redirect(request.referrer)
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 if __name__ == "__main__":
     app.run(debug=True)

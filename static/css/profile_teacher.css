@@ -38,6 +38,29 @@ body {
   font-size: 0.9rem;
 }
 
+/* Back Button */
+.back-button-container {
+  padding: 1rem 2rem;
+  background-color: #bcdde5;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #000;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #000;
+}
+
 .profile-container {
   display: flex;
   flex-direction: column;
@@ -46,37 +69,57 @@ body {
 }
 
 .profile-pic {
-  width: 100px;
-  height: 100px;
-  border: 1px solid #000;
-  background-color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
+  width: 120px;
+  height: 120px;
+  background-color: #e9ecef;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  color: #6c757d;
+  transition: all 0.3s ease;
+  border: 1px solid #000;
+  overflow: hidden;
+}
+
+.profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-pic:hover {
+  background-color: #dee2e6;
 }
 
 .edit-icon {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: #fff;
-  border: 1px solid #000;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 12px;
+  background-color: #007bff;
+  color: white;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.edit-icon:hover {
+  background-color: #0056b3;
+  color: white;
 }
 
 .profile-name {
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 10px;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+  margin-top: 1rem;
 }
 
 .info-section {
@@ -95,14 +138,19 @@ body {
   width: 90%;
   max-width: 600px;
   box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
 .info-title {
   font-weight: bold;
-  margin-bottom: 10px;
+  margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
 }
 
 .edit-button {
@@ -125,4 +173,27 @@ body {
 .info-content {
   font-size: 0.9rem;
   line-height: 1.8;
+  flex-grow: 1;
+}
+
+.info-content ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.info-content ul li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.info-content ul li:last-child {
+  margin-bottom: 0;
+}
+
+.info-content ul li i {
+  margin-right: 0.5rem;
+  width: 20px;
+  text-align: center;
 }

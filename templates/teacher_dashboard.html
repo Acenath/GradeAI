@@ -50,7 +50,7 @@
             </div>
             <div class="lecture-card-content">
               <div class="course-stats">
-                <span><i class="fas fa-users"></i> Students: {{ course[4]|default(0) }}</span>
+                <span><i class="fas fa-users"></i> Students: {{ total_student_dict[course[0]] }}</span>
               </div>
             </div>
           </a>
@@ -122,13 +122,14 @@
     <div class="sidebar-section">
       <h3>Announcements</h3>
       {% for announcement in recent_announcements %}
+        
         <a href="{{ url_for('announcement_teacher', course_name=announcement[4], course_code=announcement[3]) }}" class="announcement-item">
           <div class="announcement-icon">
             <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>
           <div class="announcement-info">
-            <div>{{ announcement[1]|truncate(40) }}</div>
-            <div class="course-code">{{ announcement[3] }} - {{ announcement[4] }}</div>
+            <div>{{ announcement[0].split("_")[1]|truncate(40) }}</div>
+            <div class="course-code">{{ announcement[3] }} - {{ announcement[1] }}</div>
             <div class="date">{{ announcement[2].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>

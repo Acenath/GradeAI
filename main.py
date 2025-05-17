@@ -216,18 +216,18 @@ def student_dashboard():
 def teacher_dashboard():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
+    total_student_dict = total_number_of_students(cursor, [course[0] for course in courses])
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
-    
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
-    
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
-    
+
     cursor.close()
     return render_template("teacher_dashboard.html", 
                           courses=courses,
                           upcoming_deadlines=upcoming_deadlines,
                           recent_feedback=recent_feedback,
-                          recent_announcements=recent_announcements)
+                          recent_announcements=recent_announcements,
+                          total_student_dict = total_student_dict)
 
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>')
 @login_required
@@ -284,9 +284,10 @@ def announcement_teacher(course_name, course_code):
     announcements = fetch_recent_class_announcements(cursor, course_code)
     cursor.close()
     return render_template("announcement_teacher.html", 
-                         course_name=course_name, 
-                         course_code=course_code,
-                         announcements=announcements)
+                        course_name=course_name, 
+                        course_code=course_code,
+                        announcements=announcements)
+
 
 @app.route('/announcement_edit/<course_name>/<course_code>/<announcement_id>', methods=["GET", "POST"])
 @login_required

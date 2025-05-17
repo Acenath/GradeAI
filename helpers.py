@@ -3,7 +3,7 @@ from hashlib import sha256
 import csv
 import os
 import json
-
+from collections import defaultdict
 from werkzeug.utils import secure_filename
 from flask import flash
 
@@ -560,7 +560,16 @@ def fetch_enrollments(cursor, user_id):
                    WHERE e.student_id = %s''', (user_id,))
     return cursor.fetchall()
 
+def total_number_of_students(cursor, course_codes):
+    total_student_dict = defaultdict(int)
 
+    for course_code in course_codes:
+        cursor.execute(''' SELECT COUNT(DISTINCT(student_id)), class_id FROM enrollment WHERE class_id = %s ''', (course_code, ))
+        total_student_tuple = cursor.fetchone()
+        total_student_dict[course_code] = total_student_dict.get(course_code, 0) + total_student_tuple[0]
+
+    return total_student_dict
+    
 
 
 

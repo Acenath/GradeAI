@@ -4,7 +4,7 @@
 <div class="main-content">
   <!-- Left placeholder -->
   <div class="left-placeholder">
-    <img src="https://www.hiclipart.com/free-transparent-background-png-clipart-bdrzu" alt="Brain Icon" style="width: 100%; max-width: 300px; height: auto; object-fit: contain;">
+    <img src="{{ url_for('static', filename='images/brain-icon.png') }}" alt="Brain Icon" class="brain-icon">
   </div>
 
   <!-- Login form -->
@@ -29,4 +29,4 @@
     </form>
   </div>
 </div>
-{% endblock content %}
+{% endblock content%}

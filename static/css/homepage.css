@@ -30,13 +30,20 @@ nav a {
 .main-content {
     display: flex;
     justify-content: center;
-    padding: 40px 20px;
-    gap: 40px;
+    align-items: center;
+    min-height: 80vh; /* Takes up most of the viewport height */
+    padding: 2rem;
+    gap: 4rem;
 }
 
 /* Left Placeholder Styles */
 .left-placeholder {
     margin-right: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
 }
 
 .left-placeholder img {
@@ -44,6 +51,32 @@ nav a {
     height: 300px;
     border: 2px solid black;
     object-fit: cover;
+}
+
+/* Brain Icon Specific Styles (no outline) */
+.brain-icon {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    object-fit: contain;
+    background: transparent;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: 0;
+    display: block;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Ensure no outline on focus or hover for brain icon */
+.brain-icon:focus,
+.brain-icon:hover,
+.brain-icon:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 /* Card Styles */
@@ -77,6 +110,7 @@ nav a {
     font-size: 1rem;
     padding: 10px;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .form-group {
@@ -119,6 +153,15 @@ nav a {
 }
 
 /* Homepage Specific Styles */
+.alert{
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    background-color: fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+}
+
 .hero {
     display: flex;
     justify-content: center;

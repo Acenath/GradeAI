@@ -4,8 +4,12 @@ import csv
 import os
 import json
 from collections import defaultdict
+
+from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
-from flask import flash
+from flask import flash, jsonify
+
+from main import gradeai_db, app
 
 #VARIABLES
 STUDENT_LIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv_files", "student_list.csv")
@@ -572,10 +576,6 @@ def total_number_of_students(cursor, course_codes):
     
 
 
-
-"""
-
-
 def create_notifications_table():
     with app.app_context():
         cursor = gradeai_db.connection.cursor()
@@ -611,45 +611,69 @@ def get_student_notifications(cursor, user_id):
     ''', (user_id,))
     return cursor.fetchall()
 
-@app.route('/get_notifications')
-@login_required
-def get_notifications():
-    cursor = gradeai_db.connection.cursor()
-    notifications = get_student_notifications(cursor, current_user.user_id)
-    cursor.close()
-    return jsonify([{
-        'id': n[0],
-        'type': n[1],
-        'title': n[2],
-        'message': n[3],
-        'time': n[4].strftime('%Y-%m-%d %H:%M:%S'),
-        'is_read': n[5]
-    } for n in notifications])
-
-@app.route('/mark_notification_read/<notification_id>')
-@login_required
-def mark_notification_read(notification_id):
-    cursor = gradeai_db.connection.cursor()
+def notify_students_about_announcement(cursor, course_code, title, content):
+    # Get all students enrolled in the course
     cursor.execute('''
-        UPDATE notifications
-        SET is_read = TRUE
-        WHERE notification_id = %s AND user_id = %s
-    ''', (notification_id, current_user.user_id))
-    gradeai_db.connection.commit()
-    cursor.close()
-    return jsonify({'success': True})
+        SELECT student_id 
+        FROM enrollment 
+        WHERE class_id = %s
+    ''', (course_code,))
+    students = cursor.fetchall()
+    
+    # Create notification for each student
+    for student in students:
+        create_notification(
+            cursor,
+            student[0],
+            'announcement',
+            f'New Announcement: {title}',
+            f'A new announcement has been posted in {course_code}: {content[:100]}...'
+        )
 
-@app.route('/mark_all_notifications_read')
-@login_required
-def mark_all_notifications_read():
-    cursor = gradeai_db.connection.cursor()
+def notify_students_about_assignment(cursor, course_code, title, deadline):
+    # Get all students enrolled in the course
     cursor.execute('''
-        UPDATE notifications
-        SET is_read = TRUE
-        WHERE user_id = %s
-    ''', (current_user.user_id,))
-    gradeai_db.connection.commit()
-    cursor.close()
-    return jsonify({'success': True})
+        SELECT student_id 
+        FROM enrollment 
+        WHERE class_id = %s
+    ''', (course_code,))
+    students = cursor.fetchall()
+    
+    # Create notification for each student
+    for student in students:
+        create_notification(
+            cursor,
+            student[0],
+            'assignment',
+            f'New Assignment: {title}',
+            f'A new assignment has been posted in {course_code}. Deadline: {deadline.strftime("%Y-%m-%d %H:%M")}'
+        )
 
-"""
+def notify_student_about_feedback(cursor, student_id, assignment_title, course_code):
+    create_notification(
+        cursor,
+        student_id,
+        'feedback',
+        f'Feedback Received: {assignment_title}',
+        f'You have received feedback on your submission for {assignment_title} in {course_code}'
+    )
+
+def notify_about_deadline(cursor, course_code, assignment_title, deadline):
+    # Get all students enrolled in the course
+    cursor.execute('''
+        SELECT student_id 
+        FROM enrollment 
+        WHERE class_id = %s
+    ''', (course_code,))
+    students = cursor.fetchall()
+    
+    # Create notification for each student
+    for student in students:
+        create_notification(
+            cursor,
+            student[0],
+            'deadline',
+            f'Assignment Deadline: {assignment_title}',
+            f'Reminder: {assignment_title} in {course_code} is due in 24 hours'
+        )
+

@@ -152,11 +152,94 @@ document.addEventListener('DOMContentLoaded', function() {
   const notificationBell = document.getElementById('notificationBell');
   const notificationDropdown = document.getElementById('notificationDropdown');
   const notificationBadge = document.getElementById('notificationBadge');
+  const notificationList = document.getElementById('notificationList');
+  const markAllRead = document.querySelector('.mark-all-read');
+  
+  // Function to update notification badge
+  function updateNotificationBadge() {
+    const unreadCount = document.querySelectorAll('.notification-item.unread').length;
+    notificationBadge.textContent = unreadCount;
+    notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
+  }
+  
+  // Function to fetch notifications
+  function fetchNotifications() {
+    console.log('Fetching notifications...');
+    fetch('/get_notifications')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Received notifications:', data);
+        
+        // Check if we got an error response
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        
+        notificationList.innerHTML = '';
+        let unreadCount = 0;
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
+          notificationBadge.style.display = 'none';
+          return;
+        }
+        
+        data.forEach(notification => {
+          const notificationItem = document.createElement('div');
+          notificationItem.className = `notification-item ${notification.is_read ? '' : 'unread'}`;
+          notificationItem.dataset.id = notification.id;
+          
+          let icon = '';
+          switch(notification.type) {
+            case 'assignment':
+              icon = '<i class="fas fa-file-alt"></i>';
+              break;
+            case 'feedback':
+              icon = '<i class="fas fa-comments"></i>';
+              break;
+            case 'announcement':
+              icon = '<i class="fas fa-bullhorn"></i>';
+              break;
+            case 'deadline':
+              icon = '<i class="fas fa-clock"></i>';
+              break;
+          }
+          
+          notificationItem.innerHTML = `
+            <div class="notification-title">${icon} ${notification.title}</div>
+            <div class="notification-message">${notification.message}</div>
+            <div class="notification-time">${notification.time}</div>
+          `;
+          
+          if (!notification.is_read) {
+            unreadCount++;
+          }
+          
+          notificationList.appendChild(notificationItem);
+        });
+        
+        // Update badge
+        notificationBadge.textContent = unreadCount;
+        notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
+      })
+      .catch(error => {
+        console.error('Error fetching notifications:', error);
+        notificationList.innerHTML = `<div class="notification-error">Error loading notifications: ${error.message}</div>`;
+      });
+  }
   
   // Toggle notification dropdown
   notificationBell.addEventListener('click', function(e) {
     e.stopPropagation();
     notificationDropdown.style.display = notificationDropdown.style.display === 'block' ? 'none' : 'block';
+    if (notificationDropdown.style.display === 'block') {
+      fetchNotifications();
+    }
   });
   
   // Close dropdown when clicking outside
@@ -166,56 +249,76 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Function to add a new notification
-  function addNotification(type, title, message, time) {
-    const notificationList = document.getElementById('notificationList');
-    const notificationItem = document.createElement('div');
-    notificationItem.className = 'notification-item unread';
-    
-    let icon = '';
-    switch(type) {
-      case 'assignment':
-        icon = '<i class="fas fa-file-alt"></i>';
-        break;
-      case 'feedback':
-        icon = '<i class="fas fa-comments"></i>';
-        break;
-      case 'announcement':
-        icon = '<i class="fas fa-bullhorn"></i>';
-        break;
-    }
-    
-    notificationItem.innerHTML = `
-      <div class="notification-title">${icon} ${title}</div>
-      <div class="notification-message">${message}</div>
-      <div class="notification-time">${time}</div>
-    `;
-    
-    notificationList.insertBefore(notificationItem, notificationList.firstChild);
-    updateNotificationBadge();
-  }
-  
-  // Function to update notification badge
-  function updateNotificationBadge() {
-    const unreadCount = document.querySelectorAll('.notification-item.unread').length;
-    notificationBadge.textContent = unreadCount;
-    notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
-  }
-  
   // Mark all as read
-  document.querySelector('.mark-all-read').addEventListener('click', function() {
-    document.querySelectorAll('.notification-item.unread').forEach(item => {
-      item.classList.remove('unread');
+  markAllRead.addEventListener('click', function() {
+    console.log('Marking all notifications as read...');
+    fetch('/mark_all_notifications_read', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Mark all as read response:', data);
+      if (data.success) {
+        fetchNotifications();
+      } else {
+        throw new Error(data.error || 'Failed to mark notifications as read');
+      }
+    })
+    .catch(error => {
+      console.error('Error marking all notifications as read:', error);
+      alert('Failed to mark notifications as read. Please try again.');
     });
-    updateNotificationBadge();
   });
   
-  // Example of how to add notifications (you'll need to implement the actual backend integration)
-  // addNotification('assignment', 'New Assignment', 'A new assignment has been posted in CS101', '2 minutes ago');
-  // addNotification('feedback', 'Feedback Received', 'You received feedback on your last submission', '1 hour ago');
-  // addNotification('announcement', 'New Announcement', 'Important announcement in CS101', '3 hours ago');
+  // Mark individual notification as read
+  notificationList.addEventListener('click', function(e) {
+    const notificationItem = e.target.closest('.notification-item');
+    if (notificationItem && notificationItem.classList.contains('unread')) {
+      const notificationId = notificationItem.dataset.id;
+      console.log('Marking notification as read:', notificationId);
+      
+      fetch(`/mark_notification_read/${notificationId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Mark as read response:', data);
+        if (data.success) {
+          notificationItem.classList.remove('unread');
+          updateNotificationBadge();
+        } else {
+          throw new Error(data.error || 'Failed to mark notification as read');
+        }
+      })
+      .catch(error => {
+        console.error('Error marking notification as read:', error);
+        alert('Failed to mark notification as read. Please try again.');
+      });
+    }
+  });
+  
+  // Fetch notifications every minute
+  setInterval(fetchNotifications, 60000);
+  
+  // Initial fetch
+  fetchNotifications();
 });
 </script>
-
 </body>
 </html>

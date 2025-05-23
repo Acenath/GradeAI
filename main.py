@@ -493,6 +493,7 @@ def assignments_student(course_code, course_name):
 @app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>')
 @login_required
 def assignment_submit_student(course_code, course_name, assignment_id):
+    os.makedirs(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_id.split("_")[1], current_user.user_id), exist_ok = 1)
     cursor = gradeai_db.connection.cursor()
 
     # Get assignment details
@@ -504,7 +505,6 @@ def assignment_submit_student(course_code, course_name, assignment_id):
         WHERE a.assignment_id = %s AND a.class_id = %s
     """, (assignment_id, course_code))
     assignment_data = cursor.fetchone()
-
     if not assignment_data:
         flash("Assignment not found", "error")
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
@@ -515,12 +515,31 @@ def assignment_submit_student(course_code, course_name, assignment_id):
     if os.path.exists(assignment_dir):
         assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
 
+    
+    submission_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.join("static", "uploads", "submissions", course_code, assignment_data[1], current_user.user_id))
+    cursor.execute('''
+                    DELETE FROM submission WHERE student_id = %s
+                       ''', (current_user.user_id, ))
+    gradeai_db.connection.commit()
+    
+    files = []
+    for f in os.listdir(submission_dir):
+        submission_id = f"{f.split(".")[0]}_{assignment_data[1]}"
+        files.append(f)
+        cursor.execute('''
+                    INSERT INTO submission (submission_id, assignment_id, submitted_at, status, student_id)
+                   VALUES (%s, %s, %s, %s, %s)
+                   ''', (submission_id, assignment_id, datetime.datetime.now(), 0, current_user.user_id))
+        
+    gradeai_db.connection.commit()
+
     # Check if student has already submitted
     cursor.execute("""
-        SELECT s.submission_id, s.submitted_at, s.file_url
+        SELECT s.submission_id, s.submitted_at
         FROM submission s
         WHERE s.student_id = %s AND s.assignment_id = %s
     """, (current_user.user_id, assignment_id))
+   
     submission = cursor.fetchone()
 
     # Format assignment data for template
@@ -531,20 +550,36 @@ def assignment_submit_student(course_code, course_name, assignment_id):
         'due_date': assignment_data[3],
         'total_score': assignment_data[4],
         'attachments': [{'filename': f, 'id': i} for i, f in enumerate(assignment_files)],
-        'is_submitted': bool(submission),
+        'is_submitted': True if submission else False,
         'submission': {
-            'files': [
-                {'filename': os.path.basename(submission[2]), 'submitted_at': submission[1]}] if submission else []
-        } if submission else None
+            'files': files,
+            'submitted_at': submission[1] if submission else None
+        } 
     }
-
     cursor.close()
-
     return render_template("assignment_submit_student.html",
                            assignment=assignment,
                            course_code=course_code,
                            course_name=course_name)
 
+
+def delete_submitted_file(course_code, course_name, assignment_id, submitted_filename):
+    cursor = gradeai_db.connection.cursor()
+        # Get assignment details
+    cursor.execute("""
+        SELECT a.assignment_id, a.title, a.description, a.deadline, 
+               a.total_score, c.name as course_name
+        FROM assignment a
+        JOIN class c ON a.class_id = c.class_id
+        WHERE a.assignment_id = %s AND a.class_id = %s
+    """, (assignment_id, course_code))
+    assignment_data = cursor.fetchone()
+
+    submission_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.join("static", "uploads", "submissions", course_code, assignment_data[1], current_user.user_id))
+    os.remove(os.path.join(submission_dir, submitted_filename))
+    cursor.execute('''
+                    DELETE FROM submission WHERE submission_id = %s 
+                   ''', (f"{f.split(".")[0]}_{assignment_data[1]}"))
 
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
 @login_required
@@ -770,6 +805,31 @@ def grade_submission(course_code, assignment_id, submission_id):
 def submit_assignment(assignment_id):
     cursor = gradeai_db.connection.cursor()
 
+    course_code, assignment_title = assignment_id.split("_")[0], assignment_id.split("_")[1]
+    course_name = get_course_name(cursor, course_code)
+    delete_file = request.form.get("delete-file")
+    delete_all = request.form.get("delete-all")
+
+    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id)
+    if delete_file:
+        cursor.execute('''
+                        DELETE FROM submission WHERE assignment_id = %s
+                       ''', (f"{delete_file.split("_")[0]}_{assignment_id}", ))
+        gradeai_db.connection.commit()
+        os.remove(os.path.join(submission_dir_student, delete_file))
+        return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
+    
+    if delete_all:
+        cursor.execute('''
+                        DELETE FROM submission WHERE student_id = %s
+                       ''', (current_user.user_id,))
+        gradeai_db.connection.commit()
+        for filename in os.listdir(submission_dir_student):
+            os.remove(os.path.join(submission_dir_student, filename))
+
+        return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
+
+
     # Get assignment details including course name
     cursor.execute("""
         SELECT a.title, a.class_id, c.name as course_name
@@ -778,7 +838,6 @@ def submit_assignment(assignment_id):
         WHERE a.assignment_id = %s
     """, (assignment_id,))
     assignment = cursor.fetchone()
-
     if not assignment:
         flash("Assignment not found", "error")
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
@@ -841,9 +900,9 @@ def submit_assignment(assignment_id):
     finally:
         cursor.close()
 
-    return redirect(url_for("assignments_student",
+    return redirect(url_for("assignment_submit_student",
                             course_code=assignment[1],
-                            course_name=assignment[2]))
+                            course_name=assignment[2], assignment_id = assignment_id))
 
 
 @app.route('/upload_profile_pic', methods=['POST'])

@@ -69,23 +69,31 @@
     </div>
 
     {% if assignment.submission %}
-    <div class="section submitted-files">
-        <div class="section-title">Your Submitted Files</div>
+<div class="section submitted-files">
+    <div class="section-title">Your Submitted Files</div>
+    <form action="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" method="POST">
         <div class="attachments-grid">
-            {% for file in assignment.submission.files %}
+            {% for filename in assignment.submission.files %}
             <div class="attachment-card">
                 <i class="far fa-file-alt file-icon"></i>
-                <div class="file-text">
-                    {{ file.filename }}
-                </div>
+                <div class="file-text">{{ filename }}</div>
                 <div class="submission-meta">
-                    <span class="submission-date">Submitted: {{ file.submitted_at }}</span>
+                    <span class="submission-date">Submitted: {{ assignment.submission.submitted_at}}</span>
                 </div>
+                <button type="submit" name="delete-file" value="{{ filename }}" class="delete-btn">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
             </div>
             {% endfor %}
         </div>
-    </div>
-    {% endif %}
+        <div class="button-container">
+            <button type="submit" name="delete-all" value="true" class="delete-all-btn">
+                <i class="fas fa-trash-alt"></i> Delete All
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
 </div>
 {% endblock %}
 

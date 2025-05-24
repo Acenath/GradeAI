@@ -229,6 +229,11 @@ def fetch_classes(cursor, user_id):
     courses = cursor.fetchall()
     return courses
 
+def fetch_profile_picture(cursor, user_id):
+    cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
+    result = cursor.fetchone()
+    return result[0] if result else None
+
 def enroll_students(cursor, student_id, class_id):
     cursor.execute(''' INSERT INTO enrollment (enrollment_id, enrolled_at, class_id, student_id)
                            VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))     
@@ -369,7 +374,6 @@ def get_submission_details(cursor, submission_id, course_code):
     cursor.execute("""
         SELECT 
             s.submitted_at,
-            s.file_path,
             g.score,
             g.feedback,
             u.first_name,
@@ -676,4 +680,57 @@ def notify_about_deadline(cursor, course_code, assignment_title, deadline):
             f'Assignment Deadline: {assignment_title}',
             f'Reminder: {assignment_title} in {course_code} is due in 24 hours'
         )
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+    # Check if the file has an allowed extension
+    if '.' not in filename:
+        return False
+    
+    extension = filename.rsplit('.', 1)[1].lower()
+    return extension in ALLOWED_EXTENSIONS
+
+def save_profile_picture(cursor, filepath, user_id):
+    try:
+        # First, get the current profile picture url
+        cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
+        result = cursor.fetchone()
+        
+        if result and result[0]:
+            old_filepath = result[0]
+            # Delete old file if it exists
+            try:
+                old_full_path = os.path.join(app.root_path, 'static', old_filepath)
+                app.logger.info(f"Attempting to delete old profile picture at: {old_full_path}")
+                if os.path.exists(old_full_path):
+                    os.remove(old_full_path)
+                    app.logger.info(f"Successfully deleted old profile picture")
+                else:
+                    app.logger.warning(f"Old profile picture not found at: {old_full_path}")
+            except Exception as e:
+                app.logger.warning(f"Could not delete old profile picture: {str(e)}")
+        
+        # Verify the new file exists before updating database
+        new_full_path = os.path.join(app.root_path, 'static', filepath)
+        app.logger.info(f"Checking new profile picture at: {new_full_path}")
+        if not os.path.exists(new_full_path):
+            app.logger.error(f"New profile picture file not found at: {new_full_path}")
+            raise Exception(f"New profile picture file not found at: {new_full_path}")
+        
+        # Update the database with new filepath
+        cursor.execute("UPDATE users SET profile_picture_url = %s WHERE user_id = %s", (filepath, user_id))
+        app.logger.info(f"Updated profile picture path in database to: {filepath}")
+        
+        # Verify the update was successful
+        cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
+        updated_path = cursor.fetchone()
+        if not updated_path or updated_path[0] != filepath:
+            app.logger.error(f"Database update verification failed. Expected: {filepath}, Got: {updated_path[0] if updated_path else 'None'}")
+            raise Exception("Database update failed - path mismatch")
+            
+        app.logger.info("Profile picture update completed successfully")
+        return True
+    except Exception as e:
+        app.logger.error(f"Error saving profile picture: {str(e)}")
+        raise e
 

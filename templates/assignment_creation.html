@@ -1,152 +1,232 @@
 {% extends "teacher_course_base.html" %}
 
 {% block title %}Assignment Creation - Gradia{% endblock %}
-
 {% block page_title %}Assignment Creation{% endblock %}
 
 {% block content %}
-<h3 class="text-center fw-bold mb-4">{{course_name}}/ Assignment - 1</h3>
+<h3 class="text-center fw-bold mb-4">{{ course_name }}/ Assignment - 1</h3>
 
-<!-- Assignment Form -->
-<form method="POST" action="{{ url_for('assignment_creation', course_name = course_name, course_code = course_code) }}" enctype="multipart/form-data">
+<form method="POST" action="{{ url_for('assignment_creation', course_code=course_code) }}" enctype="multipart/form-data" id="assignment-form">
   
   <!-- Title -->
   <div class="section-box">
     <div class="section-title">Title</div>
-    <input type="text" name="title" placeholder="Enter assignment title..." class="form-control" required />
+    <input type="text" name="title" id="assignment-title" placeholder="Enter assignment title..." class="form-control" required />
   </div>
   
   <!-- Description -->
   <div class="section-box">
     <div class="section-title">Description</div>
-    <textarea name="description" rows="4" placeholder="Enter assignment description..." required></textarea>
+    <textarea name="description" id="assignment-description" rows="4" placeholder="Enter assignment description..." required></textarea>
+    
+    <div class="text-end mt-2">
+      <button type="button" id="generate-rubric-btn" class="btn btn-primary">
+        <i class="fas fa-magic me-1"></i> Generate Rubric Suggestions
+      </button>
+      <div id="generation-status" class="text-muted small mt-1" style="display: none;">
+        <i class="fas fa-spinner fa-spin me-1"></i> Generating rubric suggestions...
+      </div>
+    </div>
   </div>
 
   <!-- Attachments -->
   <div class="section-box">
     <div class="section-title">Attachments</div>
-    
     <div class="text-center" id="upload-area" style="cursor: pointer; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; background-color: #f9f9f9;">
       <i class="fas fa-upload fa-2x mb-2"></i>
       <div>Drag and drop files here or click to upload</div>
     </div>
-  
-    <!-- Hidden real file input -->
     <input type="file" id="attachmentInput" name="attachments" multiple style="display: none;" />
-  
-    <!-- Uploaded file list -->
     <div id="fileList" class="mt-3"></div>
   </div>
 
-  <script>
-    const uploadArea = document.getElementById('upload-area');
-    const attachmentInput = document.getElementById('attachmentInput');
-    const fileList = document.getElementById('fileList');
-  
-    let allFiles = []; // Hold all selected files here
-  
-    function displayFiles(files) {
-      fileList.innerHTML = ""; // Clear previous display
-  
-      const ul = document.createElement('ul');
-      ul.style.listStyle = 'none';
-      ul.style.padding = '0';
-  
-      files.forEach(file => {
-        const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.alignItems = 'center';
-        li.style.marginBottom = '10px';
-  
-        li.innerHTML = `
-          <i class="fas fa-file-alt me-2" style="color: #555;"></i>
-          <span>${file.name}</span>
-        `;
-  
-        ul.appendChild(li);
-      });
-  
-      fileList.appendChild(ul);
-    }
-  
-    uploadArea.addEventListener('click', () => {
-      attachmentInput.click(); // Open hidden file input
-    });
-  
-    attachmentInput.addEventListener('change', () => {
-      // Add new files to the array
-      allFiles = [...allFiles, ...Array.from(attachmentInput.files)];
-      displayFiles(allFiles);
-    });
-  
-    // Optional: Drag-and-drop support
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.style.backgroundColor = "#eef"; // highlight
-    });
-  
-    uploadArea.addEventListener('dragleave', (e) => {
-      e.preventDefault();
-      uploadArea.style.backgroundColor = "#f9f9f9"; // reset
-    });
-  
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.style.backgroundColor = "#f9f9f9"; // reset
-  
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      allFiles = [...allFiles, ...droppedFiles];
-      displayFiles(allFiles);
-    });
-  </script>
-
   <!-- Rubrics -->
   <div class="section-box">
-    <div class="section-title">Rubrics</div>
-  
-    <!-- Rubric entries will be added here -->
+    <div class="section-title d-flex justify-content-between align-items-center">
+      <span>Rubrics</span>
+      <span id="total-points" class="badge bg-primary">Total: 0 points</span>
+    </div>
     <div id="rubric-container">
       <div class="rubric-entry">
         <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." required></textarea>
-        <input type="number" name="rubric_values[]" placeholder="Value" min="0" required />
+        <input type="number" name="rubric_values[]" placeholder="Value" min="0" value="1" required class="point-value" />
+        <button type="button" class="btn btn-sm btn-danger remove-rubric-btn" style="visibility: hidden;">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     </div>
-  
-    <!-- Add Rubric Button -->
     <div style="margin-top: 10px;">
-      <button type="button" id="add-rubric-btn" class="btn btn-secondary">Add Rubric</button>
+      <button type="button" id="add-rubric-btn" class="btn btn-secondary">
+        <i class="fas fa-plus me-1"></i> Add Rubric
+      </button>
     </div>
   </div>
-  
-  <script>
-    const rubricContainer = document.getElementById('rubric-container');
-    const addRubricBtn = document.getElementById('add-rubric-btn');
-  
-    addRubricBtn.addEventListener('click', () => {
-      const newRubric = document.createElement('div');
-      newRubric.classList.add('rubric-entry');
-      newRubric.innerHTML = `
-        <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." required></textarea>
-        <input type="number" name="rubric_values[]" placeholder="Value" required />
-      `;
-      rubricContainer.appendChild(newRubric);
-    });
-  </script>
   
   <!-- Footer Fields -->
   <div class="section-box">
     <div class="footer-fields">
-        <input type="date" name="Date" placeholder="Due Date" required />
-        <select name="file_type" required>
-            <option value="Any">Any</option>
-            <option value="PDF">PDF</option>
-            <option value="DOCX">DOCX</option>
-        </select>
-        <input type="number" name="max_file_no" placeholder="Max File No" min="1" required />
+      <input type="datetime-local" name="Date" placeholder="Due Date" required />
+      <select name="file_type" required>
+        <option value="Any">Any</option>
+        <option value="PDF">PDF</option>
+        <option value="DOCX">DOCX</option>
+      </select>
+      <input type="number" name="max_file_no" placeholder="Max File No" min="1" value="1" required />
     </div>
   </div>
 
   <!-- Create Button -->
   <button class="create-btn" type="submit">Create</button>
 </form>
+
+<!-- SCRIPT SECTION -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const uploadArea = document.getElementById('upload-area');
+  const attachmentInput = document.getElementById('attachmentInput');
+  const fileList = document.getElementById('fileList');
+  let allFiles = [];
+
+  function displayFiles(files) {
+    fileList.innerHTML = '';
+    const ul = document.createElement('ul');
+    ul.style.listStyle = 'none';
+    ul.style.padding = '0';
+
+    files.forEach(file => {
+      const li = document.createElement('li');
+      li.style.display = 'flex';
+      li.style.alignItems = 'center';
+      li.style.marginBottom = '10px';
+      li.innerHTML = `<i class="fas fa-file-alt me-2" style="color: #555;"></i><span>${file.name}</span>`;
+      ul.appendChild(li);
+    });
+
+    fileList.appendChild(ul);
+  }
+
+  uploadArea.addEventListener('click', () => attachmentInput.click());
+  attachmentInput.addEventListener('change', () => {
+    allFiles = [...allFiles, ...Array.from(attachmentInput.files)];
+    displayFiles(allFiles);
+  });
+
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#eef";
+  });
+
+  uploadArea.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#f9f9f9";
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.backgroundColor = "#f9f9f9";
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    allFiles = [...allFiles, ...droppedFiles];
+    displayFiles(allFiles);
+  });
+
+  const rubricContainer = document.getElementById('rubric-container');
+  const addRubricBtn = document.getElementById('add-rubric-btn');
+  const totalPointsDisplay = document.getElementById('total-points');
+
+  function updateTotalPoints() {
+    const pointInputs = document.querySelectorAll('.point-value');
+    let total = 0;
+    pointInputs.forEach(input => total += parseInt(input.value) || 0);
+    totalPointsDisplay.textContent = `Total: ${total} points`;
+  }
+
+  function addRubricEntry(description = '', points = 1) {
+    const newRubric = document.createElement('div');
+    newRubric.classList.add('rubric-entry');
+    newRubric.innerHTML = `
+      <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." required>${description}</textarea>
+      <input type="number" name="rubric_values[]" placeholder="Value" value="${points}" min="0" required class="point-value" />
+      <button type="button" class="btn btn-sm btn-danger remove-rubric-btn">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+
+    newRubric.querySelector('.remove-rubric-btn').addEventListener('click', function () {
+      newRubric.remove();
+      updateTotalPoints();
+      if (document.querySelectorAll('.rubric-entry').length === 0) {
+        addRubricEntry();
+      }
+    });
+
+    newRubric.querySelector('.point-value').addEventListener('change', updateTotalPoints);
+
+    rubricContainer.appendChild(newRubric);
+    updateTotalPoints();
+    return newRubric;
+  }
+
+  document.querySelectorAll('.rubric-entry').forEach(entry => {
+    const pointInput = entry.querySelector('.point-value');
+    if (pointInput) pointInput.addEventListener('change', updateTotalPoints);
+  });
+
+  addRubricBtn.addEventListener('click', () => addRubricEntry());
+
+  updateTotalPoints();
+
+  // Rubric generation with existing rubrics
+  const generateRubricBtn = document.getElementById('generate-rubric-btn');
+  const generationStatus = document.getElementById('generation-status');
+  const assignmentDescription = document.getElementById('assignment-description');
+
+  generateRubricBtn.addEventListener('click', async () => {
+    const description = assignmentDescription.value.trim();
+
+    if (description.length < 5) {
+      alert('Please enter a more detailed assignment description for meaningful rubric generation.');
+      return;
+    }
+
+    // Collect existing rubric descriptions and values
+    const rubricDescriptions = Array.from(document.getElementsByName('rubric_descriptions[]')).map(el => el.value.trim());
+    const rubricValues = Array.from(document.getElementsByName('rubric_values[]')).map(el => parseInt(el.value) || 0);
+
+    const existingRubrics = rubricDescriptions.map((desc, i) => ({
+      description: desc,
+      points: rubricValues[i]
+    }));
+
+    generateRubricBtn.disabled = true;
+    generationStatus.style.display = 'block';
+
+    try {
+      const response = await fetch('/generate_rubric', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description,
+          existing_rubrics: existingRubrics
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.rubric_items)) {
+        // Clear and insert new rubrics
+        document.querySelectorAll('.rubric-entry').forEach(entry => entry.remove());
+        data.rubric_items.forEach(item => addRubricEntry(item.description, item.points));
+      } else {
+        alert('Could not generate rubric suggestions. Please try again.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while generating rubric suggestions.');
+    } finally {
+      generateRubricBtn.disabled = false;
+      generationStatus.style.display = 'none';
+    }
+  });
+});
+</script>
 {% endblock %}

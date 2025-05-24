@@ -3,45 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Modal Windows</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_image.css') }}">
+  <title>Gradia - Edit Profile Picture</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"/>
+  <link href="{{ url_for('static', filename='css/edit_image.css') }}" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-  <div class="modal" id="profile-modal">
-    <button class="close-button">✕</button>
-    <div class="profile-image-container">
-      <div class="profile-image">
-        <img id="preview" src="" alt="Placeholder Image" />
-      </div>
-      <div>
-        <label for="file-input" class="browse-button">
-          <span class="file-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" fill="none" stroke="black" stroke-width="2"/>
-              <circle cx="12" cy="12" r="3" fill="none" stroke="black" stroke-width="1" />
-              <path d="M12 12.5 a 1 1 0 0 0 1 -1" stroke="black" fill="none" />
-            </svg>
-          </span>
-          Browse Image
-        </label>
-        <input type="file" id="file-input" accept="image/*" />
-      </div>
+  <!-- Navbar -->
+  <div class="nav-bar">
+    <div class="logo-container">
+      <i class="fas fa-brain logo-icon"></i>
+      <strong>Gradia</strong>
     </div>
-    <button class="save-button">Save</button>
+    <div class="nav-links">
+      <a href="{{url_for('about')}}">About Us</a>
+      <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+    </div>
+  </div>
+
+  <!-- Back Button -->
+  <div class="back-button-container">
+    {% if user_role == 1 %}
+      <a href="{{url_for('profile_teacher')}}" class="back-button">
+        <i class="fas fa-arrow-left"></i> Back to Profile
+      </a>
+    {% else %}
+      <a href="{{url_for('profile_student')}}" class="back-button">
+        <i class="fas fa-arrow-left"></i> Back to Profile
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Upload Container -->
+  <div class="upload-container">
+    <h2 class="upload-title">Update Profile Picture</h2>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages and request.method == 'POST' %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Current Profile Picture Preview -->
+    <div class="current-profile">
+      <div class="profile-preview">
+        {% if profile_pic %}
+          <img src="{{ url_for('static', filename=profile_pic) }}" alt="Current Profile Picture" id="profile-preview-img">
+        {% else %}
+          <i class="far fa-user default-user-icon"></i>
+        {% endif %}
+      </div>
+      <p>Current Profile Picture</p>
+    </div>
+
+    <!-- Upload Form -->
+    <form action="{{ url_for('edit_image') }}" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="profile_image" class="form-label">Select a new profile picture:</label>
+        <div class="file-upload">
+          <label for="profile_image" class="file-upload-label">
+            <i class="fas fa-upload"></i> Choose File
+          </label>
+          <input type="file" id="profile_image" name="profile_image" class="form-control" accept="image/png, image/jpeg, image/jpg" onchange="updateFileName(this)">
+          <div id="file-name">No file chosen</div>
+        </div>
+        <small class="form-text text-muted">
+          Accepted file types: PNG, JPG, JPEG. Maximum file size: 5MB.
+        </small>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-primary">Upload New Profile Picture</button>
+      </div>
+    </form>
   </div>
 
   <script>
-    const fileInput = document.getElementById('file-input');
-    const preview = document.getElementById('preview');
+    // Display selected filename
+    function updateFileName(input) {
+      const fileName = input.files[0] ? input.files[0].name : "No file chosen";
+      document.getElementById('file-name').textContent = fileName;
 
-    fileInput.addEventListener('change', function () {
-      const file = this.files[0];
-      if (file) {
+      // Preview the image
+      if (input.files && input.files[0]) {
         const reader = new FileReader();
-        reader.onload = function (e) {
-          preview.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+
+        reader.onload = function(e) {
+          const previewContainer = document.querySelector('.profile-preview');
+
+          // Remove default icon if it exists
+          const defaultIcon = previewContainer.querySelector('.default-user-icon');
+          if (defaultIcon) {
+            defaultIcon.remove();
+          }
+
+          // Check if image already exists
+          let previewImg = document.getElementById('profile-preview-img');
+
+          if (!previewImg) {
+            // Create new image element if it doesn't exist
+            previewImg = document.createElement('img');
+            previewImg.id = 'profile-preview-img';
+            previewImg.alt = 'Profile Picture Preview';
+            previewContainer.appendChild(previewImg);
+          }
+
+          // Set the image source
+          previewImg.src = e.target.result;
+        }
+
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // Log errors if profile image fails to load
+    document.addEventListener('DOMContentLoaded', function() {
+      const profileImg = document.getElementById('profile-preview-img');
+      if (profileImg) {
+        profileImg.onerror = function() {
+          console.error('Failed to load profile image:', this.src);
+          // Replace with default icon if image fails to load
+          const previewContainer = document.querySelector('.profile-preview');
+          this.remove();
+
+          const defaultIcon = document.createElement('i');
+          defaultIcon.className = 'far fa-user default-user-icon';
+          previewContainer.appendChild(defaultIcon);
+        }
       }
     });
   </script>

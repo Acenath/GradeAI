@@ -16,10 +16,12 @@ grading_assistant = GradingAssistant()
 # Define upload directories
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join('static', 'uploads', 'submissions')
 ASSIGNMENT_FILES_DIR = os.path.join('static', 'uploads', 'assignments')
+PROFILE_PICS_DIR = os.path.join('static', 'uploads', 'profile_pics')
 
 # Create directories if they don't exist
 os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
 os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
+os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 
 # Login
 login_manager = LoginManager()
@@ -692,9 +694,6 @@ def edit_image():
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(file.filename)}"
             
-            # Ensure the directory exists
-            os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
-            
             # Save the file
             file_path = os.path.join(PROFILE_PICS_DIR, unique_filename)
             file.save(file_path)
@@ -712,13 +711,41 @@ def edit_image():
             # Update database
             cursor = gradeai_db.connection.cursor()
             try:
-                save_profile_picture(cursor, relative_path, current_user.user_id)
+                # First, get the current profile picture url
+                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
+                result = cursor.fetchone()
+                app.logger.info(f"Current profile picture in database: {result[0] if result else 'None'}")
+                
+                if result and result[0]:
+                    old_filepath = result[0]
+                    # Delete old file if it exists
+                    try:
+                        old_full_path = os.path.join(app.root_path, 'static', old_filepath)
+                        app.logger.info(f"Attempting to delete old profile picture at: {old_full_path}")
+                        if os.path.exists(old_full_path):
+                            os.remove(old_full_path)
+                            app.logger.info(f"Successfully deleted old profile picture")
+                        else:
+                            app.logger.warning(f"Old profile picture not found at: {old_full_path}")
+                    except Exception as e:
+                        app.logger.warning(f"Could not delete old profile picture: {str(e)}")
+                
+                # Update the database with new filepath
+                cursor.execute("UPDATE users SET profile_picture_url = %s WHERE user_id = %s", (relative_path, current_user.user_id))
                 gradeai_db.connection.commit()
                 
                 # Verify the update
                 cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
                 updated_path = cursor.fetchone()
                 app.logger.info(f"Updated profile picture path in database: {updated_path[0] if updated_path else 'None'}")
+                
+                # Verify the file exists at the new path
+                new_full_path = os.path.join(app.root_path, 'static', relative_path)
+                app.logger.info(f"Checking if new profile picture exists at: {new_full_path}")
+                if os.path.exists(new_full_path):
+                    app.logger.info("New profile picture file exists")
+                else:
+                    app.logger.error("New profile picture file not found!")
                 
                 flash('Profile picture updated successfully!', 'success')
             except Exception as e:
@@ -790,6 +817,7 @@ def profile_student():
     cursor.close()
     return render_template("profile_student.html", profile_pic=profile_pic, courses_and_instructors=courses_and_instructors)
 
+
 @app.route('/profile_teacher')
 @login_required
 def profile_teacher():
@@ -798,6 +826,7 @@ def profile_teacher():
     profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
     return render_template("profile_teacher.html", profile_pic=profile_pic, courses=courses)
+
 
 @app.route('/create_feedback', methods=["GET", "POST"])
 @login_required
@@ -1184,6 +1213,45 @@ def mark_all_notifications_read():
     except Exception as e:
         print(f"Error in mark_all_notifications_read: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/edit_email', methods=['GET', 'POST'])
+@login_required
+def edit_email():
+    if request.method == 'POST':
+        new_email = request.form.get('new_email')
+        cursor = gradeai_db.connection.cursor()
+        try:
+            # Check if email already exists
+            cursor.execute("SELECT user_id FROM users WHERE email = %s AND user_id != %s", 
+                         (new_email, current_user.user_id))
+            if cursor.fetchone():
+                flash('Email already in use by another account', 'error')
+                return redirect(url_for('edit_email'))
+            
+            # Update email
+            cursor.execute("UPDATE users SET email = %s WHERE user_id = %s",
+                         (new_email, current_user.user_id))
+            gradeai_db.connection.commit()
+            flash('Email updated successfully', 'success')
+            
+            # Redirect based on user role
+            user_role = role_parser(current_user.email)
+            if isinstance(user_role, bytes):
+                user_role = int.from_bytes(user_role, byteorder='big')
+            
+            if user_role == 1:
+                return redirect(url_for('profile_teacher'))
+            else:
+                return redirect(url_for('profile_student'))
+                
+        except Exception as e:
+            gradeai_db.connection.rollback()
+            flash('Error updating email', 'error')
+            return redirect(url_for('edit_email'))
+        finally:
+            cursor.close()
+            
+    return render_template('edit_email.html')
 
 if __name__ == "__main__":
     app.run(debug=True)

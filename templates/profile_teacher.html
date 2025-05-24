@@ -11,17 +11,13 @@
 <body>
   <!-- Navbar -->
   <div class="nav-bar">
-    <div class="nav-bar-left">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
+    <div class="logo-container">
+      <i class="fas fa-brain logo-icon"></i>
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
       <a href="{{url_for('about')}}">About Us</a>
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-      <div class="notification-container">
-        <i class="fas fa-bell notification-bell" id="notificationBell"></i>
-        <span class="notification-badge" id="notificationBadge">0</span>
-      </div>
     </div>
   </div>
 
@@ -32,74 +28,80 @@
     </a>
   </div>
 
-  <div class="container py-5">
-    <!-- Profile Header Section -->
-    <div class="profile-header text-center mb-5">
-      <div class="profile-pic-container position-relative d-inline-block">
-        <div class="profile-pic">
-          {% if current_user.profile_pic %}
-            <img src="{{ url_for('static', filename='uploads/profile_pics/' + current_user.profile_pic) }}" alt="Profile Picture" class="profile-img">
-          {% else %}
-            <i class="far fa-user" style="font-size: 40px;"></i>
-          {% endif %}
-        </div>
-        <label for="profile-pic-upload" class="edit-icon position-absolute bottom-0 end-0" title="Edit Profile Picture">
-          <i class="fas fa-pencil-alt"></i>
-        </label>
-        <form id="profile-pic-form" action="{{ url_for('upload_profile_pic') }}" method="POST" enctype="multipart/form-data" style="display: none;">
-          <input type="file" id="profile-pic-upload" name="profile_pic" accept="image/*" onchange="this.form.submit()">
-        </form>
+  <!-- Profile Section -->
+  <div class="profile-container">
+    <div class="profile-pic-container">
+      <div class="profile-pic">
+        {% if profile_pic %}
+          <img src="{{ url_for('static', filename=profile_pic) }}" alt="Profile Picture" class="profile-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'far fa-user default-user-icon\'></i>';">
+        {% else %}
+          <i class="far fa-user default-user-icon"></i>
+        {% endif %}
       </div>
-      <h2 class="profile-name mt-3">{{current_user.first_name}} {{current_user.last_name}}</h2>
-      <p class="text-muted">Teacher</p>
+      <a href="{{url_for('edit_image')}}" class="edit-icon" title="Edit Profile Picture">
+        <i class="fas fa-pencil-alt"></i>
+      </a>
+    </div>
+    <h1 class="profile-name">{{current_user.first_name}} {{current_user.last_name}}</h1>
+    <p>Teacher</p>
+  </div>
+
+  <!-- Information Cards Section -->
+  <div class="info-section">
+    <!-- Email Card -->
+    <div class="info-card">
+      <div class="info-title">
+        <span>
+          <i class="fas fa-envelope"></i> Mail Address
+        </span>
+        <a href="{{url_for('edit_email')}}" class="edit-button" title="Edit Email">
+          <i class="fas fa-pencil-alt"></i>
+        </a>
+      </div>
+      <div class="info-content">
+        <p>{{current_user.email}}</p>
+      </div>
     </div>
 
-    <!-- Information Cards Section -->
-    <div class="row justify-content-center g-4">
-      <!-- Email Card -->
-      <div class="col-md-6">
-        <div class="info-card h-100">
-          <div class="info-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
-              <i class="fas fa-envelope me-2 text-primary"></i>
-              <h5 class="info-title mb-0">Mail Address</h5>
-            </div>
-            <a href="{{url_for('edit_email')}}" class="edit-button" title="Edit Email">
-              <i class="fas fa-pencil-alt"></i>
-            </a>
-          </div>
-          <div class="info-content mt-3">
-            <p class="mb-0">{{current_user.email}}</p>
-          </div>
-        </div>
+    <!-- Course Profiles Card -->
+    <div class="info-card">
+      <div class="info-title">
+        <span>
+          <i class="fas fa-book"></i> Course Profiles
+        </span>
       </div>
-
-      <!-- Course Profiles Card -->
-      <div class="col-md-6">
-        <div class="info-card h-100">
-          <div class="info-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
-              <i class="fas fa-book me-2 text-success"></i>
-              <h5 class="info-title mb-0">Course Profiles</h5>
-            </div>
-          </div>
-          <div class="info-content mt-3">
-            <ul class="list-unstyled mb-0">
-              {% for course in courses %}
-                <li class="mb-2">
-                  <i class="fas fa-graduation-cap me-2"></i>
-                  {{ course[0] }} - {{ course[1] }}
-                </li>
-              {% else %}
-                <li class="text-muted">No courses assigned</li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
+      <div class="info-content">
+        <ul>
+          {% for course in courses %}
+            <li>
+              <i class="fas fa-graduation-cap"></i>
+              {{ course[0] }} - {{ course[1] }}
+            </li>
+          {% else %}
+            <li>No courses assigned</li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const profileImg = document.querySelector('.profile-img');
+      if (profileImg) {
+        console.log('Profile image src:', profileImg.src);
+
+        profileImg.oneerror = function() {
+          console.error('Error loading profile image:', this.src);
+        };
+
+        profileImg.onload = function() {
+          console.log('Profile image loaded successfully.');
+        };
+      } else {
+        console.log('No profile image found.');
+      }
+    });
+  </script>
 </body>
 </html>

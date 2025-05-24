@@ -369,7 +369,6 @@ def get_submission_details(cursor, submission_id, course_code):
     cursor.execute("""
         SELECT 
             s.submitted_at,
-            s.file_path,
             g.score,
             g.feedback,
             u.first_name,

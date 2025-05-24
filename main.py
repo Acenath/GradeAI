@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")
+grading_assistant = GradingAssistant()
 
 # Define upload directories
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join('static', 'uploads', 'submissions')
@@ -407,6 +408,9 @@ def assignment_creation(course_code):
             "rubric_values[]")
         total_score = sum([int(i) for i in rubric_vals])
 
+        grading_assistant.create_rubric_instructions(rubric_descs, rubric_vals)
+        grading_assistant.consume_question(assignment_desc)
+
         save_files(assignment_files, course_code, assignment_title)
         create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
         zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title)
@@ -433,6 +437,40 @@ def assignment_creation(course_code):
     return render_template("assignment_creation.html",
                            course_name=course[0],
                            course_code=course_code)
+
+@app.route('/generate_rubric', methods=["POST"])
+@login_required
+def generate_rubric():
+    """
+    API endpoint to generate rubric suggestions based on assignment description.
+    Expects JSON with 'description' and optional 'course_type' fields.
+    Returns JSON array of suggested rubric items.
+    """
+    data = request.get_json()
+    if not data or 'description' not in data:
+        return jsonify({'error': 'Missing assignment description'}), 400
+        
+    description = data.get('description', '')
+    existing_rubrics = data.get('existing_rubrics', [])
+    if existing_rubrics:
+        current_rubrics, current_points = [], []
+        for entry in existing_rubrics:
+            current_rubrics.append(entry["description"])
+            current_points.append(entry["points"])
+
+    grading_assistant.create_rubric_instructions(current_rubrics, current_points)
+    grading_assistant.consume_question(description)
+    # Don't generate for very short descriptions
+    if len(description.strip()) < 10:
+        return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
+    
+    # Generate rubric suggestions
+    rubric_items = grading_assistant.generate_rubric()
+    print(rubric_items)
+    return jsonify({
+        'success': True,
+        'rubric_items': rubric_items
+    })
 
 
 @app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
@@ -597,7 +635,7 @@ def assignment_view_teacher(course_code, assignment_id):
 
     # Get student submissions
     students = get_student_submissions(cursor, assignment_id, course_code)
-
+    print(students)
     cursor.close()
 
     return render_template("assignment_view_teacher.html",
@@ -611,11 +649,6 @@ def assignment_view_teacher(course_code, assignment_id):
                            course_code=course_code,
                            assignment_id=assignment_id)
 
-
-@app.route('/edit_email')
-@login_required
-def edit_email():
-    return render_template("edit_email.html")
 
 
 @app.route('/edit_image')
@@ -717,30 +750,10 @@ def create_feedback():
     return render_template("create_feedback.html")
 
 
-@app.route('/view_submission/<course_code>/<assignment_id>/<submission_id>')
-@login_required
-def view_submission(course_code, assignment_id, submission_id):
-    cursor = gradeai_db.connection.cursor()
-
-    # Get submission details
-    submission = get_submission_details(cursor, submission_id, course_code)
-    if not submission:
-        flash("Submission not found", "error")
-        return redirect(url_for("teacher_dashboard"))
-
-    cursor.close()
-
-    return render_template("view_submission.html",
-                           submission=submission,
-                           course_code=course_code,
-                           assignment_id=assignment_id)
-
-
 @app.route("/grade")
 @login_required
 def grade():
     return render_template("grade.html")
-
 
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>', methods=['GET', 'POST'])
 @login_required

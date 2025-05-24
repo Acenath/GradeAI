@@ -207,12 +207,14 @@ def student_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 0)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 0)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
+    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
     return render_template("student_dashboard.html",
                            courses_and_instructors=courses_and_instructors,
                            upcoming_deadlines=upcoming_deadlines,
                            recent_feedback=recent_feedback,
-                           recent_announcements=recent_announcements)
+                           recent_announcements=recent_announcements,
+                           profile_pic=profile_pic)
 
 
 @app.route('/teacher_dashboard')
@@ -224,14 +226,15 @@ def teacher_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
-
+    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
     return render_template("teacher_dashboard.html",
                            courses=courses,
                            upcoming_deadlines=upcoming_deadlines,
                            recent_feedback=recent_feedback,
                            recent_announcements=recent_announcements,
-                           total_student_dict=total_student_dict)
+                           total_student_dict=total_student_dict,
+                           profile_pic=profile_pic)
 
 
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>')
@@ -651,10 +654,126 @@ def assignment_view_teacher(course_code, assignment_id):
 
 
 
-@app.route('/edit_image')
+@app.route('/edit_image', methods=["GET", "POST"])
 @login_required
 def edit_image():
-    return render_template("edit_image.html")
+    if request.method == 'POST':
+        if 'profile_image' not in request.files:
+            flash('No file part', 'error')
+            return redirect(url_for('edit_image'))
+        
+        file = request.files['profile_image']
+
+        if file.filename == '':
+            flash('No selected file', 'error')
+            return redirect(url_for('edit_image'))
+        
+        # Check file extension
+        if not allowed_file(file.filename):
+            flash('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
+            return redirect(url_for('edit_image'))
+        
+        if file.content_type not in ['image/png', 'image/jpeg', 'image/jpg']:
+            app.logger.warning(f"Invalid MIME type: {file.content_type}")
+            flash('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
+            return redirect(url_for('edit_image'))
+        
+        try:
+            # Read file content to check size
+            file_content = file.read()
+            file.seek(0)  # Reset file pointer
+            
+            # Check file size (limit 5MB = 5*1024*1024 bytes)
+            if len(file_content) > 5*1024*1024:
+                flash('File size exceeds the limit of 5MB. Please upload a smaller file.', 'error')
+                return redirect(url_for('edit_image'))
+
+            # Generate unique filename
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(file.filename)}"
+            
+            # Ensure the directory exists
+            os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
+            
+            # Save the file
+            file_path = os.path.join(PROFILE_PICS_DIR, unique_filename)
+            file.save(file_path)
+            
+            # Verify file was saved
+            if not os.path.exists(file_path):
+                raise Exception(f"Failed to save file at {file_path}")
+            
+            app.logger.info(f"File saved successfully at: {file_path}")
+            
+            # Get relative path for database storage (without 'static/' prefix)
+            relative_path = os.path.join('uploads', 'profile_pics', unique_filename).replace('\\', '/')
+            app.logger.info(f"Relative path for database: {relative_path}")
+            
+            # Update database
+            cursor = gradeai_db.connection.cursor()
+            try:
+                save_profile_picture(cursor, relative_path, current_user.user_id)
+                gradeai_db.connection.commit()
+                
+                # Verify the update
+                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
+                updated_path = cursor.fetchone()
+                app.logger.info(f"Updated profile picture path in database: {updated_path[0] if updated_path else 'None'}")
+                
+                flash('Profile picture updated successfully!', 'success')
+            except Exception as e:
+                gradeai_db.connection.rollback()
+                app.logger.error(f"Database error: {str(e)}")
+                flash('Database update failed. Please try again.', 'error')
+                # Clean up the file if database update failed
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                return redirect(url_for('edit_image'))
+            finally:
+                cursor.close()
+
+            # Redirect based on user role
+            user_role = role_parser(current_user.email)
+            if isinstance(user_role, bytes):
+                user_role = int.from_bytes(user_role, byteorder='big')
+            
+            if user_role == 1:
+                return redirect(url_for('profile_teacher'))
+            else:
+                return redirect(url_for('profile_student'))
+
+        except Exception as e:
+            app.logger.error(f"Error in profile picture upload: {str(e)}")
+            flash('Failed to update profile picture. Please try again.', 'error')
+            return redirect(url_for('edit_image'))
+    
+    # If GET request, render the edit image page
+    user_role = role_parser(current_user.email)
+    if isinstance(user_role, bytes):
+        user_role = int.from_bytes(user_role, byteorder='big')
+
+    cursor = gradeai_db.connection.cursor()
+    try:
+        profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+        if profile_pic:
+            app.logger.info(f"Current profile picture path: {profile_pic}")
+            # Verify the file exists
+            full_path = os.path.join(app.root_path, 'static', profile_pic)
+            app.logger.info(f"Checking profile picture at: {full_path}")
+            if not os.path.exists(full_path):
+                app.logger.warning(f"Profile picture file not found at: {full_path}")
+                profile_pic = None
+            else:
+                app.logger.info("Profile picture file exists")
+                # Log the URL that will be used
+                url = url_for('static', filename=profile_pic)
+                app.logger.info(f"Profile picture URL will be: {url}")
+        return render_template("edit_image.html", user_role=user_role, profile_pic=profile_pic)
+    except Exception as e:
+        app.logger.error(f"Error fetching profile picture: {str(e)}")
+        return render_template("edit_image.html", user_role=user_role, profile_pic=None)
+    finally:
+        cursor.close()
 
 
 @app.route('/new_password')
@@ -667,18 +786,18 @@ def new_password():
 def profile_student():
     cursor = gradeai_db.connection.cursor()
     courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
+    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
-    return render_template("profile_student.html", courses_and_instructors=courses_and_instructors)
-
+    return render_template("profile_student.html", profile_pic=profile_pic, courses_and_instructors=courses_and_instructors)
 
 @app.route('/profile_teacher')
 @login_required
 def profile_teacher():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
+    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
-    return render_template("profile_teacher.html", courses=courses)
-
+    return render_template("profile_teacher.html", profile_pic=profile_pic, courses=courses)
 
 @app.route('/create_feedback', methods=["GET", "POST"])
 @login_required

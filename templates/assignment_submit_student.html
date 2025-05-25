@@ -47,7 +47,7 @@
 
     <div class="section submission-section">
         <div class="section-title">Your Submission</div>
-        <form action="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST" enctype="multipart/form-data">
             <div class="file-upload-area">
                 <div class="upload-box" id="dropZone">
                     <i class="fas fa-cloud-upload-alt"></i>
@@ -71,7 +71,7 @@
     {% if assignment.submission %}
 <div class="section submitted-files">
     <div class="section-title">Your Submitted Files</div>
-    <form action="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" method="POST">
+    <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST">
         <div class="attachments-grid">
             {% for filename in assignment.submission.files %}
             <div class="attachment-card">

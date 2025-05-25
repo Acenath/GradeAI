@@ -8,6 +8,8 @@ import json
 from werkzeug.utils import secure_filename
 import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
+import docx
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")
@@ -413,16 +415,13 @@ def assignment_creation(course_code):
             "rubric_values[]")
         total_score = sum([int(i) for i in rubric_vals])
 
-        grading_assistant.create_rubric_instructions(rubric_descs, rubric_vals)
-        grading_assistant.consume_question(assignment_desc)
-
         save_files(assignment_files, course_code, assignment_title)
-        create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
-        zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title)
+        assignment_id = create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
+        zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title, assignment_id)
 
         # Create notifications for all students
-        deadline_datetime = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M")
-        notify_students_about_assignment(cursor, course_code, assignment_title, deadline_datetime)
+        #deadline_datetime = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M")
+        #notify_students_about_assignment(cursor, course_code, assignment_title, deadline_datetime)
 
         gradeai_db.connection.commit()
         cursor.close()
@@ -470,8 +469,11 @@ def generate_rubric():
         return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
     
     # Generate rubric suggestions
-    rubric_items = grading_assistant.generate_rubric()
-    print(rubric_items)
+    llm_output = grading_assistant.generate_rubric()
+    rubric_items = [
+        {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
+        for item in llm_output
+    ]
     return jsonify({
         'success': True,
         'rubric_items': rubric_items
@@ -533,21 +535,24 @@ def assignments_student(course_code, course_name):
                            assignments=assignments)
 
 
-@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>')
+@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods = ["GET", "POST"])
 @login_required
 def assignment_submit_student(course_code, course_name, assignment_id):
     os.makedirs(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_id.split("_")[1], current_user.user_id), exist_ok = 1)
     cursor = gradeai_db.connection.cursor()
+    files = []
+
 
     # Get assignment details
     cursor.execute("""
         SELECT a.assignment_id, a.title, a.description, a.deadline, 
-               a.total_score, c.name as course_name
+            a.total_score, c.name as course_name
         FROM assignment a
         JOIN class c ON a.class_id = c.class_id
         WHERE a.assignment_id = %s AND a.class_id = %s
-    """, (assignment_id, course_code))
-    assignment_data = cursor.fetchone()
+        """, (assignment_id, course_code))
+    assignment_data = cursor.fetchone() 
+    
     if not assignment_data:
         flash("Assignment not found", "error")
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
@@ -564,15 +569,19 @@ def assignment_submit_student(course_code, course_name, assignment_id):
                     DELETE FROM submission WHERE student_id = %s
                        ''', (current_user.user_id, ))
     gradeai_db.connection.commit()
+
+    teacher_id = cursor.execute(''' SELECT teacher_id FROM class WHERE class_id = %s''', (course_code, ))
+   
     
-    files = []
     for f in os.listdir(submission_dir):
-        submission_id = f"{f.split(".")[0]}_{assignment_data[1]}"
+        filename, _ = f.split(".")
+        submission_id = f"{filename}_{assignment_data[1]}"
         files.append(f)
         cursor.execute('''
                     INSERT INTO submission (submission_id, assignment_id, submitted_at, status, student_id)
-                   VALUES (%s, %s, %s, %s, %s)
-                   ''', (submission_id, assignment_id, datetime.datetime.now(), 0, current_user.user_id))
+                    VALUES (%s, %s, %s, %s, %s)
+                    ''', (submission_id, assignment_id, datetime.datetime.now(), 0, current_user.user_id))
+        
         
     gradeai_db.connection.commit()
 
@@ -961,9 +970,9 @@ def grade_submission(course_code, assignment_id, submission_id):
                            assignment_id=assignment_id)
 
 
-@app.route('/submit_assignment/<assignment_id>', methods=['POST'])
+@app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
-def submit_assignment(assignment_id):
+def submit_assignment(course_code, course_name, assignment_id):
     cursor = gradeai_db.connection.cursor()
 
     course_code, assignment_title = assignment_id.split("_")[0], assignment_id.split("_")[1]
@@ -990,7 +999,7 @@ def submit_assignment(assignment_id):
 
         return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
 
-
+    #Assignment submit button for student this part
     # Get assignment details including course name
     cursor.execute("""
         SELECT a.title, a.class_id, c.name as course_name
@@ -999,6 +1008,7 @@ def submit_assignment(assignment_id):
         WHERE a.assignment_id = %s
     """, (assignment_id,))
     assignment = cursor.fetchone()
+
     if not assignment:
         flash("Assignment not found", "error")
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
@@ -1010,8 +1020,8 @@ def submit_assignment(assignment_id):
         return redirect(url_for("assignment_submit_student",
                                 course_code=assignment[1],
                                 course_name=assignment[2],
-                                assignment_id=assignment_id))
-
+                                assignment_id=assignment_id,
+                                submission_scores = []))
     try:
         # Create submission directory with student ID
         submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, assignment[1], assignment[0],
@@ -1032,12 +1042,9 @@ def submit_assignment(assignment_id):
             return redirect(url_for("assignment_submit_student",
                                     course_code=assignment[1],
                                     course_name=assignment[2],
-                                    assignment_id=assignment_id))
-
-        # Get the relative path for database storage
-        relative_path = os.path.join('uploads', 'submissions', assignment[1], assignment[0], str(current_user.user_id),
-                                     saved_files[0])
-
+                                    assignment_id=assignment_id,
+                                    submission_scores = []))
+        
         # First, try to delete any existing submission
         cursor.execute("""
             DELETE FROM submission 
@@ -1047,10 +1054,11 @@ def submit_assignment(assignment_id):
         # Then insert the new submission - let MySQL handle the auto-increment
         cursor.execute("""
             INSERT INTO submission 
-            (assignment_id, student_id, submitted_at, file_url, status)
-            VALUES (%s, %s, NOW(), %s, 1)
-        """, (assignment_id, current_user.user_id, relative_path))
+            (assignment_id, student_id, submitted_at, status)
+            VALUES (%s, %s, NOW(), 1)
+        """, (assignment_id, current_user.user_id,))
 
+        #grading_assistant.grade_file(os.path.join(submission_dir, ))
         gradeai_db.connection.commit()
         flash("Assignment submitted successfully", "success")
 
@@ -1058,12 +1066,28 @@ def submit_assignment(assignment_id):
         gradeai_db.connection.rollback()
         print(f"Error in submission: {str(e)}")  # For debugging
         flash(f"Error submitting assignment: {str(e)}", "error")
-    finally:
-        cursor.close()
 
+    cursor.execute(''' SELECT description, score FROM rubric WHERE assignment_id = %s''', (assignment_id,))
+    rubrics = cursor.fetchall()
+    submission_scores = []
+    cursor.execute(""" SELECT teacher_id FROM class WHERE class_id = %s""", (course_code, ))
+    teacher_id = cursor.fetchone()
+    for f in saved_files:
+        submission_score = grading_assistant.grade_file(os.path.join(submission_dir, f), f.split(".")[1], rubrics)
+        cursor.execute(""" 
+
+                        INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)
+
+                    """, (f"{assignment_id}_{current_user.user_id}", assignment_id, submission_score, "This submission is graded by auto grader!", teacher_id, None, int.to_bytes(0)))
+        submission_scores.append({"filename": f, submission_score: submission_score})
+        gradeai_db.connection.commit()
+
+    cursor.close()
     return redirect(url_for("assignment_submit_student",
                             course_code=assignment[1],
-                            course_name=assignment[2], assignment_id = assignment_id))
+                            course_name=assignment[2], assignment_id = assignment_id,
+                            submission_scores = submission_scores))
 
 
 @app.route('/upload_profile_pic', methods=['POST'])

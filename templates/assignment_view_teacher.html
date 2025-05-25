@@ -72,7 +72,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if student[5] is not none %}
+                            {% if student[3] is not none %}
                                 <a href="{{ url_for('grade_submission', course_code=course_code, assignment_id=assignment_id, submission_id=student[3]) }}" 
                                     class="btn btn-success btn-sm">
                                     <i class="fas fa-check"> Grade</i> 

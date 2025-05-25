@@ -196,13 +196,13 @@ def is_student_enrolled(cursor, student_id, class_id):
 def remove_student(cursor, student_id, class_id):
     cursor.execute(''' DELETE FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
 
-def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title):
+def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title, assignment_id):
     for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
-        create_rubric(cursor, f"{assignment_title}_rubric_{fold}", rubric_val, rubric_desc, user_id, class_id, assignment_title)
+        create_rubric(cursor, rubric_val, rubric_desc, user_id, class_id, assignment_id, assignment_title, fold)
 
-def create_rubric(cursor, name, score, description, created_by, class_id, assignment_title):
+def create_rubric(cursor, score, description, created_by, class_id, assignment_id, assignment_title, fold):
     # First check if rubric exists
-    cursor.execute('''SELECT rubric_id FROM rubric WHERE rubric_id = %s''', (f"{class_id}_{assignment_title}",))
+    cursor.execute('''SELECT rubric_id FROM rubric WHERE rubric_id = %s''', (f"{class_id}_{assignment_title}_{fold}",))
     existing_rubric = cursor.fetchone()
     
     if existing_rubric:
@@ -211,18 +211,19 @@ def create_rubric(cursor, name, score, description, created_by, class_id, assign
             UPDATE rubric 
             SET name = %s, score = %s, description = %s, created_at = %s, created_by = %s
             WHERE rubric_id = %s
-        ''', (name, score, description, datetime.datetime.now(), created_by, f"{class_id}_{assignment_title}"))
+        ''', ( f"{class_id}_{assignment_title}_{fold}", assignment_id, score, description, datetime.datetime.now(), created_by, ))
     else:
         # Insert new rubric
         cursor.execute('''
-            INSERT INTO rubric (rubric_id, name, score, description, created_at, created_by)
+            INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (f"{class_id}_{assignment_title}", name, score, description, datetime.datetime.now(), created_by))
+        ''', (f"{class_id}_{assignment_title}_{fold}", assignment_id, score, description, datetime.datetime.now(), created_by, ))
 
 def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
     assignment_id = f"{class_id}_{assignment_title}"
     cursor.execute(''' INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
                    VALUES (%s, %s, %s, %s, %s, %s)''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
+    return assignment_id
 
 def fetch_classes(cursor, user_id):
     cursor.execute("SELECT * FROM class WHERE teacher_id = %s", (user_id,))

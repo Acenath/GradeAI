@@ -5,6 +5,9 @@ import gc
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import os
+import docx
+import re
+import ast
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 class User(UserMixin):
@@ -56,7 +59,7 @@ class GradingAssistant():
     def grader(self, answer):
         return
 
-    def create_rubric_instructions(self, current_rubrics, current_points ):
+    def create_rubric_instructions(self, current_rubrics, current_points):
         total_points = sum(current_points)
         total_score = 10 ** (len(str(total_points)) + 1)
         remaining_score = total_score - total_points
@@ -126,7 +129,7 @@ class GradingAssistant():
 
         # Build chat prompt
         chat = [
-            {"role": "system", "content": "You are an expert grading assistant responsible for writing grading rubrics for a student essays."},
+            {"role": "system", "content": "You are an expert grading assistant responsible for writing grading rubrics for student essays."},
             {"role": "user", "content": self.question + "\n\n" + self.rubric_instructions}
         ]
         
@@ -153,7 +156,6 @@ class GradingAssistant():
         full_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
         rubric = full_response.split("assistant<|end_header_id|>")[-1]  # Split after last prompt
         rubric = rubric.split("<|eot_id|>")[0].strip()  # Remove any trailing artifacts
-        print(rubric)
         lines = rubric.strip().split('\n')
         rubrics = []
         for line in lines:
@@ -172,5 +174,100 @@ class GradingAssistant():
             except Exception as e:
                 print(f"Error parsing rubric line: {line}, error: {e}")
         
-        
+        self.rubrics = rubrics
         return rubrics
+    
+
+    def grade_file(self, file_path, file_type, rubrics):
+        text_l = []
+        if file_type == "docx":
+            f = docx.Document(file_path)
+            for docpara in f.paragraphs:
+                text_l.append(docpara.text + "\n")
+
+        formatted_rubrics = []
+        for item in rubrics:
+            curr_dict = {"description": item[0], "point": item[1]}
+            formatted_rubrics.append(curr_dict)
+
+        context = "".join(text_l)
+        self.grading_instructions = f"""
+            ### Rubric
+            Each rubric item consists of a description and a point value. Grade the essay only using these rubric items:
+
+            {formatted_rubrics}
+
+            ### Instructions
+            - Read the content of the essay provided (DOCX or PDF).
+            - For each rubric item, give a score between 0 and the maximum defined in the rubric.
+            - Do NOT give any explanations or feedback.
+            - Output should be a **JSON list of objects**, where each object has:
+                - "rubric_desc": the description of the rubric item
+                - "rubric_score": the numeric score (integer)
+
+            ### Output Format (JSON):
+            [
+            {{"rubric_desc": "Rubric description 1", "rubric_score": X}},
+            ...
+            ]
+
+            Now grade the following essay based on the rubric.
+            """
+        
+        # Load model with correct config
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            self.model_name,
+            device_map="auto" if self.device == "cuda" else None,
+            torch_dtype=torch.bfloat16,
+            attn_implementation="sdpa"
+        ).eval()
+
+        # Official Llama-3 chat template
+        tokenizer.chat_template = """{% for message in messages %}<|begin_of_text|><|start_header_id|>{{ message['role'] }}<|end_header_id|>\n\n{{ message['content'] | trim }}<|eot_id|>{% endfor %}{% if add_generation_prompt %}<|start_header_id|>assistant<|end_header_id|>\n\n{% endif %}"""
+
+        # Build chat prompt
+        chat = [
+            {"role": "system", "content": "You are an expert academic grader. Your task is to evaluate an essay **strictly based on the rubric** provided."},
+            {"role": "user", "content": context + "\n\n" + self.grading_instructions}
+        ]
+
+        # Apply template and tokenize
+        prompt = tokenizer.apply_chat_template(
+            chat,
+            tokenize=False,
+            add_generation_prompt=True
+        )
+        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+
+        # Generate response
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=self.max_new_tokens,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id
+            )
+
+        # Extract clean rubric
+        full_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        rubric = full_response.split("assistant<|end_header_id|>")[-1]  # Split after last prompt
+        rubric = rubric.split("<|eot_id|>")[0].strip()  # Remove any trailing artifacts
+        print("THIS IS RUBRIC ITSELF ")
+                
+        print(rubric)
+        match = re.search(r'\[\s*{.*?}\s*]', rubric, re.DOTALL)
+
+        json_str = match.group(0)
+        print("this is json_str")
+        print(json_str)
+        rubric_scores = ast.literal_eval(json_str)
+        print("this is rubric_scores")
+        print(rubric_scores)
+        student_score = 0
+        for item in rubric_scores:
+            student_score += item["point"]
+        return student_score
+        

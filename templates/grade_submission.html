@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Assignment - Gradia</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/grade_submission.css') }}">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="logo-container">
+            <span class="logo-icon">🎓</span>
+            <span>Gradia</span>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('assignment_view_teacher', course_code=course_code, assignment_id=assignment_id) }}" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Assignment
+            </a>
+            <a href="{{ url_for('teacher_dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('profile_teacher') }}">Profile</a>
+        </div>
+    </nav>
+
+    <!-- Main Grading Interface -->
+    <div class="grading-container">
+        <!-- Main Content Area -->
+        <div class="main-grading-area">
+            <!-- Header -->
+            <div class="grading-header">
+                <h2>Grading Assignment: {{ assignment.title }}</h2>
+                <div class="student-info">
+                    <span><i class="fas fa-user"></i> {{ student.first_name }} {{ student.last_name }}</span>
+                    <span><i class="fas fa-id-card"></i> Student ID: {{ student.user_id }}</span>
+                    <span><i class="fas fa-calendar"></i> Submitted: {{ submission.submitted_at }}</span>
+                    <span><i class="fas fa-clock"></i> {{ 'On Time' if submission.is_on_time else 'Late' }}</span>
+                </div>
+            </div>
+
+            <!-- Submission Content -->
+            <div class="submission-content">
+                <!-- Assignment Instructions -->
+                <div class="content-section">
+                    <div class="section-title">
+                        <i class="fas fa-tasks"></i>
+                        Assignment Requirements
+                    </div>
+                    <div class="submission-text">
+                        {{ assignment.description }}
+                    </div>
+                </div>
+
+                <!-- File Attachments -->
+                <div class="content-section">
+                    <div class="section-title">
+                        <i class="fas fa-paperclip"></i>
+                        Submitted Files
+                    </div>
+                    <div class="file-attachments">
+                        {% for file in submission_files %}
+                        <div class="file-item">
+                            <i class="fas fa-file-code file-icon"></i>
+                            <div class="file-info">
+                                <div class="file-name">{{ file.filename }}</div>
+                                <div class="file-size">{{ file.size|filesizeformat }}</div>
+                            </div>
+                                <a href="{{ url_for('download_submission', 
+                                               course_code=course_code, 
+                                               assignment_id=assignment.assignment_id, 
+                                               user_id=student.user_id, 
+                                               filename=file.filename) }}" 
+                                            class="download-btn" 
+                                            download>
+                                <i class="fas fa-download"></i>
+                                Download
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grading Panel -->
+        <div class="grading-panel">
+            <div class="panel-header">
+                <h3><i class="fas fa-graduation-cap"></i> Grading Panel</h3>
+            </div>
+            <div class="panel-content">
+                <!-- Manual Grading Section -->
+                <div class="manual-section">
+                    <form id="gradingForm" method="POST" action="{{ url_for('update_grade', submission_id=submission.submission_id) }}">
+                        <div class="grade-input-group">
+                            <label for="gradeInput">Final Grade</label>
+                            <input type="number" id="gradeInput" name="score" class="grade-input" min="0" max="{{ assignment.total_score }}" value="{{ submission.score if submission.score else 0 }}">
+                            <div class="grade-display">out of {{ assignment.total_score }} points</div>
+                        </div>
+
+                        <!-- Rubric Breakdown -->
+                        <div class="rubric-section">
+                            <h5>Rubric Breakdown:</h5>
+                            {% for rubric in rubrics %}
+                            <div class="rubric-item">
+                                <span class="rubric-criterion">{{ rubric.description }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="feedback-group">
+                            <label for="feedbackText">Feedback for Student</label>
+                            <textarea id="feedbackText" name="feedback" class="feedback-textarea" placeholder="Provide detailed feedback...">{{ submission.feedback if submission.feedback else '' }}</textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button type="submit" class="btn btn-success" id="saveGradeBtn">
+                                <i class="fas fa-save"></i>
+                                Save Grade & Feedback
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

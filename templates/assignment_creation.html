@@ -48,7 +48,7 @@
     </div>
     <div id="rubric-container">
       <div class="rubric-entry">
-        <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." required></textarea>
+        <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." min = 1 required></textarea>
         <input type="number" name="rubric_values[]" placeholder="Value" min="0" value="1" required class="point-value" />
         <button type="button" class="btn btn-sm btn-danger remove-rubric-btn" style="visibility: hidden;">
           <i class="fas fa-times"></i>
@@ -65,7 +65,7 @@
   <!-- Footer Fields -->
   <div class="section-box">
     <div class="footer-fields">
-      <input type="datetime-local" name="Date" placeholder="Due Date" required />
+      <input type="datetime-local" name="Date" min="{{ today }}"  required />
       <select name="file_type" required>
         <option value="Any">Any</option>
         <option value="PDF">PDF</option>

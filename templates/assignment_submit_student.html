@@ -8,15 +8,22 @@
 {% endblock %}
 
 {% block content %}
+{% set deadline_passed = current_datetime > assignment.due_date %}
 <div class="content-container">
     <div class="page-header">
         <h1 class="page-title">{{ assignment.title }}</h1>
         <div class="assignment-meta">
-            <span class="due-date"><i class="far fa-calendar"></i> Due: {{ assignment.due_date }}</span>
+            <span class="due-date"><i class="far fa-calendar"></i> Due: {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}</span>
             <span class="status {% if assignment.is_submitted %}submitted{% else %}pending{% endif %}">
                 {% if assignment.is_submitted %}Submitted{% else %}Not Submitted{% endif %}
             </span>
         </div>
+        {% if deadline_passed %}
+        <div class="deadline-warning alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            The submission deadline has passed. No further submissions or modifications are allowed.
+        </div>
+        {% endif %}
     </div>
 
     <div class="section">
@@ -45,6 +52,7 @@
     </div>
     {% endif %}
 
+    {% if not deadline_passed %}
     <div class="section submission-section">
         <div class="section-title">Your Submission</div>
         <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST" enctype="multipart/form-data">
@@ -67,37 +75,49 @@
             </div>
         </form>
     </div>
+    {% else %}
+    <div class="section submission-closed">
+        <div class="section-title">Submission Closed</div>
+        <div class="closed-message">
+            <i class="fas fa-lock"></i>
+            <p>The submission deadline has passed. You can no longer submit or modify files for this assignment.</p>
+        </div>
+    </div>
+    {% endif %}
 
     {% if assignment.submission %}
-<div class="section submitted-files">
-    <div class="section-title">Your Submitted Files</div>
-    <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST">
-        <div class="attachments-grid">
-            {% for filename in assignment.submission.files %}
-            <div class="attachment-card">
-                <i class="far fa-file-alt file-icon"></i>
-                <div class="file-text">{{ filename }}</div>
-                <div class="submission-meta">
-                    <span class="submission-date">Submitted: {{ assignment.submission.submitted_at}}</span>
+    <div class="section submitted-files">
+        <div class="section-title">Your Submitted Files</div>
+        <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST">
+            <div class="attachments-grid">
+                {% for filename in assignment.submission.files %}
+                <div class="attachment-card">
+                    <i class="far fa-file-alt file-icon"></i>
+                    <div class="file-text">{{ filename }}</div>
+                    <div class="submission-meta">
+                        <span class="submission-date">Submitted: {{ assignment.submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <button type="submit" name="delete-file" value="{{ filename }}" class="delete-btn" {% if deadline_passed %}disabled{% endif %}>
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
-                <button type="submit" name="delete-file" value="{{ filename }}" class="delete-btn">
-                    <i class="fas fa-trash"></i> Delete
+                {% endfor %}
+            </div>
+            {% if not deadline_passed %}
+            <div class="button-container">
+                <button type="submit" name="delete-all" value="true" class="delete-all-btn">
+                    <i class="fas fa-trash-alt"></i> Delete All
                 </button>
             </div>
-            {% endfor %}
-        </div>
-        <div class="button-container">
-            <button type="submit" name="delete-all" value="true" class="delete-all-btn">
-                <i class="fas fa-trash-alt"></i> Delete All
-            </button>
-        </div>
-    </form>
-</div>
-{% endif %}
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
+{% if not deadline_passed %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
@@ -152,4 +172,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+{% endif %}
 {% endblock %}

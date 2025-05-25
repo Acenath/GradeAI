@@ -6,13 +6,14 @@
   <title>Gradia - CSV Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/blockview_teacher.css') }}" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/teacher_course_base.css') }}" />
+
 </head>
 <body>
   <!-- Navbar -->
   <div class="nav-bar">
-    <div class="nav-bar-left">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
+    <div class="logo-container">
+      <i class="fas fa-brain logo-icon"></i>
       <strong>Gradia</strong>
     </div>
     <div class="nav-links">
@@ -22,7 +23,7 @@
   </div>
 
   <!--Flash Messages-->
-  <div class="container flash-messages">
+  <div class="container flash-messages mt-3">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -34,80 +35,73 @@
     {% endwith %}
   </div>
 
-  <!-- Wrap everything important inside the form -->
-  <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" id="classForm">
-    <!-- Course Section -->
-    <div class="course-section">
-      <div class="course-header">
-        Course Name / Code
-        <div class="course-inputs">
-          <input type="text" class="course-name-input" name="course_name" required>
-          /
-          <input type="text" class="course-code-input" name="course_code" required>
+  <!-- Main Content -->
+  <div class="content-container">
+    <!-- Wrap everything important inside the form -->
+    <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" id="classForm">
+      <!-- Course Section -->
+      <div class="section course-section">
+        <div class="course-header">
+          <h5 class="section-title">Course Information</h5>
+          <div class="course-inputs d-flex align-items-center">
+            <input type="text" class="form-control me-2" style="max-width: 250px;" name="course_name" required placeholder="Course Name">
+            /
+            <input type="text" class="form-control ms-2" style="max-width: 150px;" name="course_code" required placeholder="Code">
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
       <!-- Student Management Section -->
-      <div class="student-management">
+      <div class="section student-management">
+        <h5 class="section-title">Student Management</h5>
+        
         <!-- Add Student Section -->
-        <div class="add-student-section">
-          <h3 class="section-heading">Add New Student</h3>
-          <div class="input-group">
-            <label class="input-label">Student Number</label>
-            <input type="text" id="studentNo" class="student-input" placeholder="e.g. 21SOFT1013">
+        <div class="add-student-section mb-4">
+          <div class="input-group mb-3" style="max-width: 320px;">
+            <input type="text" id="studentNo" class="form-control" placeholder="Student Number e.g. 21SOFT1013">
+            <button type="button" id="addStudentBtn" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Add Student
+            </button>
           </div>
-          <button type="button" id="addStudentBtn" class="add-student-button">
-            <i class="fas fa-plus"></i> Add Student
-          </button>
 
-          <div class="csv-option">
-            <p>Or upload CSV file</p>
-            <div class="file-input-container">
-              <label for="fileInput" class="file-upload-btn">
-                <i class="fas fa-file-upload"></i> Choose File
-              </label>
-              <input type="file" id="fileInput" name="fileInput" accept=".csv">
-              <span id="fileName">No file chosen</span>
-            </div>
+          <div class="csv-option mt-3">
+            <p class="text-muted">Or upload CSV file</p>
+            <label for="fileInput" class="file-upload-btn">
+              <i class="fas fa-file-upload"></i> Choose File
+            </label>
+            <input type="file" id="fileInput" name="fileInput" accept=".csv">
+            <span id="fileName">No file chosen</span>
           </div>
         </div>
 
         <!-- Student List Section -->
         <div class="student-list-section">
-          <div class="search-bar">
-            <span class="search-label">Search</span>
-            <input type="text" id="searchInput" class="search-input" placeholder="search">
+          <div class="table-scroll-container">
+            <table class="student-table">
+              <thead>
+                <tr>
+                  <th>Student No</th>
+                  <th>Student Name</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studentTableBody">
+                {% if enrolled_students %}
+                  {% for student in enrolled_students %}
+                    <tr data-student-no="{{ student[0] }}">
+                      <td>{{ student[0] }}</td>
+                      <td>{{ student[1] }} {{ student[2] }}</td>
+                      <td>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
+                          <i class="fas fa-trash"></i> Remove
+                        </button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                {% endif %}
+              </tbody>
+            </table>
           </div>
-
-          <table class="student-table">
-            <thead>
-              <tr>
-                <th>Student No</th>
-                <th>Student Name</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="studentTableBody">
-              {% if enrolled_students %}
-                {% for student in enrolled_students %}
-                  <tr data-student-no="{{ student[0] }}">
-                    <td>{{ student[0] }}</td>
-                    <td>{{ student[1] }} {{ student[2] }}</td>
-                    <td>
-                      <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
-                        <i class="fas fa-trash"></i> Remove
-                      </button>
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <!-- Students will be added here dynamically -->
-              {% endif %}
-            </tbody>
-          </table>
 
           {% if not enrolled_students %}
           <div class="no-students-message" id="noStudentsMessage">
@@ -117,36 +111,34 @@
         </div>
       </div>
 
-      <!-- Create Button  -->
-      <div class="create-button-section">
-        <button type="submit" class="create-button">
-          {% if course_code %}Update{% else %}Create{% endif %} Class
-        </button>
-      </div>
+      <!-- Create Button -->
+      <button type="submit" class="create-button">
+        {% if course_code %}Update{% else %}Create{% endif %} Class
+      </button>
 
       <!-- Hidden input to store student data -->
       <input type="hidden" id="studentsData" name="studentsData" value="">
       <input type="hidden" id="deleteStudents" name="deleteStudents" value="[]">
-    </div> <!-- main-content -->
-  </form> <!-- end of form -->
+    </form>
+  </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       updateNoStudentsMessage();
       updateStudentsData();
     });
-    
+
     // Track deleted students
     const deletedStudents = new Set();
 
     function addStudent() {
       const studentNo = document.getElementById('studentNo').value.trim();
-      
+
       if (!studentNo) {
         alert('Please enter a student number');
         return;
       }
-      
+
       // Check for duplicates
       const existingRows = document.querySelectorAll('#studentTableBody tr');
       for (let row of existingRows) {
@@ -155,7 +147,7 @@
           return;
         }
       }
-      
+
       // Add row with loading state
       const row = document.createElement('tr');
       row.dataset.studentNo = studentNo;
@@ -163,13 +155,13 @@
         <td>${studentNo}</td>
         <td><span class="loader"></span> Loading...</td>
         <td>
-          <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
             <i class="fas fa-trash"></i> Remove
           </button>
         </td>
       `;
       document.getElementById('studentTableBody').appendChild(row);
-      
+
       // Fetch student info
       fetch(`/get_student_info/${studentNo}`)
         .then(response => response.json())
@@ -178,15 +170,15 @@
           if (data.success) {
             nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
           } else {
-            nameCell.innerHTML = `<span class="text-danger">Not in system</span>`;
+            nameCell.innerHTML = '<span class="text-danger">Not in system</span>';
           }
         })
         .catch(error => {
           console.error('Error fetching student info:', error);
           const nameCell = row.cells[1];
-          nameCell.innerHTML = `<span class="text-danger">Error fetching info</span>`;
+          nameCell.innerHTML = '<span class="text-danger">Error fetching info</span>';
         });
-      
+
       document.getElementById('studentNo').value = ''; // Clear input
       updateNoStudentsMessage();
       updateStudentsData();
@@ -194,9 +186,9 @@
 
     function removeStudent(button) {
       const row = button.closest('tr');
-      const studentNo = row.dataset.studentNo; 
-      
-      deletedStudents.add(studentNo); 
+      const studentNo = row.dataset.studentNo;
+
+      deletedStudents.add(studentNo);
       document.getElementById('deleteStudents').value = JSON.stringify(Array.from(deletedStudents));
       row.remove();
       updateNoStudentsMessage();
@@ -213,7 +205,7 @@
     function updateNoStudentsMessage() {
       const hasStudents = document.querySelectorAll('#studentTableBody tr').length > 0;
       const noStudentsMessage = document.getElementById('noStudentsMessage');
-      
+
       if (noStudentsMessage) {
         noStudentsMessage.style.display = hasStudents ? 'none' : 'block';
       }
@@ -224,12 +216,12 @@
       reader.onload = function(event) {
         const csvData = event.target.result;
         const lines = csvData.split('\n');
-        
+
         // Process each line
         lines.forEach(line => {
           const studentNo = line.trim();
           if (!studentNo) return; // Skip empty lines
-          
+
           // Check for duplicates
           const existingRows = document.querySelectorAll('#studentTableBody tr');
           let isDuplicate = false;
@@ -239,7 +231,7 @@
               break;
             }
           }
-          
+
           if (!isDuplicate) {
             // Add row with loading state
             const row = document.createElement('tr');
@@ -248,13 +240,13 @@
               <td>${studentNo}</td>
               <td><span class="loader"></span> Loading...</td>
               <td>
-                <button type="button" class="btn btn-danger" onclick="removeStudent(this)">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
                   <i class="fas fa-trash"></i> Remove
                 </button>
               </td>
             `;
             document.getElementById('studentTableBody').appendChild(row);
-            
+
             // Fetch student info
             fetch(`/get_student_info/${studentNo}`)
               .then(response => response.json())
@@ -263,13 +255,13 @@
                 if (data.success) {
                   nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
                 } else {
-                  nameCell.innerHTML = `<span class="text-danger">Not in system</span>`;
+                  nameCell.innerHTML = '<span class="text-danger">Not in system</span>';
                 }
               })
               .catch(error => {
                 console.error('Error fetching student info:', error);
                 const nameCell = row.cells[1];
-                nameCell.innerHTML = `<span class="text-danger">Error fetching info</span>`;
+                nameCell.innerHTML = '<span class="text-danger">Error fetching info</span>';
               });
           }
         });
@@ -288,15 +280,6 @@
       
       document.getElementById('fileName').textContent = file.name;
       processCSVFile(file);
-    });
-
-    // Search functionality
-    document.getElementById('searchInput').addEventListener('input', function() {
-      const term = this.value.toLowerCase();
-      document.querySelectorAll('#studentTableBody tr').forEach(row => {
-        const text = row.cells[0].textContent.toLowerCase() + ' ' + row.cells[1].textContent.toLowerCase();
-        row.style.display = text.includes(term) ? '' : 'none';
-      });
     });
   </script>
 </body>

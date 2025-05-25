@@ -420,19 +420,20 @@ textarea {
     background-color: #007bff;
     color: white;
     border: none;
-    padding: 0.5rem 1.5rem;
+    padding: 0.75rem 2rem;
     border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    font-size: 1rem;
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    min-width: 120px;
 }
 
 .create-btn:hover {
-     background-color: #007bff;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 5px;
-  text-decoration: none;
-  display: inline-block;
+    background-color: #0056b3;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
 .feedback-list {
@@ -1532,3 +1533,213 @@ textarea {
     width: 100%;
   }
 }
+    /* Scrollable container for student table */
+    .student-list-section {
+      margin-top: 20px;
+    }
+
+    .table-scroll-container {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background-color: #fff;
+    }
+
+    /* Custom scrollbar for modern browsers */
+    .table-scroll-container::-webkit-scrollbar {
+      width: 10px;
+    }
+    .table-scroll-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+      background: #007bff;
+      border-radius: 6px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb:hover {
+      background: #0056b3;
+    }
+
+    /* Firefox scrollbar */
+    .table-scroll-container {
+      scrollbar-width: thin;
+      scrollbar-color: #007bff #f1f1f1;
+    }
+
+    /* Loader style */
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #007bff;
+      border-radius: 50%;
+      width: 14px;
+      height: 14px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Course section styles */
+    .course-section {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border: 1px solid #dee2e6;
+      transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    }
+
+    .course-section:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .course-header {
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* Student management section */
+    .student-management {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border: 1px solid #dee2e6;
+      transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    }
+
+    .student-management:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-heading {
+      color: #333;
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    /* Button styles */
+    .btn-primary {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+      background-color: #c82333;
+      transform: translateY(-2px);
+    }
+
+    .file-upload-btn {
+      cursor: pointer;
+      display: inline-block;
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      margin-right: 10px;
+    }
+
+    .file-upload-btn:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    #fileName {
+      font-style: italic;
+      color: #666;
+    }
+
+    .create-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      max-width: 400px;
+      display: block;
+      margin: 30px auto;
+    }
+
+    .create-button:hover {
+      background-color: #0056b3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Table styles */
+    .student-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.95rem;
+    }
+
+    .student-table th,
+    .student-table td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    .student-table th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+      color: #333;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .student-table tbody tr {
+      transition: all 0.3s ease;
+    }
+
+    .student-table tbody tr:hover {
+      background-color: #f8f9fa;
+      transform: scale(1.01);
+    }
+
+    .no-students-message {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+      font-style: italic;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      margin-top: 15px;
+    }

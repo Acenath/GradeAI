@@ -4,7 +4,7 @@ import csv
 import os
 import json
 from collections import defaultdict
-
+from flask_mail import Mail
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 from flask import flash, jsonify
@@ -17,6 +17,11 @@ ASSIGNMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 ANNOUNCEMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "announcements")
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "submissions")
 #FUNCTIONS
+
+def change_password(cursor, user_id, new_password):
+    hashed_password = hash_password(new_password)
+    cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (hashed_password, user_id))
+
 
 def save_files(assignment_files, course_id, assignment_title):
     # Create the directory path
@@ -101,6 +106,7 @@ def handle_student_enrollment(cursor, students_data, course_code):
     
     return results
 
+
 def handle_student_removal(cursor, deleted_students, course_code):
     try:
         deleted_list = json.loads(deleted_students)
@@ -141,7 +147,7 @@ def save_and_process_csv(cursor, csv_file, class_id):
                     continue
                 
                 student_id = row[0].strip()
-                
+                print(student_id)
                 # First check if student exists in the system
                 cursor.execute(''' 
                     SELECT user_id, first_name, last_name 
@@ -293,6 +299,7 @@ def fetch_feedbacks_by_teacher(cursor, teacher_id):
 def fetch_student_info(cursor, student_id):
     cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id.split(",")[0],))
     student = cursor.fetchone()
+    print(student)
     if student:
         return {
             'success': True,
@@ -367,6 +374,7 @@ def get_student_submissions(cursor, assignment_id, course_code):
         WHERE u.user_id IN (
             SELECT student_id FROM enrollment WHERE class_id = %s
         )
+        GROUP BY u.user_id
         ORDER BY u.first_name, u.last_name
     """, (assignment_id, course_code))
     return cursor.fetchall()
@@ -395,7 +403,6 @@ def get_submission_for_grading(cursor, submission_id, course_code):
     cursor.execute("""
         SELECT 
             s.submitted_at,
-            s.file_path,
             g.score,
             g.feedback,
             u.first_name,
@@ -404,7 +411,7 @@ def get_submission_for_grading(cursor, submission_id, course_code):
             a.title as assignment_title,
             a.total_score,
             c.name as course_name
-        FROM Submission s
+        FROM submission s
         JOIN users u ON s.student_id = u.user_id
         JOIN assignment a ON s.assignment_id = a.assignment_id
         JOIN class c ON a.class_id = c.class_id

@@ -1,19 +1,124 @@
-from flask import Flask, render_template, url_for, request, session, redirect, flash, jsonify
+from flask import Flask, render_template, url_for, request, session, redirect, flash, jsonify, send_from_directory, abort
 from flask_mysqldb import MySQL
 from flask_login import *
 from helpers import *
 from classes import *
 import os
-import json
 from werkzeug.utils import secure_filename
 import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-import docx
-
+from flask_mail import Mail
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'gradia.website@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ivln hvqr pfnm zudw'
+app.config['MAIL_DEFAULT_SENDER'] = 'gradia.website@gmail.com'
+app.config['SECUIRTY_PASSWORD_SALT'] = 'gradia_salt'
+mail = Mail(app)
 grading_assistant = GradingAssistant()
+
+
+def generate_reset_token(email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt=app.config['SECUIRTY_PASSWORD_SALT'])
+
+def verify_reset_token(token, max_age=3600):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(token, salt=app.config['SECUIRTY_PASSWORD_SALT'], max_age=max_age) #expireas after 1 hour
+    except Exception as e:
+        app.logger.error(f"Token verification failed: {str(e)}")
+        return None
+    return email
+
+@app.route('/forgot_password', methods=["GET", "POST"])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+
+        if not email:
+            flash('Please enter your email address.', 'error')
+            return render_template('forgot_password.html')
+        cursor = gradeai_db.connection.cursor()
+        cursor.execute("SELECT user_id, first_name FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+
+        if user:
+            try:
+                token = generate_reset_token(email)
+                reset_url = url_for('new_password', token=token, _external=True)
+                send_password_reset_email(email, user[1], reset_url)
+                flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
+            except Exception as e:
+                app.logger.error(f"Error sending email: {str(e)}")
+                flash('There was an error sending the email. Please try again later.', 'error')
+                return render_template('forgot_password.html')
+        else:
+            # Still show success message for security (don't reveal if email exists)
+            flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
+        
+        cursor.close()
+        return redirect(url_for('login'))
+    
+    return render_template('forgot_password.html')
+
+@app.route('/new_password/<token>', methods=["GET", "POST"])
+def new_password(token):
+    email = verify_reset_token(token)
+    if not email:
+        flash('The password reset link is invalid or has expired.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if new_password != confirm_password:
+            flash('Passwords do not match.', 'error')
+            return render_template("new_password.html", token=token)
+
+        cursor = gradeai_db.connection.cursor()
+        try:
+            change_password(cursor, email, new_password)
+            gradeai_db.connection.commit()
+            flash('Your password has been reset successfully.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            app.logger.error(f"Error resetting password: {str(e)}")
+            flash('An error occurred while resetting your password. Please try again.', 'error')
+            return render_template("new_password.html", token=token)
+        finally:
+            cursor.close()
+
+    return render_template("new_password.html", token=token)
+
+def send_password_reset_email(to_email, first_name, reset_url):
+    msg = Message(
+        "Gradia - Password Reset Request",
+        sender=app.config['MAIL_DEFAULT_SENDER'],
+        recipients=[to_email]
+    )
+    
+    msg.html = f"""
+    <html>
+    <body>
+        <h2>Password Reset</h2>
+        <p>
+        Hello {first_name},</p>
+        <p>You requested to reset your Gradia password. Click the link below:</p>
+        <a href="{reset_url}">Reset Password</a>
+        <p>This link expires in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+    </body>
+    </html>
+    """
+    
+    mail.send(msg)
+
 
 # Define upload directories
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join('static', 'uploads', 'submissions')
@@ -116,12 +221,6 @@ def logout():
     logout_user()
     return redirect(url_for("index"))
 
-
-@app.route('/forgot_password')
-def forgot_password():
-    return render_template("forgot_password.html")
-
-
 @app.route('/tutorial')
 def tutorial():
     return render_template("tutorial.html")
@@ -143,13 +242,10 @@ def blockview_teacher():
 
         handle_class_creation(cursor, course_code, course_name, current_user.user_id)
 
-        # Process CSV file
-        # TODO:
-        # Save csv file first
-        # 
         student_csv_file = request.files.get("fileInput")
         if student_csv_file:
             result = save_and_process_csv(cursor, student_csv_file, course_code)
+            print(result)
             if result['success']:
                 flash(f"{result['added']} students added successfully.", "success")
                 if result['existing'] > 0:
@@ -188,7 +284,7 @@ def get_student_info(student_id):
     cursor = gradeai_db.connection.cursor()
     student = fetch_student_info(cursor, student_id)
     cursor.close()
-    print(student)
+    print("THIS IS STUDENT: ", student)
 
     if student["success"]:
         return jsonify({
@@ -440,7 +536,8 @@ def assignment_creation(course_code):
 
     return render_template("assignment_creation.html",
                            course_name=course[0],
-                           course_code=course_code)
+                           course_code=course_code,
+                           today = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))
 
 @app.route('/generate_rubric', methods=["POST"])
 @login_required
@@ -575,7 +672,7 @@ def assignment_submit_student(course_code, course_name, assignment_id):
     
     for f in os.listdir(submission_dir):
         filename, _ = f.split(".")
-        submission_id = f"{filename}_{assignment_data[1]}"
+        submission_id = f"{assignment_id}_{filename}"
         files.append(f)
         cursor.execute('''
                     INSERT INTO submission (submission_id, assignment_id, submitted_at, status, student_id)
@@ -612,26 +709,8 @@ def assignment_submit_student(course_code, course_name, assignment_id):
     return render_template("assignment_submit_student.html",
                            assignment=assignment,
                            course_code=course_code,
-                           course_name=course_name)
-
-
-def delete_submitted_file(course_code, course_name, assignment_id, submitted_filename):
-    cursor = gradeai_db.connection.cursor()
-        # Get assignment details
-    cursor.execute("""
-        SELECT a.assignment_id, a.title, a.description, a.deadline, 
-               a.total_score, c.name as course_name
-        FROM assignment a
-        JOIN class c ON a.class_id = c.class_id
-        WHERE a.assignment_id = %s AND a.class_id = %s
-    """, (assignment_id, course_code))
-    assignment_data = cursor.fetchone()
-
-    submission_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.join("static", "uploads", "submissions", course_code, assignment_data[1], current_user.user_id))
-    os.remove(os.path.join(submission_dir, submitted_filename))
-    cursor.execute('''
-                    DELETE FROM submission WHERE submission_id = %s 
-                   ''', (f"{f.split(".")[0]}_{assignment_data[1]}"))
+                           course_name=course_name,
+                           current_datetime = datetime.datetime.now())
 
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
 @login_required
@@ -649,9 +728,8 @@ def assignment_view_teacher(course_code, assignment_id):
 
     # Get student submissions
     students = get_student_submissions(cursor, assignment_id, course_code)
-    print(students)
     cursor.close()
-
+    print(students)
     return render_template("assignment_view_teacher.html",
                            course_name=assignment[4],
                            assignment_title=assignment[0],
@@ -811,12 +889,6 @@ def edit_image():
     finally:
         cursor.close()
 
-
-@app.route('/new_password')
-def new_password():
-    return render_template("new_password.html")
-
-
 @app.route('/profile_student')
 @login_required
 def profile_student():
@@ -912,63 +984,54 @@ def create_feedback():
 def grade():
     return render_template("grade.html")
 
-@app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>', methods=['GET', 'POST'])
+@app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>/<student_id>', methods=['GET', 'POST'])
 @login_required
-def grade_submission(course_code, assignment_id, submission_id):
+def grade_submission(course_code, assignment_id, submission_id, student_id):
     cursor = gradeai_db.connection.cursor()
+    cursor.execute(""" SELECT * FROM users WHERE user_id = %s""", (student_id,))
+    student = cursor.fetchone()
+    
+    student = {'first_name': student[3], 'last_name': student[4], 'user_id': student[0]}
+    
+    cursor.execute("SELECT * FROM assignment WHERE class_id = %s", (course_code, ))
+    assignment = cursor.fetchone()
+    assignment = {'title': assignment[1], 'description': assignment[2], 'total_score': assignment[5], 'deadline': assignment[3]}
+    
+    #submission
+    submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment["title"], student["user_id"])
+    submitted_filenames_sizes = [(filename, os.path.getsize(os.path.join(submission_dir, filename))) for filename in os.listdir(submission_dir)]
+    cursor.execute("SELECT submitted_at FROM submission ORDER BY submitted_at DESC LIMIT 1")
+    last_submitted_at = cursor.fetchone()[0]    
+    submission = {"submitted_at": last_submitted_at, "is_on_time": 1 if last_submitted_at <= assignment["deadline"] else 0, "submission_id": submission_id}
+    #files
+    submission_files = []
+    for filename, size in submitted_filenames_sizes:
+        submission_files.append({"filename": filename, "size": size})
 
-    if request.method == 'POST':
-        score = request.form.get('score')
-        feedback = request.form.get('feedback')
+    #rubrics
+    cursor.execute(""" SELECT description FROM rubric WHERE assignment_id = %s""", (assignment_id, ))
+    rubric_l = []
+    rubrics = cursor.fetchall()
+    for rubric_desc in rubrics:
+        rubric_l.append({"description": rubric_desc[0]})
 
-        # Get assignment total score
-        total_score = get_assignment_total_score(cursor, assignment_id)
+    return render_template("grade_submission.html", student = student, assignment = assignment, submission = submission, submission_files = submission_files, rubrics = rubric_l)
 
-        # Validate score
-        try:
-            score = float(score)
-            if score < 0 or score > total_score:
-                flash("Score must be between 0 and " + str(total_score), "error")
-                return redirect(url_for("grade_submission",
-                                        course_code=course_code,
-                                        assignment_id=assignment_id,
-                                        submission_id=submission_id))
-        except ValueError:
-            flash("Invalid score format", "error")
-            return redirect(url_for("grade_submission",
-                                    course_code=course_code,
-                                    assignment_id=assignment_id,
-                                    submission_id=submission_id))
-
-        # Check if grade already exists
-        existing_grade = check_existing_grade(cursor, submission_id)
-
-        if existing_grade:
-            # Update existing grade
-            update_grade(cursor, submission_id, score, feedback)
-        else:
-            # Insert new grade
-            insert_grade(cursor, submission_id, score, feedback)
-
-        gradeai_db.connection.commit()
-        flash("Grade submitted successfully", "success")
-        return redirect(url_for("assignment_view_teacher",
-                                course_code=course_code,
-                                assignment_id=assignment_id))
-
-    # Get submission details for grading
-    submission = get_submission_for_grading(cursor, submission_id, course_code)
-    if not submission:
-        flash("Submission not found", "error")
-        return redirect(url_for("teacher_dashboard"))
-
-    cursor.close()
-
-    return render_template("grade_submission.html",
-                           submission=submission,
-                           course_code=course_code,
-                           assignment_id=assignment_id)
-
+# Example error handling in the route
+@app.route('/download/<course_code>/<assignment_id>/<user_id>/<filename>')
+@login_required
+def download_submission(course_code, assignment_id, user_id, filename):
+    try:
+        submission_dir = os.path.join(
+            ASSIGNMENT_SUBMISSIONS_DIR, 
+            course_code, 
+            assignment_id.split("_")[1], 
+            user_id
+        )
+        print(submission_dir)
+        return send_from_directory(submission_dir, filename, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
 
 @app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
@@ -982,9 +1045,14 @@ def submit_assignment(course_code, course_name, assignment_id):
 
     submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id)
     if delete_file:
+        submission_id = f"{assignment_id}_{delete_file.split(".")[0]}"
         cursor.execute('''
-                        DELETE FROM submission WHERE assignment_id = %s
-                       ''', (f"{delete_file.split("_")[0]}_{assignment_id}", ))
+                        DELETE FROM submission WHERE student_id = %s and assignment_id = %s
+                       ''', (current_user.user_id, submission_id, ))
+        cursor.execute('''
+                        DELETE FROM grade WHERE grade_id = %s
+                       ''', (f"{submission_id}_{current_user.user_id}", ))
+        
         gradeai_db.connection.commit()
         os.remove(os.path.join(submission_dir_student, delete_file))
         return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
@@ -993,6 +1061,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         cursor.execute('''
                         DELETE FROM submission WHERE student_id = %s
                        ''', (current_user.user_id,))
+        
         gradeai_db.connection.commit()
         for filename in os.listdir(submission_dir_student):
             os.remove(os.path.join(submission_dir_student, filename))
@@ -1021,7 +1090,8 @@ def submit_assignment(course_code, course_name, assignment_id):
                                 course_code=assignment[1],
                                 course_name=assignment[2],
                                 assignment_id=assignment_id,
-                                submission_scores = []))
+                                submission_scores = [],
+                                ))
     try:
         # Create submission directory with student ID
         submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, assignment[1], assignment[0],
@@ -1056,9 +1126,8 @@ def submit_assignment(course_code, course_name, assignment_id):
             INSERT INTO submission 
             (assignment_id, student_id, submitted_at, status)
             VALUES (%s, %s, NOW(), 1)
-        """, (assignment_id, current_user.user_id,))
+        """, (f"{assignment_id}_{filename}", current_user.user_id,))
 
-        #grading_assistant.grade_file(os.path.join(submission_dir, ))
         gradeai_db.connection.commit()
         flash("Assignment submitted successfully", "success")
 
@@ -1073,13 +1142,14 @@ def submit_assignment(course_code, course_name, assignment_id):
     cursor.execute(""" SELECT teacher_id FROM class WHERE class_id = %s""", (course_code, ))
     teacher_id = cursor.fetchone()
     for f in saved_files:
-        submission_score = grading_assistant.grade_file(os.path.join(submission_dir, f), f.split(".")[1], rubrics)
+        filename = f.split(".")[1]
+        submission_score = grading_assistant.grade_file(os.path.join(submission_dir, f), filename, rubrics)
         cursor.execute(""" 
 
                         INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)
 
-                    """, (f"{assignment_id}_{current_user.user_id}", assignment_id, submission_score, "This submission is graded by auto grader!", teacher_id, None, int.to_bytes(0)))
+                    """, (f"{assignment_id}_{current_user.user_id}", f"{assignment_id}_{filename}", submission_score, "This submission is graded by auto grader!", teacher_id, None, int.to_bytes(0)))
         submission_scores.append({"filename": f, submission_score: submission_score})
         gradeai_db.connection.commit()
 
@@ -1087,7 +1157,7 @@ def submit_assignment(course_code, course_name, assignment_id):
     return redirect(url_for("assignment_submit_student",
                             course_code=assignment[1],
                             course_name=assignment[2], assignment_id = assignment_id,
-                            submission_scores = submission_scores))
+                            submission_scores = submission_scores),)
 
 
 @app.route('/upload_profile_pic', methods=['POST'])
@@ -1142,24 +1212,13 @@ def update_grade(submission_id):
     cursor = gradeai_db.connection.cursor()
     score = request.form.get('score')
     feedback = request.form.get('feedback')
-
-    # Get assignment and student details
-    cursor.execute("""
-        SELECT a.title, a.class_id, s.student_id
-        FROM submission s
-        JOIN assignment a ON s.assignment_id = a.assignment_id
-        WHERE s.submission_id = %s
-    """, (submission_id,))
-    details = cursor.fetchone()
-
-    if details:
-        update_grade(cursor, submission_id, score, feedback)
-        # Create notification for the student
-        notify_student_about_feedback(cursor, details[2], details[0], details[1])
-
+    cursor.execute(""" 
+                    UPDATE grade 
+                   SET score = %s, feedback = %s, adjusted_at = %s, is_adjusted = %s WHERE submission_id = %s""", (score, feedback, datetime.now(), int.to_bytes(1), submission_id, ))
+ 
     gradeai_db.connection.commit()
     cursor.close()
-    return jsonify({'success': True})
+    return redirect(url_for("teacher_dashboard"))
 
 
 def check_upcoming_deadlines():

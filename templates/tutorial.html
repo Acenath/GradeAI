@@ -249,13 +249,21 @@
             window.history.back();
         }
 
+        let ignoreScroll = false;
         // Smooth scrolling for navigation links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
                 e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
+                const target = document.querySelector(this.getAttribute('href'));
+                const yOffset = -60; // Adjust this value if your header is taller/shorter
+                const y = target.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                window.scrollTo({ top: y, behavior: 'smooth' });
+                // Highlight on click immediately
+                navLinks.forEach(l => l.classList.remove('active'));
+                this.classList.add('active');
+                // Ignore scroll-based highlight for 800ms
+                ignoreScroll = true;
+                setTimeout(() => { ignoreScroll = false; }, 800);
             });
         });
 
@@ -264,13 +272,24 @@
         const navLinks = document.querySelectorAll('#tutorial-nav a');
 
         window.addEventListener('scroll', () => {
+            if (ignoreScroll) return;
             let current = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (pageYOffset >= sectionTop - 60) {
-                    current = section.getAttribute('id');
-                }
-            });
+            let scrollPosition = window.pageYOffset;
+            // If at the bottom of the page, highlight the last section
+            if (window.innerHeight + window.pageYOffset >= document.body.offsetHeight - 2) {
+                current = sections[sections.length - 1].getAttribute('id');
+            } else {
+                sections.forEach((section, idx) => {
+                    const sectionTop = section.offsetTop - 61; // match yOffset
+                    const sectionBottom = sectionTop + section.offsetHeight;
+                    if (
+                        scrollPosition >= sectionTop &&
+                        (idx === sections.length - 1 || scrollPosition < (sections[idx + 1].offsetTop - 61))
+                    ) {
+                        current = section.getAttribute('id');
+                    }
+                });
+            }
 
             navLinks.forEach(link => {
                 link.classList.remove('active');

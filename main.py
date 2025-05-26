@@ -1,13 +1,15 @@
 from flask import Flask, render_template, url_for, request, session, redirect, flash, jsonify, send_from_directory, abort
 from flask_mysqldb import MySQL
 from flask_login import *
+from itsdangerous import URLSafeTimedSerializer
+
 from helpers import *
 from classes import *
 import os
 from werkzeug.utils import secure_filename
 import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask_mail import Mail
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")

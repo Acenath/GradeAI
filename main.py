@@ -167,14 +167,16 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
         user_tuple = fetch_user(cursor, email, password)
-
+        print("Debug - Login user_tuple: ", user_tuple)
         if not user_tuple:
             return render_template("login.html", error_message="This account doesn't exist!")
 
         update_last_login(cursor, email, password)
         gradeai_db.connection.commit()
         cursor.close()
-        curr_user = User(*user_tuple[0][0: 5])  # password should be ignored
+        temp_infos = user_tuple[0]
+        curr_user = User(user_id= temp_infos[0], email = temp_infos[1], first_name = temp_infos[3], last_name = temp_infos[4])  # password should be ignored
+        
         login_user(curr_user)
         if int.from_bytes(user_tuple[0][5], byteorder='big') == 1:  # in DB it is stored in bits
             del user_tuple
@@ -186,10 +188,6 @@ def login():
 
     else:
         return render_template("login.html")
-
-
-def confirm_login():
-    return
 
 
 @app.route('/signup', methods=["GET", "POST"])
@@ -215,10 +213,17 @@ def signup():
         return render_template("signup.html")
 
 
-@app.route("/home")
-@app.route("/")
+@app.route("/logout")
+@login_required
 def logout():
+    # Clear user data before logout
+    if current_user.is_authenticated():
+        current_user.logout()
+    
+    # Flask-Login logout
     logout_user()
+    
+    flash("You have been logged out successfully", "info")
     return redirect(url_for("index"))
 
 @app.route('/tutorial')
@@ -309,6 +314,7 @@ def student_dashboard():
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
     profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
+    print("Debug - student_dashboard recent_feedback: ", recent_feedback)
     return render_template("student_dashboard.html",
                            courses_and_instructors=courses_and_instructors,
                            upcoming_deadlines=upcoming_deadlines,
@@ -567,6 +573,7 @@ def generate_rubric():
     
     # Generate rubric suggestions
     llm_output = grading_assistant.generate_rubric()
+    print(llm_output)
     rubric_items = [
         {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
         for item in llm_output
@@ -582,6 +589,8 @@ def generate_rubric():
 def assignment_feedback_teacher(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
     feedbacks = fetch_feedbacks_by_teacher(cursor, current_user.user_id)
+    #course_code, assignment_id, submission_id, student_id
+    print("Debug - Feedbacks of assignment_feedback_teacher: ", feedbacks)
     cursor.close()
     return render_template("assignment_feedback_teacher.html", feedbacks=feedbacks, course_name=course_name,
                            course_code=course_code)
@@ -631,55 +640,83 @@ def assignments_student(course_code, course_name):
                            course_code=course_code,
                            assignments=assignments)
 
-
-@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods = ["GET", "POST"])
+@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods=["GET", "POST"])
 @login_required
 def assignment_submit_student(course_code, course_name, assignment_id):
-    os.makedirs(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_id.split("_")[1], current_user.user_id), exist_ok = 1)
     cursor = gradeai_db.connection.cursor()
-    files = []
-
-
-    # Get assignment details
+    
+    # Get assignment details first to get the actual title
     cursor.execute("""
         SELECT a.assignment_id, a.title, a.description, a.deadline, 
             a.total_score, c.name as course_name
         FROM assignment a
         JOIN class c ON a.class_id = c.class_id
         WHERE a.assignment_id = %s AND a.class_id = %s
-        """, (assignment_id, course_code))
+    """, (assignment_id, course_code))
     assignment_data = cursor.fetchone() 
     
     if not assignment_data:
         flash("Assignment not found", "error")
+        cursor.close()
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
 
-    # Get assignment files
+    # Use the actual assignment title from database, not from ID
+    assignment_title = assignment_data[1]  # This is the real title
+    
+    # Create submission directory using the actual assignment title
+    submission_dir = os.path.join(
+        ASSIGNMENT_SUBMISSIONS_DIR, 
+        course_code, 
+        assignment_title, 
+        current_user.user_id
+    )
+    
+    print(f"Debug - Submission directory: {submission_dir}")
+    print(f"Debug - Directory exists: {os.path.exists(submission_dir)}")
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(submission_dir, exist_ok=True)
+
+    # Get assignment files using the actual title
     assignment_files = []
-    assignment_dir = os.path.join("static", "uploads", "assignments", course_code, assignment_data[1])
+    assignment_dir = os.path.join("static", "uploads", "assignments", course_code, assignment_title)
+    print(f"Debug - Assignment directory: {assignment_dir}")
+    
     if os.path.exists(assignment_dir):
         assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
+        print(f"Debug - Assignment files found: {assignment_files}")
 
-    
-    submission_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.join("static", "uploads", "submissions", course_code, assignment_data[1], current_user.user_id))
+    # Clear existing submissions for this student and assignment
     cursor.execute('''
-                    DELETE FROM submission WHERE student_id = %s
-                       ''', (current_user.user_id, ))
+        DELETE FROM submission 
+        WHERE student_id = %s AND assignment_id = %s
+    ''', (current_user.user_id, assignment_id))
     gradeai_db.connection.commit()
 
-    teacher_id = cursor.execute(''' SELECT teacher_id FROM class WHERE class_id = %s''', (course_code, ))
-   
-    
-    for f in os.listdir(submission_dir):
-        filename, _ = f.split(".")
-        submission_id = f"{assignment_id}_{filename}"
-        files.append(f)
-        cursor.execute('''
-                    INSERT INTO submission (submission_id, assignment_id, submitted_at, status, student_id)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ''', (submission_id, assignment_id, datetime.datetime.now(), 0, current_user.user_id))
-        
-        
+    # Get teacher ID
+    cursor.execute(''' SELECT teacher_id FROM class WHERE class_id = %s''', (course_code,))
+    teacher_result = cursor.fetchone()
+    teacher_id = teacher_result[0] if teacher_result else None
+
+    # Process existing files in submission directory
+    files = []
+    if os.path.exists(submission_dir):
+        try:
+            for f in os.listdir(submission_dir):
+                if os.path.isfile(os.path.join(submission_dir, f)):
+                    # Create submission ID using the new system
+                    submission_id = SubmissionIDManager.create_submission_id(assignment_id, current_user.user_id, f)
+                    files.append(f)
+                    
+                    cursor.execute('''
+                        INSERT INTO submission (submission_id, assignment_id, submitted_at, status, student_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                    ''', (submission_id, assignment_id, datetime.datetime.now(), 1, current_user.user_id))
+                    
+                    print(f"Debug - Added submission: {submission_id} for file: {f}")
+        except Exception as e:
+            print(f"Error processing submission directory: {e}")
+
     gradeai_db.connection.commit()
 
     # Check if student has already submitted
@@ -687,6 +724,8 @@ def assignment_submit_student(course_code, course_name, assignment_id):
         SELECT s.submission_id, s.submitted_at
         FROM submission s
         WHERE s.student_id = %s AND s.assignment_id = %s
+        ORDER BY s.submitted_at DESC
+        LIMIT 1
     """, (current_user.user_id, assignment_id))
    
     submission = cursor.fetchone()
@@ -705,12 +744,14 @@ def assignment_submit_student(course_code, course_name, assignment_id):
             'submitted_at': submission[1] if submission else None
         } 
     }
+    
     cursor.close()
     return render_template("assignment_submit_student.html",
                            assignment=assignment,
                            course_code=course_code,
                            course_name=course_name,
-                           current_datetime = datetime.datetime.now())
+                           current_datetime=datetime.datetime.now())
+
 
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
 @login_required
@@ -721,15 +762,28 @@ def assignment_view_teacher(course_code, assignment_id):
     assignment = get_assignment_details(cursor, assignment_id, course_code)
     if not assignment:
         flash("Assignment not found", "error")
+        cursor.close()
         return redirect(url_for("teacher_dashboard"))
 
-    # Get assignment files
-    assignment_files = get_assignment_files(course_code, assignment[0])
+    # Get assignment files using the actual assignment title
+    assignment_title = assignment[0]  # assignment[0] is the title
+    assignment_files = []
+    
+    assignment_dir = os.path.join("static", "uploads", "assignments", course_code, assignment_title)
+    print(f"Debug - Looking for assignment files in: {assignment_dir}")
+    
+    if os.path.exists(assignment_dir):
+        assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
+        print(f"Debug - Assignment files found: {assignment_files}")
+    else:
+        print(f"Debug - Assignment directory not found: {assignment_dir}")
 
     # Get student submissions
     students = get_student_submissions(cursor, assignment_id, course_code)
     cursor.close()
-    print(students)
+    
+    print(f"Debug - Students with submissions: {len(students) if students else 0}")
+    
     return render_template("assignment_view_teacher.html",
                            course_name=assignment[4],
                            assignment_title=assignment[0],
@@ -742,6 +796,97 @@ def assignment_view_teacher(course_code, assignment_id):
                            assignment_id=assignment_id)
 
 
+# Helper function to debug directory structure
+@app.route('/debug_directories/<course_code>/<assignment_id>')
+@login_required
+def debug_directories(course_code, assignment_id):
+    """Debug route to check directory structure"""
+    cursor = gradeai_db.connection.cursor()
+    
+    # Get assignment details
+    cursor.execute("""
+        SELECT a.assignment_id, a.title, a.description
+        FROM assignment a
+        WHERE a.assignment_id = %s AND a.class_id = %s
+    """, (assignment_id, course_code))
+    assignment = cursor.fetchone()
+    
+    debug_info = {
+        'assignment_id': assignment_id,
+        'assignment_title': assignment[1] if assignment else 'NOT FOUND',
+        'course_code': course_code
+    }
+    
+    if assignment:
+        assignment_title = assignment[1]
+        
+        # Check various directory paths
+        paths_to_check = [
+            os.path.join("static", "uploads", "assignments", course_code, assignment_title),
+            os.path.join("static", "uploads", "submissions", course_code, assignment_title),
+            os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title),
+            os.path.join(ASSIGNMENT_FILES_DIR, course_code, assignment_title)
+        ]
+        
+        debug_info['directory_checks'] = []
+        for path in paths_to_check:
+            exists = os.path.exists(path)
+            files = []
+            if exists:
+                try:
+                    files = os.listdir(path)
+                except:
+                    files = ['ERROR_READING_DIR']
+            
+            debug_info['directory_checks'].append({
+                'path': path,
+                'exists': exists,
+                'files': files
+            })
+    
+    cursor.close()
+    return jsonify(debug_info)
+
+
+# Alternative: Route to fix directory structure
+@app.route('/fix_directories/<course_code>/<assignment_id>')
+@login_required
+def fix_directories(course_code, assignment_id):
+    """Fix directory structure if needed"""
+    cursor = gradeai_db.connection.cursor()
+    
+    # Get assignment details
+    cursor.execute("""
+        SELECT a.assignment_id, a.title
+        FROM assignment a
+        WHERE a.assignment_id = %s AND a.class_id = %s
+    """, (assignment_id, course_code))
+    assignment = cursor.fetchone()
+    
+    if not assignment:
+        cursor.close()
+        return jsonify({'error': 'Assignment not found'})
+    
+    assignment_title = assignment[1]
+    
+    # Create necessary directories
+    directories_to_create = [
+        os.path.join(ASSIGNMENT_FILES_DIR, course_code, assignment_title),
+        os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title)
+    ]
+    
+    created = []
+    for directory in directories_to_create:
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+            created.append(directory)
+    
+    cursor.close()
+    return jsonify({
+        'success': True,
+        'assignment_title': assignment_title,
+        'directories_created': created
+    })
 
 @app.route('/edit_image', methods=["GET", "POST"])
 @login_required
@@ -983,95 +1128,110 @@ def create_feedback():
 @login_required
 def grade():
     return render_template("grade.html")
-
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>/<student_id>', methods=['GET', 'POST'])
 @login_required
 def grade_submission(course_code, assignment_id, submission_id, student_id):
     cursor = gradeai_db.connection.cursor()
+    
+    # Get student info
     cursor.execute(""" SELECT * FROM users WHERE user_id = %s""", (student_id,))
     student = cursor.fetchone()
-    
     student = {'first_name': student[3], 'last_name': student[4], 'user_id': student[0]}
     
-    cursor.execute("SELECT * FROM assignment WHERE class_id = %s", (course_code, ))
+    # Get assignment info
+    cursor.execute("SELECT * FROM assignment WHERE assignment_id = %s", (assignment_id,))
     assignment = cursor.fetchone()
-    assignment = {'title': assignment[1], 'description': assignment[2], 'total_score': assignment[5], 'deadline': assignment[3]}
+    assignment = {'title': assignment[1], 'description': assignment[2], 'total_score': assignment[5], 'deadline': assignment[3], 'assignment_id': assignment[0]}
     
-    #submission
+    # Get submission info
+    cursor.execute("SELECT submitted_at FROM submission WHERE submission_id = %s", (submission_id,))
+    submission_data = cursor.fetchone()
+    last_submitted_at = submission_data[0] if submission_data else None
+    
+    # Get existing grade and feedback
+    cursor.execute("""
+        SELECT score, feedback 
+        FROM grade 
+        WHERE submission_id = %s
+    """, (submission_id,))
+    grade_data = cursor.fetchone()
+    
+    current_score = grade_data[0] if grade_data else 0
+    current_feedback = grade_data[1] if grade_data else ""
+    
+    submission = {
+        "submitted_at": last_submitted_at, 
+        "is_on_time": 1 if last_submitted_at <= assignment["deadline"] else 0, 
+        "submission_id": submission_id,
+        "score": current_score,
+        "feedback": current_feedback
+    }
+    
+    # Get submission directory using actual assignment title
     submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment["title"], student["user_id"])
-    submitted_filenames_sizes = [(filename, os.path.getsize(os.path.join(submission_dir, filename))) for filename in os.listdir(submission_dir)]
-    cursor.execute("SELECT submitted_at FROM submission ORDER BY submitted_at DESC LIMIT 1")
-    last_submitted_at = cursor.fetchone()[0]    
-    submission = {"submitted_at": last_submitted_at, "is_on_time": 1 if last_submitted_at <= assignment["deadline"] else 0, "submission_id": submission_id}
-    #files
+    
+    # Get files
     submission_files = []
-    for filename, size in submitted_filenames_sizes:
-        submission_files.append({"filename": filename, "size": size})
-
-    #rubrics
-    cursor.execute(""" SELECT description FROM rubric WHERE assignment_id = %s""", (assignment_id, ))
+    if os.path.exists(submission_dir):
+        for filename in os.listdir(submission_dir):
+            if os.path.isfile(os.path.join(submission_dir, filename)):
+                file_size = os.path.getsize(os.path.join(submission_dir, filename))
+                submission_files.append({"filename": filename, "size": file_size})
+    
+    # Get rubrics
+    cursor.execute(""" SELECT description FROM rubric WHERE assignment_id = %s""", (assignment_id,))
     rubric_l = []
     rubrics = cursor.fetchall()
     for rubric_desc in rubrics:
         rubric_l.append({"description": rubric_desc[0]})
+    
+    cursor.close()
+    return render_template("grade_submission.html", 
+                         student=student, 
+                         assignment=assignment, 
+                         submission=submission, 
+                         submission_files=submission_files, 
+                         rubrics=rubric_l,
+                         course_code=course_code)
 
-    return render_template("grade_submission.html", student = student, assignment = assignment, submission = submission, submission_files = submission_files, rubrics = rubric_l)
-
-# Example error handling in the route
+# Fixed download route
 @app.route('/download/<course_code>/<assignment_id>/<user_id>/<filename>')
 @login_required
 def download_submission(course_code, assignment_id, user_id, filename):
     try:
+        cursor = gradeai_db.connection.cursor()
+        
+        # Get actual assignment title from database
+        cursor.execute("SELECT title FROM assignment WHERE assignment_id = %s", (assignment_id,))
+        assignment = cursor.fetchone()
+        cursor.close()
+        
+        if not assignment:
+            abort(404)
+        
+        assignment_title = assignment[0]
+        
         submission_dir = os.path.join(
-            ASSIGNMENT_SUBMISSIONS_DIR, 
-            course_code, 
-            assignment_id.split("_")[1], 
+            ASSIGNMENT_SUBMISSIONS_DIR,
+            course_code,
+            assignment_title,  # Use actual title, not parsed from ID
             user_id
         )
-        print(submission_dir)
+        
+        print(f"Download path: {submission_dir}")
         return send_from_directory(submission_dir, filename, as_attachment=True)
     except FileNotFoundError:
         abort(404)
+
 
 @app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
 def submit_assignment(course_code, course_name, assignment_id):
     cursor = gradeai_db.connection.cursor()
 
-    course_code, assignment_title = assignment_id.split("_")[0], assignment_id.split("_")[1]
-    course_name = get_course_name(cursor, course_code)
-    delete_file = request.form.get("delete-file")
-    delete_all = request.form.get("delete-all")
-
-    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id)
-    if delete_file:
-        submission_id = f"{assignment_id}_{delete_file.split(".")[0]}"
-        cursor.execute('''
-                        DELETE FROM submission WHERE student_id = %s and assignment_id = %s
-                       ''', (current_user.user_id, submission_id, ))
-        cursor.execute('''
-                        DELETE FROM grade WHERE grade_id = %s
-                       ''', (f"{submission_id}_{current_user.user_id}", ))
-        
-        gradeai_db.connection.commit()
-        os.remove(os.path.join(submission_dir_student, delete_file))
-        return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
-    
-    if delete_all:
-        cursor.execute('''
-                        DELETE FROM submission WHERE student_id = %s
-                       ''', (current_user.user_id,))
-        
-        gradeai_db.connection.commit()
-        for filename in os.listdir(submission_dir_student):
-            os.remove(os.path.join(submission_dir_student, filename))
-
-        return redirect(url_for("assignment_submit_student", course_code = course_code, course_name = course_name, assignment_id = assignment_id))
-
-    #Assignment submit button for student this part
-    # Get assignment details including course name
+    # Get assignment details from database (don't parse from ID)
     cursor.execute("""
-        SELECT a.title, a.class_id, c.name as course_name
+        SELECT a.title, a.class_id, c.name as course_name, a.total_score
         FROM assignment a
         JOIN class c ON a.class_id = c.class_id
         WHERE a.assignment_id = %s
@@ -1080,84 +1240,286 @@ def submit_assignment(course_code, course_name, assignment_id):
 
     if not assignment:
         flash("Assignment not found", "error")
+        cursor.close()
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
 
-    # Get uploaded files
+    # Use actual assignment title from database
+    assignment_title = assignment[0]
+    actual_course_code = assignment[1]
+    
+    # Correct directory path using actual assignment title
+    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, actual_course_code, assignment_title, current_user.user_id)
+    
+    print(f"Debug - Assignment title: {assignment_title}")
+    print(f"Debug - Submission directory: {submission_dir_student}")
+    print(f"Debug - Directory exists: {os.path.exists(submission_dir_student)}")
+
+    delete_file = request.form.get("delete-file")
+    delete_all = request.form.get("delete-all")
+    
+    # Handle file deletion
+    if delete_file:
+        print(f"Debug - Deleting file: {delete_file}")
+        
+        # Create submission ID for the file to delete
+        submission_id = SubmissionIDManager.create_submission_id(assignment_id, current_user.user_id, delete_file)
+        grade_id = GradeIDManager.create_grade_id(submission_id)
+        
+        print(f"Debug - Looking for submission_id: {submission_id}")
+        print(f"Debug - Looking for grade_id: {grade_id}")
+        
+        # Delete from database
+        cursor.execute('DELETE FROM grade WHERE grade_id = %s', (grade_id,))
+        cursor.execute('DELETE FROM submission WHERE submission_id = %s', (submission_id,))
+        
+        # Delete physical file
+        file_path = os.path.join(submission_dir_student, delete_file)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Debug - Deleted file: {file_path}")
+        else:
+            print(f"Debug - File not found: {file_path}")
+        
+        gradeai_db.connection.commit()
+        cursor.close()
+        return redirect(url_for("assignment_submit_student", 
+                               course_code=course_code, 
+                               course_name=course_name, 
+                               assignment_id=assignment_id))
+    
+    # Handle delete all
+    if delete_all:
+        print("Debug - Deleting all submissions")
+        
+        # Get all submissions for this student and assignment
+        cursor.execute('''
+            SELECT submission_id FROM submission 
+            WHERE student_id = %s AND assignment_id = %s
+        ''', (current_user.user_id, assignment_id))
+        submissions = cursor.fetchall()
+        
+        print(f"Debug - Found {len(submissions)} submissions to delete")
+        
+        # Delete grades and submissions
+        for submission in submissions:
+            grade_id = GradeIDManager.create_grade_id(submission[0])
+            cursor.execute('DELETE FROM grade WHERE grade_id = %s', (grade_id,))
+        
+        cursor.execute('''
+            DELETE FROM submission 
+            WHERE student_id = %s AND assignment_id = %s
+        ''', (current_user.user_id, assignment_id))
+        
+        # Delete all files in directory
+        if os.path.exists(submission_dir_student):
+            try:
+                for filename in os.listdir(submission_dir_student):
+                    file_path = os.path.join(submission_dir_student, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        print(f"Debug - Deleted file: {filename}")
+            except Exception as e:
+                print(f"Error deleting files: {e}")
+
+        gradeai_db.connection.commit()
+        cursor.close()
+        return redirect(url_for("assignment_submit_student", 
+                               course_code=course_code, 
+                               course_name=course_name, 
+                               assignment_id=assignment_id))
+
+    # Handle new submission
     files = request.files.getlist('files')
     if not files or not files[0].filename:
         flash("Please select at least one file to submit", "error")
+        cursor.close()
         return redirect(url_for("assignment_submit_student",
-                                course_code=assignment[1],
+                                course_code=actual_course_code,
                                 course_name=assignment[2],
-                                assignment_id=assignment_id,
-                                submission_scores = [],
-                                ))
+                                assignment_id=assignment_id))
+    
     try:
-        # Create submission directory with student ID
-        submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, assignment[1], assignment[0],
-                                      str(current_user.user_id))
+        # Create submission directory using correct path
+        submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, actual_course_code, assignment_title, str(current_user.user_id))
         os.makedirs(submission_dir, exist_ok=True)
+        print(f"Debug - Created/using submission directory: {submission_dir}")
 
-        # Save each file
+        # Save files and create submissions
         saved_files = []
+        submission_records = []
+        
         for file in files:
             if file and file.filename:
                 filename = secure_filename(file.filename)
                 file_path = os.path.join(submission_dir, filename)
                 file.save(file_path)
                 saved_files.append(filename)
+                
+                print(f"Debug - Saved file: {filename} to {file_path}")
+                
+                # Create unique submission ID for each file
+                submission_id = SubmissionIDManager.create_submission_id(
+                    assignment_id, current_user.user_id, filename
+                )
+                submission_records.append((submission_id, filename))
+                print(f"Debug - Created submission_id: {submission_id}")
 
         if not saved_files:
             flash("No files were saved", "error")
+            cursor.close()
             return redirect(url_for("assignment_submit_student",
-                                    course_code=assignment[1],
+                                    course_code=actual_course_code,
                                     course_name=assignment[2],
-                                    assignment_id=assignment_id,
-                                    submission_scores = []))
+                                    assignment_id=assignment_id))
         
-        # First, try to delete any existing submission
+        # Delete any existing submissions for this assignment and student
+        print("Debug - Deleting existing submissions")
+        cursor.execute("""
+            SELECT submission_id FROM submission 
+            WHERE student_id = %s AND assignment_id = %s
+        """, (current_user.user_id, assignment_id))
+        existing_submissions = cursor.fetchall()
+        
+        # Delete grades for existing submissions
+        for existing_sub in existing_submissions:
+            grade_id = GradeIDManager.create_grade_id(existing_sub[0])
+            cursor.execute('DELETE FROM grade WHERE grade_id = %s', (grade_id,))
+        
+        # Delete existing submissions
         cursor.execute("""
             DELETE FROM submission 
             WHERE student_id = %s AND assignment_id = %s
         """, (current_user.user_id, assignment_id))
 
-        # Then insert the new submission - let MySQL handle the auto-increment
-        cursor.execute("""
-            INSERT INTO submission 
-            (assignment_id, student_id, submitted_at, status)
-            VALUES (%s, %s, NOW(), 1)
-        """, (f"{assignment_id}_{filename}", current_user.user_id,))
+        # Insert new submissions
+        for submission_id, filename in submission_records:
+            cursor.execute("""
+                INSERT INTO submission 
+                (submission_id, assignment_id, student_id, submitted_at, status)
+                VALUES (%s, %s, %s, NOW(), 1)
+            """, (submission_id, assignment_id, current_user.user_id))
+            print(f"Debug - Inserted submission: {submission_id}")
 
         gradeai_db.connection.commit()
         flash("Assignment submitted successfully", "success")
 
+        # AUTO-GRADING PROCESS
+        print("Debug - Starting auto-grading process")
+        
+        # Get rubrics for this assignment
+        cursor.execute(''' SELECT description, score FROM rubric WHERE assignment_id = %s''', (assignment_id,))
+        db_rubrics = cursor.fetchall()
+        
+        if not db_rubrics:
+            print("Debug - No rubrics found for assignment")
+            flash("Warning: No grading rubrics found for this assignment", "warning")
+        else:
+            print(f"Debug - Found {len(db_rubrics)} rubrics")
+            
+            # Convert tuples to expected format
+            rubrics = []
+            for rubric_tuple in db_rubrics:
+                rubric_dict = {
+                    "rubric_desc": rubric_tuple[0],
+                    "rubric_score": str(rubric_tuple[1])
+                }
+                rubrics.append(rubric_dict)
+            
+            print(f"Debug - Formatted rubrics: {rubrics}")
+            
+            # Get teacher ID
+            cursor.execute(""" SELECT teacher_id FROM class WHERE class_id = %s""", (actual_course_code,))
+            teacher_result = cursor.fetchone()
+            teacher_id = teacher_result[0] if teacher_result else None
+            print(f"Debug - Teacher ID: {teacher_id}")
+            
+            submission_scores = []
+            
+            # Grade each file
+            for filename, (submission_id, _) in zip(saved_files, submission_records):
+                print(f"Debug - Grading file: {filename}")
+                
+                file_extension = filename.split(".")[-1] if "." in filename else "docx"
+                file_path = os.path.join(submission_dir, filename)
+                
+                print(f"Debug - File path for grading: {file_path}")
+                print(f"Debug - File extension: {file_extension}")
+                print(f"Debug - File exists: {os.path.exists(file_path)}")
+                
+                try:
+                    # Grade the file using the grading assistant
+                    submission_score = grading_assistant.grade_file(
+                        file_path, 
+                        file_extension,
+                        rubrics
+                    )
+                    print(f"Debug - Grading result: {submission_score}")
+                    
+                    # Create unique grade ID
+                    grade_id = GradeIDManager.create_grade_id(submission_id)
+                    
+                    # Insert grade into database
+                    cursor.execute(""" 
+                        INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        grade_id,
+                        submission_id, 
+                        submission_score, 
+                        "This submission is graded by auto grader!", 
+                        teacher_id, 
+                        None, 
+                        0
+                    ))
+                    
+                    print(f"Debug - Inserted grade: {grade_id} with score: {submission_score}")
+                    
+                    submission_scores.append({
+                        "filename": filename, 
+                        "submission_score": submission_score,
+                        "submission_id": submission_id
+                    })
+                    
+                except Exception as grading_error:
+                    print(f"Error grading file {filename}: {grading_error}")
+                    flash(f"Error grading {filename}: {str(grading_error)}", "warning")
+                    
+                    # Still create a grade entry with 0 score
+                    grade_id = GradeIDManager.create_grade_id(submission_id)
+                    cursor.execute(""" 
+                        INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        grade_id,
+                        submission_id, 
+                        0, 
+                        f"Auto-grading failed: {str(grading_error)}", 
+                        teacher_id, 
+                        None, 
+                        0
+                    ))
+            
+            gradeai_db.connection.commit()
+            print(f"Debug - Auto-grading completed. Scores: {submission_scores}")
+            
+            if submission_scores:
+                total_score = sum(item["submission_score"] for item in submission_scores)
+                flash(f"Assignment graded automatically! Total score: {total_score}/{assignment[3]}", "success")
+        
     except Exception as e:
         gradeai_db.connection.rollback()
-        print(f"Error in submission: {str(e)}")  # For debugging
+        print(f"Error in submission: {str(e)}")
+        import traceback
+        traceback.print_exc()
         flash(f"Error submitting assignment: {str(e)}", "error")
-
-    cursor.execute(''' SELECT description, score FROM rubric WHERE assignment_id = %s''', (assignment_id,))
-    rubrics = cursor.fetchall()
-    submission_scores = []
-    cursor.execute(""" SELECT teacher_id FROM class WHERE class_id = %s""", (course_code, ))
-    teacher_id = cursor.fetchone()
-    for f in saved_files:
-        filename = f.split(".")[1]
-        submission_score = grading_assistant.grade_file(os.path.join(submission_dir, f), filename, rubrics)
-        cursor.execute(""" 
-
-                        INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s)
-
-                    """, (f"{assignment_id}_{current_user.user_id}", f"{assignment_id}_{filename}", submission_score, "This submission is graded by auto grader!", teacher_id, None, int.to_bytes(0)))
-        submission_scores.append({"filename": f, submission_score: submission_score})
-        gradeai_db.connection.commit()
 
     cursor.close()
     return redirect(url_for("assignment_submit_student",
-                            course_code=assignment[1],
-                            course_name=assignment[2], assignment_id = assignment_id,
-                            submission_scores = submission_scores),)
+                            course_code=actual_course_code,
+                            course_name=assignment[2], 
+                            assignment_id=assignment_id))
+
+
 
 
 @app.route('/upload_profile_pic', methods=['POST'])
@@ -1212,13 +1574,43 @@ def update_grade(submission_id):
     cursor = gradeai_db.connection.cursor()
     score = request.form.get('score')
     feedback = request.form.get('feedback')
-    cursor.execute(""" 
-                    UPDATE grade 
-                   SET score = %s, feedback = %s, adjusted_at = %s, is_adjusted = %s WHERE submission_id = %s""", (score, feedback, datetime.now(), int.to_bytes(1), submission_id, ))
- 
-    gradeai_db.connection.commit()
-    cursor.close()
-    return redirect(url_for("teacher_dashboard"))
+    
+    try:
+        cursor.execute("""
+            UPDATE grade 
+            SET score = %s, feedback = %s, adjusted_at = %s, is_adjusted = %s 
+            WHERE submission_id = %s
+        """, (score, feedback, datetime.datetime.now(), 1, submission_id))
+        
+        gradeai_db.connection.commit()
+        flash("Grade and feedback updated successfully!", "success")
+        
+        # Get info to redirect back to the grading page
+        cursor.execute("""
+            SELECT a.class_id, a.assignment_id, s.student_id
+            FROM submission s
+            JOIN assignment a ON s.assignment_id = a.assignment_id
+            WHERE s.submission_id = %s
+        """, (submission_id,))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            course_code, assignment_id, student_id = result
+            return redirect(url_for('grade_submission', 
+                                   course_code=course_code, 
+                                   assignment_id=assignment_id, 
+                                   submission_id=submission_id, 
+                                   student_id=student_id))
+        else:
+            return redirect(url_for("teacher_dashboard"))
+            
+    except Exception as e:
+        gradeai_db.connection.rollback()
+        flash(f"Error updating grade: {str(e)}", "error")
+        return redirect(url_for("teacher_dashboard"))
+    finally:
+        cursor.close()
 
 
 def check_upcoming_deadlines():

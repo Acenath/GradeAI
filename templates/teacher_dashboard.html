@@ -103,7 +103,7 @@
     <div class="sidebar-section">
       <h3>Feedback</h3>
       {% for feedback in recent_feedback %}
-        <a href="#" class="feedback-item">
+        <a href="{{url_for('assignment_feedback_teacher', course_name = feedback[-1], course_code = feedback[-2])}}" class="feedback-item">
           <div class="feedback-icon">
             <i class="far fa-user-circle" style="font-size: 24px;"></i>
           </div>

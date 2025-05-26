@@ -1,14 +1,7 @@
 {% extends "teacher_course_base.html" %}
-
 {% block title %}Feedback - Gradia{% endblock %}
-
 {% block page_title %}Feedback{% endblock %}
-
 {% block content %}
-<div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('create_feedback') }}" class="feedback-btn">Create Feedback</a>
-</div>
-
 <div class="feedback-list">
     {% for fb in feedbacks %}
     <div class="feedback-item">
@@ -20,8 +13,8 @@
             <p>{{ fb[2] }}</p> <!-- Feedback description -->
         </div>
         <div class="feedback-footer">
-            <button class="btn btn-primary">Edit Feedback</button>
-            <button class="btn btn-secondary">View Submission</button>
+            <!-- Edit Feedback redirects to grade_submission -->
+            <a href="{{ url_for('grade_submission', course_code=course_code, assignment_id=fb[4] , submission_id=fb[5], student_id=fb[6]) }}" class="btn btn-primary">Edit Feedback</a>
         </div>
     </div>
     {% else %}

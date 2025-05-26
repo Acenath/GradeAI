@@ -15,7 +15,7 @@
             <span>Gradia</span>
         </div>
         <div class="nav-links">
-            <a href="{{ url_for('assignment_view_teacher', course_code=course_code, assignment_id=assignment_id) }}" class="back-link">
+            <a href="{{ url_for('assignment_view_teacher', course_code=course_code, assignment_id=assignment.assignment_id) }}" class="back-link">
                 <i class="fas fa-arrow-left"></i> Back to Assignment
             </a>
             <a href="{{ url_for('teacher_dashboard') }}">Dashboard</a>
@@ -36,6 +36,16 @@
                     <span><i class="fas fa-calendar"></i> Submitted: {{ submission.submitted_at }}</span>
                     <span><i class="fas fa-clock"></i> {{ 'On Time' if submission.is_on_time else 'Late' }}</span>
                 </div>
+                <!-- Current Grade Display -->
+                <div class="current-grade-display">
+                    <div class="grade-badge">
+                        <i class="fas fa-star"></i>
+                        Current Grade: {{ submission.score }}/{{ assignment.total_score }}
+                        {% if submission.score > 0 %}
+                            <span class="percentage">({{ "%.1f"|format((submission.score / assignment.total_score * 100)) }}%)</span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             <!-- Submission Content -->
@@ -46,8 +56,8 @@
                         <i class="fas fa-tasks"></i>
                         Assignment Requirements
                     </div>
-                    <div class="submission-text">
-                        {{ assignment.description }}
+                    <div class="submission-text" style="text-align: left; justify-content: flex-start; display: block; padding: 10px; margin: 0;">
+                        <p style="margin: 0; padding: 0; text-align: left; line-height: 1.4; position: relative; top: 0; left: 0;">{{ assignment.description }}</p>
                     </div>
                 </div>
 
@@ -55,30 +65,45 @@
                 <div class="content-section">
                     <div class="section-title">
                         <i class="fas fa-paperclip"></i>
-                        Submitted Files
+                        Submitted Files ({{ submission_files|length }} file{{ 's' if submission_files|length != 1 else '' }})
                     </div>
                     <div class="file-attachments">
                         {% for file in submission_files %}
                         <div class="file-item">
-                            <i class="fas fa-file-code file-icon"></i>
+                            <i class="fas fa-file-alt file-icon"></i>
                             <div class="file-info">
                                 <div class="file-name">{{ file.filename }}</div>
-                                <div class="file-size">{{ file.size|filesizeformat }}</div>
+                                <div class="file-size">{{ "%.1f"|format(file.size / 1024) }} KB</div>
                             </div>
-                                <a href="{{ url_for('download_submission', 
-                                               course_code=course_code, 
-                                               assignment_id=assignment.assignment_id, 
-                                               user_id=student.user_id, 
-                                               filename=file.filename) }}" 
-                                            class="download-btn" 
-                                            download>
-                                <i class="fas fa-download"></i>
-                                Download
-                            </a>
+                            <a href="{{ url_for('download_submission', 
+                                           course_code=course_code, 
+                                           assignment_id=assignment.assignment_id, 
+                                           user_id=student.user_id, 
+                                           filename=file.filename) }}" 
+                                        class="download-btn" 
+                                        download>
+                            <i class="fas fa-download"></i>
+                            Download
+                        </a>
                         </div>
+                        {% else %}
+                        <p>No files submitted</p>
                         {% endfor %}
                     </div>
                 </div>
+
+                <!-- Current Feedback Display -->
+                {% if submission.feedback %}
+                <div class="content-section">
+                    <div class="section-title">
+                        <i class="fas fa-comment-alt"></i>
+                        Current Feedback
+                    </div>
+                    <div class="current-feedback">
+                        {{ submission.feedback }}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -93,7 +118,13 @@
                     <form id="gradingForm" method="POST" action="{{ url_for('update_grade', submission_id=submission.submission_id) }}">
                         <div class="grade-input-group">
                             <label for="gradeInput">Final Grade</label>
-                            <input type="number" id="gradeInput" name="score" class="grade-input" min="0" max="{{ assignment.total_score }}" value="{{ submission.score if submission.score else 0 }}">
+                            <input type="number" 
+                                   id="gradeInput" 
+                                   name="score" 
+                                   class="grade-input" 
+                                   min="0" 
+                                   max="{{ assignment.total_score }}" 
+                                   value="{{ submission.score }}">
                             <div class="grade-display">out of {{ assignment.total_score }} points</div>
                         </div>
 
@@ -104,19 +135,24 @@
                             <div class="rubric-item">
                                 <span class="rubric-criterion">{{ rubric.description }}</span>
                             </div>
+                            {% else %}
+                            <p>No rubrics available for this assignment.</p>
                             {% endfor %}
                         </div>
 
                         <div class="feedback-group">
                             <label for="feedbackText">Feedback for Student</label>
-                            <textarea id="feedbackText" name="feedback" class="feedback-textarea" placeholder="Provide detailed feedback...">{{ submission.feedback if submission.feedback else '' }}</textarea>
+                            <textarea id="feedbackText" 
+                                      name="feedback" 
+                                      class="feedback-textarea" 
+                                      placeholder="Provide detailed feedback...">{{ submission.feedback }}</textarea>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="action-buttons">
                             <button type="submit" class="btn btn-success" id="saveGradeBtn">
                                 <i class="fas fa-save"></i>
-                                Save Grade & Feedback
+                                {{ 'Update' if submission.score > 0 else 'Save' }} Grade & Feedback
                             </button>
                         </div>
                     </form>

@@ -117,14 +117,14 @@
     <div class="sidebar-section">
       <h3>Recent Feedback</h3>
       {% for feedback in recent_feedback %}
-        <a href="#" class="feedback-item">
+        <a href="{{url_for('assignment_grades_student', course_name = feedback[-1], course_code = feedback[-2])}}" class="feedback-item">
           <div class="feedback-icon">
             <i class="fas fa-comments" style="font-size: 24px;"></i>
           </div>
           <div class="feedback-info">
-            <div>{{ feedback[2] }}</div> <!-- Feedback summary or score -->
+            <div>{{feedback[5] + " - " + feedback[3] + " " + feedback[4] }}</div> <!-- Feedback summary or score -->
             <div class="assignment-title">{{ feedback[1] }}</div> <!-- Assignment name -->
-            <div class="date">{{ feedback[3].strftime('%A, %b %d %Y') }}</div>
+            <div class="date">{{ feedback[6].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>
       {% else %}

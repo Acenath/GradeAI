@@ -8,6 +8,10 @@ from flask_mail import Mail
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 from flask import flash, jsonify
+from classes import (
+    SubmissionIDManager, GradeIDManager, AssignmentIDManager, 
+    RubricIDManager, NotificationIDManager
+)
 
 from main import gradeai_db, app
 
@@ -207,29 +211,117 @@ def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title, assig
         create_rubric(cursor, rubric_val, rubric_desc, user_id, class_id, assignment_id, assignment_title, fold)
 
 def create_rubric(cursor, score, description, created_by, class_id, assignment_id, assignment_title, fold):
-    # First check if rubric exists
-    cursor.execute('''SELECT rubric_id FROM rubric WHERE rubric_id = %s''', (f"{class_id}_{assignment_title}_{fold}",))
+    """Updated create_rubric with proper ID generation"""
+    rubric_id = RubricIDManager.create_rubric_id(assignment_id, fold)
+    
+    cursor.execute('SELECT rubric_id FROM rubric WHERE rubric_id = %s', (rubric_id,))
     existing_rubric = cursor.fetchone()
     
     if existing_rubric:
-        # Update existing rubric
         cursor.execute('''
             UPDATE rubric 
-            SET name = %s, score = %s, description = %s, created_at = %s, created_by = %s
+            SET score = %s, description = %s, created_at = %s, created_by = %s
             WHERE rubric_id = %s
-        ''', ( f"{class_id}_{assignment_title}_{fold}", assignment_id, score, description, datetime.datetime.now(), created_by, ))
+        ''', (score, description, datetime.datetime.now(), created_by, rubric_id))
     else:
-        # Insert new rubric
         cursor.execute('''
             INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (f"{class_id}_{assignment_title}_{fold}", assignment_id, score, description, datetime.datetime.now(), created_by, ))
+        ''', (rubric_id, assignment_id, score, description, datetime.datetime.now(), created_by))
+    
+    return rubric_id
 
 def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
-    assignment_id = f"{class_id}_{assignment_title}"
-    cursor.execute(''' INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
-                   VALUES (%s, %s, %s, %s, %s, %s)''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
+    """Updated create_assignment with proper ID generation"""
+    assignment_id = AssignmentIDManager.create_assignment_id(class_id, assignment_title)
+    
+    # Check for uniqueness and add timestamp if needed
+    cursor.execute("SELECT assignment_id FROM assignment WHERE assignment_id = %s", (assignment_id,))
+    if cursor.fetchone():
+        timestamp = datetime.datetime.now().strftime("%H%M%S")
+        assignment_id = f"{assignment_id}_{timestamp}"
+    
+    cursor.execute(''' 
+        INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+    ''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
+    
     return assignment_id
+
+def create_grade_with_proper_id(cursor, submission_id, score, feedback, teacher_id):
+    """Helper function to create grade with proper ID"""
+    grade_id = GradeIDManager.create_grade_id(submission_id)
+    
+    cursor.execute("""
+        INSERT INTO grade (grade_id, submission_id, score, feedback, teacher_id, adjusted_at, is_adjusted)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (grade_id, submission_id, score, feedback, teacher_id, None, 0))
+    
+    return grade_id
+
+def cleanup_orphaned_records(cursor):
+    """Clean up any orphaned records with malformed IDs"""
+    
+    # Find submissions without corresponding grades
+    cursor.execute("""
+        SELECT s.submission_id 
+        FROM submission s 
+        LEFT JOIN grade g ON g.submission_id = s.submission_id 
+        WHERE g.grade_id IS NULL
+    """)
+    orphaned_submissions = cursor.fetchall()
+    
+    print(f"Found {len(orphaned_submissions)} submissions without grades")
+    
+    # Find grades with malformed grade_ids
+    cursor.execute("""
+        SELECT grade_id, submission_id 
+        FROM grade 
+        WHERE grade_id NOT LIKE 'grade_%'
+    """)
+    malformed_grades = cursor.fetchall()
+    
+    print(f"Found {len(malformed_grades)} grades with malformed IDs")
+    
+    return orphaned_submissions, malformed_grades
+
+def migrate_existing_ids(cursor):
+    """Migrate existing malformed IDs to new format"""
+    print("Starting ID migration...")
+    
+    # Fix malformed grade IDs
+    cursor.execute("SELECT grade_id, submission_id FROM grade WHERE grade_id NOT LIKE 'grade_%'")
+    malformed_grades = cursor.fetchall()
+    
+    for old_grade_id, submission_id in malformed_grades:
+        new_grade_id = GradeIDManager.create_grade_id(submission_id)
+        
+        # Check if new ID already exists
+        cursor.execute("SELECT grade_id FROM grade WHERE grade_id = %s", (new_grade_id,))
+        if not cursor.fetchone():
+            cursor.execute("""
+                UPDATE grade 
+                SET grade_id = %s 
+                WHERE grade_id = %s
+            """, (new_grade_id, old_grade_id))
+            print(f"Updated grade ID: {old_grade_id} -> {new_grade_id}")
+        else:
+            # Delete duplicate
+            cursor.execute("DELETE FROM grade WHERE grade_id = %s", (old_grade_id,))
+            print(f"Deleted duplicate grade ID: {old_grade_id}")
+    
+    print("ID migration completed!")
+
+def create_submission_with_proper_id(cursor, assignment_id, student_id, filename):
+    """Helper function to create submission with proper ID"""
+    submission_id = SubmissionIDManager.create_submission_id(assignment_id, student_id, filename)
+    
+    cursor.execute("""
+        INSERT INTO submission (submission_id, assignment_id, student_id, submitted_at, status)
+        VALUES (%s, %s, %s, NOW(), 1)
+    """, (submission_id, assignment_id, student_id))
+    
+    return submission_id
 
 def fetch_classes(cursor, user_id):
     cursor.execute("SELECT * FROM class WHERE teacher_id = %s", (user_id,))
@@ -278,23 +370,26 @@ def add_user(cursor, email, first_name, last_name, user_id, password):
                    VALUE(%s, %s, %s, %s, %s, %s, NULL, %s, NULL) ''', (user_id, email, hash_password(password), first_name, last_name, role, datetime.datetime.now()))
 
 def fetch_feedbacks_by_teacher(cursor, teacher_id):
-        query = """
-            SELECT 
-                a.title AS assignment_title,
-                CONCAT(u.first_name, ' ', u.last_name) AS student_name,
-                s.submitted_at AS submission_date,
-                g.feedback
-            FROM grade g
-            INNER JOIN submission s ON g.submission_id = s.submission_id
-            INNER JOIN assignment a ON s.assignment_id = a.assignment_id
-            INNER JOIN users u ON s.student_id = u.user_id
-            WHERE a.class_id IN (
-                SELECT class_id FROM class WHERE teacher_id = %s
-            )
-            ORDER BY s.submitted_at DESC
-        """
-        cursor.execute(query, (teacher_id,))
-        return cursor.fetchall()
+    query = """
+        SELECT 
+            a.title AS assignment_title,
+            CONCAT(u.first_name, ' ', u.last_name) AS student_name,
+            s.submitted_at AS submission_date,
+            g.feedback,
+            a.assignment_id,
+            s.submission_id,
+            u.user_id
+        FROM grade g
+        INNER JOIN submission s ON g.submission_id = s.submission_id
+        INNER JOIN assignment a ON s.assignment_id = a.assignment_id
+        INNER JOIN users u ON s.student_id = u.user_id
+        WHERE a.class_id IN (
+            SELECT class_id FROM class WHERE teacher_id = %s
+        )
+        ORDER BY s.submitted_at DESC
+    """
+    cursor.execute(query, (teacher_id,))
+    return cursor.fetchall()
 
 def fetch_student_info(cursor, student_id):
     cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id.split(",")[0],))
@@ -495,7 +590,6 @@ def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
                        LIMIT %s''', (user_id, limit))
         
     return cursor.fetchall()
-
 def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
     """Fetch recent feedback given by the teacher"""
     if is_teacher:
@@ -507,7 +601,9 @@ def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
                 u.first_name,
                 u.last_name,
                 a.title AS assignment_title,
-                s.submitted_at
+                s.submitted_at,
+                c.class_id,
+                c.name AS class_name
             FROM grade g
             JOIN submission s ON g.submission_id = s.submission_id
             JOIN assignment a ON s.assignment_id = a.assignment_id
@@ -517,16 +613,29 @@ def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
             ORDER BY s.submitted_at DESC
             LIMIT %s
         """, (user_id, limit))
-
+        
     elif not is_teacher:
-        cursor.execute(''' SELECT g.grade_id, g.feedback, g.score, u.first_name, u.last_name, a.title, s.submitted_at 
-                       FROM submission as s NATURAL JOIN grade as g
-                       JOIN assignment as a ON a.assignment_id = s.assignment_id
-                       JOIN class as c ON c.class_id = a.class_id
-                       JOIN users as u ON u.user_id = s.student_id 
-                       WHERE s.student_id = %s
-                       ORDER BY s.submitted_at DESC
-                       LIMIT %s ''', (user_id, limit))
+        cursor.execute('''
+            SELECT 
+                g.grade_id, 
+                g.feedback, 
+                g.score, 
+                u.first_name, 
+                u.last_name, 
+                a.title AS assignment_title, 
+                s.submitted_at,
+                c.class_id,
+                c.name AS class_name
+            FROM submission as s 
+            NATURAL JOIN grade as g
+            JOIN assignment as a ON a.assignment_id = s.assignment_id
+            JOIN class as c ON c.class_id = a.class_id
+            JOIN users as u ON u.user_id = s.student_id 
+            WHERE s.student_id = %s
+            ORDER BY s.submitted_at DESC
+            LIMIT %s
+        ''', (user_id, limit))
+        
     return cursor.fetchall()
 
 def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):

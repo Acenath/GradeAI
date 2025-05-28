@@ -10,54 +10,68 @@ from werkzeug.utils import secure_filename
 from flask import flash, jsonify
 from classes import (
     SubmissionIDManager, GradeIDManager, AssignmentIDManager, 
-    RubricIDManager, NotificationIDManager
+    RubricIDManager, AnnouncementIDManager
 )
 
-from main import gradeai_db, app
 
 #VARIABLES
-STUDENT_LIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "csv_files", "student_list.csv")
+ENROLLMENTS_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "enrollments")
 ASSIGNMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "assignments")
 ANNOUNCEMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "announcements")
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "submissions")
+PROFILE_PICS_DIR = os.path.join('static', 'uploads', 'profile_pics')
+ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg']
+
 #FUNCTIONS
 
 def change_password(cursor, user_id, new_password):
     hashed_password = hash_password(new_password)
     cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (hashed_password, user_id))
 
+def save_files(given_files, section, course_code, title, ):
+    intended_dir = ''
+    if section == 'announcements':
+        intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_code), title)
+    elif section == 'assignments':
+        intended_dir = os.path.join(ASSIGNMENT_FILES_DIR, str(course_code), title)
+    elif section == 'submissions':
+        intended_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, str(course_code), title)
+    elif section == 'enrollments':
+        intended_dir = os.path.join(ENROLLMENTS_FILES_DIR, str(course_code))
 
-def save_files(assignment_files, course_id, assignment_title):
-    # Create the directory path
-    assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_id, assignment_title)
-    os.makedirs(assignment_dir, exist_ok=True)
-    
-    # Save each file
-    for course_file in assignment_files:
-        if course_file and course_file.filename:
-            filename = secure_filename(course_file.filename)
-            file_path = os.path.join(assignment_dir, filename)
-            course_file.save(file_path)
+    else:
+        return
 
-def save_announcement(announcement_files, course_id, announcement_title):
-    announcement_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_id), announcement_title)
-    os.makedirs(announcement_dir, exist_ok=True)
+    os.makedirs(intended_dir, exist_ok=True)
 
-    for f in announcement_files:
+    for f in given_files:
         if f and f.filename:
             filename = secure_filename(f.filename)
-            file_path = os.path.join(announcement_dir, filename)
+            file_path = os.path.join(intended_dir, filename)
             f.save(file_path)
 
+def process_csv(cursor, csv_path, course_code):
+    student_list = set()
+    try:
+        with open(csv_path, 'r+') as f:
+            csv_reader = csv.reader(f)
+            for row in csv_reader:
+                if not row or not row[0].strip():  # skip empty rows
+                    continue
+            
+                student_id = row[0].strip()
+                student_list.add(student_id)
+        
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
 
-def save_submissions(assignment_files, course_id, assignment_title):
-    assignment_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_id, assignment_title)
-    os.makedirs(assignment_dir, exist_ok=True)
-    for course_file in assignment_files:
-        if course_file and course_file.filename:
-            filename = secure_filename(course_file.filename)
-            file_path = os.path.join(assignment_dir, filename)
-            course_file.save(file_path)
+        return student_list
+    
+    except Exception as e:
+        print(f"Error processing CSV: {e}")
+        if os.path.exists(csv_path):
+            os.remove(csv_path)
+        return {'success': False}
 
 def handle_class_creation(cursor, course_code, course_name, teacher_id):
     cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
@@ -67,49 +81,6 @@ def handle_class_creation(cursor, course_code, course_name, teacher_id):
         create_class(cursor, course_code, course_name, teacher_id)
         return True
     return False
-
-def handle_student_enrollment(cursor, students_data, course_code):
-    try:
-        students_list = json.loads(students_data)
-    except json.JSONDecodeError:
-        flash("Invalid student data format", "error")
-        return {'success': False}
-    
-    results = {
-        'success': [],
-        'already_enrolled': [],
-        'not_found': []
-    }
-    
-    for student_id in students_list:
-        if not student_id.strip():
-            continue
-            
-        # First check if student exists in the system
-        cursor.execute(''' SELECT * FROM users WHERE user_id = %s ''', (student_id,))
-        student_exists = cursor.fetchone()
-        
-        if not student_exists:
-            results['not_found'].append(student_id)
-            continue
-            
-        # Then check if already enrolled
-        if is_student_enrolled(cursor, student_id, course_code):
-            results['already_enrolled'].append(student_id)
-        else:
-            enroll_students(cursor, student_id, course_code)
-            results['success'].append(student_id)
-    
-    # Flash messages based on results
-    if results['success']:
-        flash(f"{len(results['success'])} students added successfully.", "success")
-    if results['already_enrolled']:
-        flash(f"{len(results['already_enrolled'])} students were already enrolled.", "warning")
-    if results['not_found']:
-        flash(f"{len(results['not_found'])} students not found in system.", "error")
-    
-    return results
-
 
 def handle_student_removal(cursor, deleted_students, course_code):
     try:
@@ -126,75 +97,6 @@ def handle_student_removal(cursor, deleted_students, course_code):
     
     return removed_students
 
-def save_and_process_csv(cursor, csv_file, class_id):
-
-    csv_dir = os.path.dirname(STUDENT_LIST_DIR)
-    os.makedirs(csv_dir, exist_ok=True)
-    filename = secure_filename(csv_file.filename)
-    save_path = os.path.join(csv_dir, filename)
-    csv_file.save(save_path)
-    
-    result = {
-        'success': False,
-        'added': 0,
-        'existing': 0,
-        'not_found': 0,
-        'students': []  # List to store student info for display
-    }
-    
-    try:
-        with open(save_path, 'r+') as f:
-            csv_reader = csv.reader(f)
-            for row in csv_reader:
-                print(row)
-                if not row or not row[0].strip():  # skip empty rows
-                    continue
-                
-                student_id = row[0].strip()
-                print(student_id)
-                # First check if student exists in the system
-                cursor.execute(''' 
-                    SELECT user_id, first_name, last_name 
-                    FROM users 
-                    WHERE user_id = %s
-                ''', (student_id,))
-                student = cursor.fetchone()
-                
-                if not student:
-                    result['not_found'] += 1
-                    result['students'].append({
-                        'id': student_id,
-                        'name': 'Not in system',
-                        'status': 'not_found'
-                    })
-                    continue
-                
-                # Then check if student is already enrolled
-                if is_student_enrolled(cursor, student_id, class_id):
-                    result['existing'] += 1
-                    result['students'].append({
-                        'id': student_id,
-                        'name': f"{student[1]} {student[2]}",
-                        'status': 'existing'
-                    })
-                else:
-                    enroll_students(cursor, student_id, class_id)
-                    result['added'] += 1
-                    result['success'] = True
-                    result['students'].append({
-                        'id': student_id,
-                        'name': f"{student[1]} {student[2]}",
-                        'status': 'added'
-                    })
-        
-        if os.path.exists(save_path):
-            os.remove(save_path)
-        return result
-    except Exception as e:
-        print(f"Error processing CSV: {e}")
-        if os.path.exists(save_path):
-            os.remove(save_path)
-        return {'success': False}
 
 def is_student_enrolled(cursor, student_id, class_id):
     cursor.execute(''' SELECT * FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
@@ -259,59 +161,6 @@ def create_grade_with_proper_id(cursor, submission_id, score, feedback, teacher_
     
     return grade_id
 
-def cleanup_orphaned_records(cursor):
-    """Clean up any orphaned records with malformed IDs"""
-    
-    # Find submissions without corresponding grades
-    cursor.execute("""
-        SELECT s.submission_id 
-        FROM submission s 
-        LEFT JOIN grade g ON g.submission_id = s.submission_id 
-        WHERE g.grade_id IS NULL
-    """)
-    orphaned_submissions = cursor.fetchall()
-    
-    print(f"Found {len(orphaned_submissions)} submissions without grades")
-    
-    # Find grades with malformed grade_ids
-    cursor.execute("""
-        SELECT grade_id, submission_id 
-        FROM grade 
-        WHERE grade_id NOT LIKE 'grade_%'
-    """)
-    malformed_grades = cursor.fetchall()
-    
-    print(f"Found {len(malformed_grades)} grades with malformed IDs")
-    
-    return orphaned_submissions, malformed_grades
-
-def migrate_existing_ids(cursor):
-    """Migrate existing malformed IDs to new format"""
-    print("Starting ID migration...")
-    
-    # Fix malformed grade IDs
-    cursor.execute("SELECT grade_id, submission_id FROM grade WHERE grade_id NOT LIKE 'grade_%'")
-    malformed_grades = cursor.fetchall()
-    
-    for old_grade_id, submission_id in malformed_grades:
-        new_grade_id = GradeIDManager.create_grade_id(submission_id)
-        
-        # Check if new ID already exists
-        cursor.execute("SELECT grade_id FROM grade WHERE grade_id = %s", (new_grade_id,))
-        if not cursor.fetchone():
-            cursor.execute("""
-                UPDATE grade 
-                SET grade_id = %s 
-                WHERE grade_id = %s
-            """, (new_grade_id, old_grade_id))
-            print(f"Updated grade ID: {old_grade_id} -> {new_grade_id}")
-        else:
-            # Delete duplicate
-            cursor.execute("DELETE FROM grade WHERE grade_id = %s", (old_grade_id,))
-            print(f"Deleted duplicate grade ID: {old_grade_id}")
-    
-    print("ID migration completed!")
-
 def create_submission_with_proper_id(cursor, assignment_id, student_id, filename):
     """Helper function to create submission with proper ID"""
     submission_id = SubmissionIDManager.create_submission_id(assignment_id, student_id, filename)
@@ -333,7 +182,7 @@ def fetch_profile_picture(cursor, user_id):
     result = cursor.fetchone()
     return result[0] if result else None
 
-def enroll_students(cursor, student_id, class_id):
+def enroll_student(cursor, student_id, class_id):
     cursor.execute(''' INSERT INTO enrollment (enrollment_id, enrolled_at, class_id, student_id)
                            VALUES (%s, %s, %s, %s)''', (f"{class_id}_{student_id}",datetime.datetime.now(), class_id, student_id))     
 
@@ -366,8 +215,8 @@ def fetch_user(cursor, email, password):
 
 def add_user(cursor, email, first_name, last_name, user_id, password):
     role = role_parser(email)
-    cursor.execute(''' INSERT INTO users (user_id, email, password, first_name, last_name, role, profile_picture_url, created_at, last_login)
-                   VALUE(%s, %s, %s, %s, %s, %s, NULL, %s, NULL) ''', (user_id, email, hash_password(password), first_name, last_name, role, datetime.datetime.now()))
+    cursor.execute(''' INSERT INTO users (user_id, email, password, first_name, last_name, role, created_at, last_login)
+                   VALUE(%s, %s, %s, %s, %s, %s, %s, NULL) ''', (user_id, email, hash_password(password), first_name, last_name, role, datetime.datetime.now()))
 
 def fetch_feedbacks_by_teacher(cursor, teacher_id):
     query = """
@@ -563,6 +412,29 @@ def insert_grade(cursor, submission_id, score, feedback):
         print(f"Error checking/adding created_at column: {e}")
         return False'''
 
+def delete_announcement(cursor, announcement_id):
+    try:
+        cursor.execute('''
+        DELETE FROM announcement
+        WHERE announcement_id = %s
+        ''', (announcement_id, ))
+        return True
+    
+    except:
+        return False
+    
+def edit_announcement(cursor, announcement_id, title, content):
+    try:
+        cursor.execute('''
+        UPDATE announcement
+        SET title = %s, content = %s, posted_at = %s
+        WHERE announcement_id = %s
+        ''', (title, content, datetime.datetime.now(), announcement_id, ))
+        return True
+    
+    except:
+        return False
+
 
 def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
     """Fetch upcoming assignment deadlines for the teacher's courses"""
@@ -638,6 +510,14 @@ def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
         
     return cursor.fetchall()
 
+def fetch_announcement_details(cursor, announcement_id):
+    cursor.execute("""
+        SELECT announcement_id, content, posted_at, title
+        FROM announcement
+        WHERE announcement_id = %s
+    """, (announcement_id,))
+    return cursor.fetchone()
+
 def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
     """Fetch recent announcements made by the teacher"""
     if is_teacher:
@@ -647,7 +527,8 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
                 a.content,
                 a.posted_at,
                 c.class_id,
-                c.name AS course_name
+                c.name AS course_name,
+                a.title
             FROM announcement a
             JOIN class c ON a.class_id = c.class_id
             WHERE c.teacher_id = %s
@@ -656,7 +537,7 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
         """, (user_id, limit))
 
     elif not is_teacher:
-        cursor.execute(''' SELECT * 
+        cursor.execute(''' SELECT c.class_id, a.content, a.title, a.posted_at, c.name
                        FROM enrollment as e NATURAL JOIN announcement as a NATURAL JOIN class as c
                        WHERE e.student_id = %s
                        ORDER BY a.posted_at DESC
@@ -666,7 +547,7 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
 
 def fetch_recent_class_announcements(cursor, course_code):
     cursor.execute('''
-        SELECT announcement_id, content, posted_at
+        SELECT announcement_id, content, posted_at, title
         FROM announcement
         WHERE class_id = %s
         ORDER BY posted_at DESC
@@ -674,10 +555,16 @@ def fetch_recent_class_announcements(cursor, course_code):
     return cursor.fetchall()
 
 def create_announcement(cursor, course_code, title, desc):
-    cursor.execute(''' 
-            INSERT INTO announcement (announcement_id, class_id, content, posted_at)
-            VALUES (%s, %s, %s, %s)
-        ''', ("{}_{}".format(course_code, title), course_code, desc, datetime.datetime.now()))      
+    """Create announcement with stable UUID-based ID"""
+
+    announcement_id = AnnouncementIDManager.create_announcement_id()
+    
+    cursor.execute('''
+    INSERT INTO announcement (announcement_id, class_id, title, content, posted_at)
+    VALUES (%s, %s, %s, %s, %s)
+    ''', (announcement_id, course_code, title, desc, datetime.datetime.now()))
+    
+    return announcement_id      
     
 def fetch_enrollments(cursor, user_id):
     cursor.execute(''' SELECT e.class_id, c.teacher_id, c.name  
@@ -696,158 +583,11 @@ def total_number_of_students(cursor, course_codes):
     return total_student_dict
     
 
-
-def create_notifications_table():
-    with app.app_context():
-        cursor = gradeai_db.connection.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS notifications (
-                notification_id varchar(255) NOT NULL,
-                user_id varchar(255) NOT NULL,
-                type varchar(50) NOT NULL,
-                title varchar(255) NOT NULL,
-                message varchar(1000) NOT NULL,
-                created_at datetime NOT NULL,
-                is_read bit(1) NOT NULL DEFAULT b'0',
-                PRIMARY KEY (notification_id),
-                FOREIGN KEY (user_id) REFERENCES users(user_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
-        ''')
-        gradeai_db.connection.commit()
-        cursor.close()
-
-def create_notification(cursor, user_id, type, title, message):
-    notification_id = f"{user_id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-    cursor.execute('''
-        INSERT INTO notifications (notification_id, user_id, type, title, message, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    ''', (notification_id, user_id, type, title, message, datetime.datetime.now()))
-
-def get_student_notifications(cursor, user_id):
-    cursor.execute('''
-        SELECT notification_id, type, title, message, created_at, is_read
-        FROM notifications
-        WHERE user_id = %s
-        ORDER BY created_at DESC
-    ''', (user_id,))
-    return cursor.fetchall()
-
-def notify_students_about_announcement(cursor, course_code, title, content):
-    # Get all students enrolled in the course
-    cursor.execute('''
-        SELECT student_id 
-        FROM enrollment 
-        WHERE class_id = %s
-    ''', (course_code,))
-    students = cursor.fetchall()
-    
-    # Create notification for each student
-    for student in students:
-        create_notification(
-            cursor,
-            student[0],
-            'announcement',
-            f'New Announcement: {title}',
-            f'A new announcement has been posted in {course_code}: {content[:100]}...'
-        )
-
-def notify_students_about_assignment(cursor, course_code, title, deadline):
-    # Get all students enrolled in the course
-    cursor.execute('''
-        SELECT student_id 
-        FROM enrollment 
-        WHERE class_id = %s
-    ''', (course_code,))
-    students = cursor.fetchall()
-    
-    # Create notification for each student
-    for student in students:
-        create_notification(
-            cursor,
-            student[0],
-            'assignment',
-            f'New Assignment: {title}',
-            f'A new assignment has been posted in {course_code}. Deadline: {deadline.strftime("%Y-%m-%d %H:%M")}'
-        )
-
-def notify_student_about_feedback(cursor, student_id, assignment_title, course_code):
-    create_notification(
-        cursor,
-        student_id,
-        'feedback',
-        f'Feedback Received: {assignment_title}',
-        f'You have received feedback on your submission for {assignment_title} in {course_code}'
-    )
-
-def notify_about_deadline(cursor, course_code, assignment_title, deadline):
-    # Get all students enrolled in the course
-    cursor.execute('''
-        SELECT student_id 
-        FROM enrollment 
-        WHERE class_id = %s
-    ''', (course_code,))
-    students = cursor.fetchall()
-    
-    # Create notification for each student
-    for student in students:
-        create_notification(
-            cursor,
-            student[0],
-            'deadline',
-            f'Assignment Deadline: {assignment_title}',
-            f'Reminder: {assignment_title} in {course_code} is due in 24 hours'
-        )
-
 def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+    
     # Check if the file has an allowed extension
     if '.' not in filename:
         return False
     
     extension = filename.rsplit('.', 1)[1].lower()
     return extension in ALLOWED_EXTENSIONS
-
-def save_profile_picture(cursor, filepath, user_id):
-    try:
-        # First, get the current profile picture url
-        cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
-        result = cursor.fetchone()
-        
-        if result and result[0]:
-            old_filepath = result[0]
-            # Delete old file if it exists
-            try:
-                old_full_path = os.path.join(app.root_path, 'static', old_filepath)
-                app.logger.info(f"Attempting to delete old profile picture at: {old_full_path}")
-                if os.path.exists(old_full_path):
-                    os.remove(old_full_path)
-                    app.logger.info(f"Successfully deleted old profile picture")
-                else:
-                    app.logger.warning(f"Old profile picture not found at: {old_full_path}")
-            except Exception as e:
-                app.logger.warning(f"Could not delete old profile picture: {str(e)}")
-        
-        # Verify the new file exists before updating database
-        new_full_path = os.path.join(app.root_path, 'static', filepath)
-        app.logger.info(f"Checking new profile picture at: {new_full_path}")
-        if not os.path.exists(new_full_path):
-            app.logger.error(f"New profile picture file not found at: {new_full_path}")
-            raise Exception(f"New profile picture file not found at: {new_full_path}")
-        
-        # Update the database with new filepath
-        cursor.execute("UPDATE users SET profile_picture_url = %s WHERE user_id = %s", (filepath, user_id))
-        app.logger.info(f"Updated profile picture path in database to: {filepath}")
-        
-        # Verify the update was successful
-        cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
-        updated_path = cursor.fetchone()
-        if not updated_path or updated_path[0] != filepath:
-            app.logger.error(f"Database update verification failed. Expected: {filepath}, Got: {updated_path[0] if updated_path else 'None'}")
-            raise Exception("Database update failed - path mismatch")
-            
-        app.logger.info("Profile picture update completed successfully")
-        return True
-    except Exception as e:
-        app.logger.error(f"Error saving profile picture: {str(e)}")
-        raise e
-

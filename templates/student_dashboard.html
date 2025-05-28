@@ -140,14 +140,14 @@
     <div class="sidebar-section">
       <h3>Announcements</h3>
       {% for announcement in recent_announcements %}
-        <a href="{{ url_for('announcement_view_student', course_name=announcement[7], course_code=announcement[0]) }}" class="announcement-item">
+        <a href="{{ url_for('announcement_view_student', course_name=announcement[-1], course_code=announcement[0]) }}" class="announcement-item">
           <div class="announcement-icon">
             <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>
           <div class="announcement-info">
-            <div>{{ announcement[4].split("_")[1]|truncate(40) }}</div>
-            <div class="course-code">{{ announcement[0] }} - {{ announcement[5] }}</div>
-            <div class="date">{{ announcement[2].strftime('%A, %b %d %Y') }}</div>
+            <div>{{ announcement[2]|truncate(40) }}</div>
+            <div class="course-code">{{ announcement[0] }} - {{ announcement[1] }}</div>
+            <div class="date">{{ announcement[3].strftime('%A, %b %d %Y') }}</div>
           </div>
         </a>
       {% else %}

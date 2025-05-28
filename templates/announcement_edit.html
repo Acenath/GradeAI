@@ -4,21 +4,18 @@
 
 {% block page_title %}Edit Announcement{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('dynamic', filename='css/announcement_view_teacher.css') }}">
-{% endblock %}
 
 {% block content %}
-<form action="{{ url_for('announcement_edit', course_name=course_name, course_code=course_code, announcement_id=announcement_id) }}" method="POST" enctype="multipart/form-data">
+<form action="{{ url_for('announcement_edit', course_name=course_name, course_code=course_code, announcement_id=announcement[0]) }}" method="POST" enctype="multipart/form-data">
   <div class="description-section">
     <div class="form-group mb-3">
       <label for="title" class="section-title">Title</label>
-      <input type="text" class="form-control" id="title" name="title" value="{{ announcement_id.split('_')[1] }}" required>
+      <input type="text" class="form-control" id="title" name="title" value="{{ announcement[-1] }} required>
     </div>
 
     <div class="form-group mb-3">
       <label for="description" class="section-title">Description</label>
-      <textarea class="form-control" id="description" name="description" rows="8" required>{{ content }}</textarea>
+      <textarea class="form-control" id="description" name="description" rows="8" required>{{ announcement[1] }}</textarea>
     </div>
   </div>
 

@@ -23,7 +23,7 @@
             {% for announcement in announcements %}
             <div class="announcement-item">
                 <div class="announcement-header">
-                    <h4>{{ announcement[0].split('_')[1] }}</h4>
+                    <h4>{{ announcement[-1] }}</h4>
                     <span class="announcement-date">Posted: {{ announcement[2].strftime('%B %d, %Y') }}</span>
                 </div>
                 <div class="announcement-content">

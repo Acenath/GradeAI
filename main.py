@@ -23,6 +23,24 @@ app.config['SECUIRTY_PASSWORD_SALT'] = 'gradia_salt'
 mail = Mail(app)
 grading_assistant = GradingAssistant()
 
+# Create directories if they don't exist
+os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
+os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
+os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
+
+# Login
+login_manager = LoginManager()
+
+# Database
+app.config['MYSQL_HOST'] = '127.0.0.1'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = ''
+app.config['MYSQL_DB'] = 'gradeai'
+
+gradeai_db = MySQL(app)
+login_manager.init_app(app)
+
+
 
 def generate_reset_token(email):
     serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -60,7 +78,6 @@ def forgot_password():
                 flash('There was an error sending the email. Please try again later.', 'error')
                 return render_template('forgot_password.html')
         else:
-            # Still show success message for security (don't reveal if email exists)
             flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
         
         cursor.close()
@@ -122,39 +139,10 @@ def send_password_reset_email(to_email, first_name, reset_url):
     mail.send(msg)
 
 
-# Define upload directories
-ASSIGNMENT_SUBMISSIONS_DIR = os.path.join('static', 'uploads', 'submissions')
-ASSIGNMENT_FILES_DIR = os.path.join('static', 'uploads', 'assignments')
-PROFILE_PICS_DIR = os.path.join('static', 'uploads', 'profile_pics')
-
-# Create directories if they don't exist
-os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
-os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
-os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
-
-# Login
-login_manager = LoginManager()
-
-# Database
-app.config['MYSQL_HOST'] = '127.0.0.1'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'gradeai'
-
-gradeai_db = MySQL(app)
-login_manager.init_app(app)
-
-
 @login_manager.user_loader
 def load_user(user_id):
     cursor = gradeai_db.connection.cursor()
     return User.get(cursor, user_id)
-
-
-@app.route("/deneme")
-def deneme():
-    return render_template("deneme.html")
-
 
 @app.route('/')
 @app.route('/home')
@@ -169,7 +157,6 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
         user_tuple = fetch_user(cursor, email, password)
-        print("Debug - Login user_tuple: ", user_tuple)
         if not user_tuple:
             return render_template("login.html", error_message="This account doesn't exist!")
 
@@ -177,9 +164,9 @@ def login():
         gradeai_db.connection.commit()
         cursor.close()
         temp_infos = user_tuple[0]
-        curr_user = User(user_id= temp_infos[0], email = temp_infos[1], first_name = temp_infos[3], last_name = temp_infos[4])  # password should be ignored
-        
+        curr_user = User(user_id= temp_infos[0], email = temp_infos[1], first_name = temp_infos[3], last_name = temp_infos[4])  # password should be ignored 
         login_user(curr_user)
+
         if int.from_bytes(user_tuple[0][5], byteorder='big') == 1:  # in DB it is stored in bits
             del user_tuple
             return redirect(url_for("teacher_dashboard"))
@@ -218,7 +205,6 @@ def signup():
 @app.route("/logout")
 @login_required
 def logout():
-    # Clear user data before logout
     if current_user.is_authenticated():
         current_user.logout()
     
@@ -242,36 +228,38 @@ def about():
 @login_required
 def blockview_teacher():
     if request.method == "POST":
+        student_list = set()
         course_name = request.form.get("course_name")
         course_code = request.form.get("course_code")
-
+        student_id = request.form.get("studentNo")
+        enrollment_csv_file = request.files.get("fileInput")
+        student_list.add(student_id)
         cursor = gradeai_db.connection.cursor()
 
         handle_class_creation(cursor, course_code, course_name, current_user.user_id)
 
-        student_csv_file = request.files.get("fileInput")
-        if student_csv_file:
-            result = save_and_process_csv(cursor, student_csv_file, course_code)
-            print(result)
-            if result['success']:
-                flash(f"{result['added']} students added successfully.", "success")
-                if result['existing'] > 0:
-                    flash(f"{result['existing']} students were already enrolled.", "warning")
-                if result['not_found'] > 0:
-                    flash(f"{result['not_found']} students not found in system.", "error")
-            else:
-                flash("Error processing CSV file.", "error")
+        #enroll_students
+        if enrollment_csv_file:
+            save_files(enrollment_csv_file, "enrollments", course_code)
+            csv_student_list = process_csv(cursor, ENROLLMENTS_FILES_DIR, course_code)
+            for student_id in csv_student_list:
+                student_list.add(student_id)
 
-        students_data = request.form.get("studentsData")
-        if students_data:
-            handle_student_enrollment(cursor, students_data, course_code)
+        if student_list:
+            for student_id in student_list:
+                enroll_student(cursor, student_id, course_code)
 
+        #TODO:
+        # Problem here
+        # User should be able to delete any user he or she wants whenever clicks on the remove button located at html
+        # It should be dynamic
         deleted_students = request.form.get("deleteStudents")
         if deleted_students:
             removed = handle_student_removal(cursor, deleted_students, course_code)
             if removed:
                 flash(f"{len(removed)} students removed from the course.", "success")
 
+        #TODO END
         gradeai_db.connection.commit()
 
         enrolled_students = get_enrolled_students(cursor, course_code)
@@ -291,7 +279,6 @@ def get_student_info(student_id):
     cursor = gradeai_db.connection.cursor()
     student = fetch_student_info(cursor, student_id)
     cursor.close()
-    print("THIS IS STUDENT: ", student)
 
     if student["success"]:
         return jsonify({
@@ -314,15 +301,15 @@ def student_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 0)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 0)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
-    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
+
     print("Debug - student_dashboard recent_feedback: ", recent_feedback)
     return render_template("student_dashboard.html",
                            courses_and_instructors=courses_and_instructors,
                            upcoming_deadlines=upcoming_deadlines,
                            recent_feedback=recent_feedback,
-                           recent_announcements=recent_announcements,
-                           profile_pic=profile_pic)
+                           recent_announcements=recent_announcements,)
 
 
 @app.route('/teacher_dashboard')
@@ -334,32 +321,26 @@ def teacher_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
-    profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
+
     return render_template("teacher_dashboard.html",
                            courses=courses,
                            upcoming_deadlines=upcoming_deadlines,
                            recent_feedback=recent_feedback,
                            recent_announcements=recent_announcements,
                            total_student_dict=total_student_dict,
-                           profile_pic=profile_pic)
+                           )
 
 
-@app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>')
+@app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>/<title>')
 @login_required
-def announcement_student(course_code, course_name, announcement_id):
+def announcement_student(course_code, course_name, announcement_id, title):
     cursor = gradeai_db.connection.cursor()
     attachments = []
 
-    cursor.execute("""
-        SELECT announcement_id, content, posted_at
-        FROM announcement
-        WHERE announcement_id = %s AND class_id = %s
-    """, (announcement_id, course_code))
-    announcement = cursor.fetchone()
-
-    folder_name = announcement_id.split("_")[1]
-    file_dir = os.path.join(app.root_path, "static", "uploads", "announcements", course_code, folder_name)
+    announcement = fetch_announcement_details(cursor, announcement_id)
+    file_dir = os.path.join(app.root_path, "static", "uploads", "announcements", course_code, title)
 
     if os.path.exists(file_dir):
         for filename in os.listdir(file_dir):
@@ -372,21 +353,14 @@ def announcement_student(course_code, course_name, announcement_id):
                            course_name=course_name,
                            announcement=announcement,
                            attachments=attachments,
-                           folder_name=folder_name)
+                           folder_name=title)
 
 
 @app.route('/announcement_view_student/<course_name>/<course_code>')
 @login_required
 def announcement_view_student(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
-    cursor.execute("""
-        SELECT announcement_id, class_id, content, posted_at
-        FROM announcement
-        WHERE class_id = %s
-        ORDER BY posted_at DESC
-    """, (course_code,))
-    announcements = cursor.fetchall()
-    print(announcements)
+    announcements = fetch_recent_class_announcements(cursor, course_code)
     cursor.close()
 
     return render_template("announcement_view_student.html",
@@ -410,51 +384,39 @@ def announcement_teacher(course_name, course_code):
 @app.route('/announcement_edit/<course_name>/<course_code>/<announcement_id>', methods=["GET", "POST"])
 @login_required
 def announcement_edit(course_name, course_code, announcement_id):
+    cursor = gradeai_db.connection.cursor()
+    #TODO
+    # Change the whole function
     if request.method == "POST":
-        cursor = gradeai_db.connection.cursor()
         title = request.form.get("title")
-        description = request.form.get("description")
+        content = request.form.get("description")
         attachments = request.files.get("attachments")
-
-        cursor.execute('''
-            UPDATE Announcement
-            SET content = %s
-            WHERE announcement_id = %s AND class_id = %s
-        ''', (description, announcement_id, course_code))
-
+        _ = edit_announcement(announcement_id, title, content)
         gradeai_db.connection.commit()
         cursor.close()
 
         return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
 
-    cursor = gradeai_db.connection.cursor()
-    cursor.execute('''
-        SELECT content
-        FROM announcement
-        WHERE announcement_id = %s AND class_id = %s
-    ''', (announcement_id, course_code))
-    announcement = cursor.fetchone()
-    cursor.close()
-
-    if not announcement:
-        return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
-
-    return render_template("announcement_edit.html",
-                           course_name=course_name,
-                           course_code=course_code,
-                           announcement_id=announcement_id,
-                           content=announcement[0])
+    else:
+        fetch_announcement_details(cursor, announcement_id)
+        announcement = cursor.fetchone()
+        
+        cursor.close()
+        if not announcement:
+            return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
+        
+        
+        return render_template("announcement_edit.html",
+                            course_name=course_name,
+                            course_code=course_code,
+                            announcement=announcement)
 
 
 @app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>')
 @login_required
 def announcement_delete(course_name, course_code, announcement_id):
     cursor = gradeai_db.connection.cursor()
-    cursor.execute('''
-        DELETE FROM Announcement
-        WHERE announcement_id = %s AND class_id = %s
-    ''', (announcement_id, course_code))
-
+    _ = delete_announcement(cursor, announcement_id)
     gradeai_db.connection.commit()
     cursor.close()
 
@@ -471,10 +433,7 @@ def announcement_view_teacher(course_name, course_code):
         attachments = request.files.getlist("attachments")
 
         create_announcement(cursor, course_code, title, desc)
-        save_announcement(attachments, course_code, title)
-
-        # Create notifications for all students
-        notify_students_about_announcement(cursor, course_code, title, desc)
+        save_files(attachments, "announcements", course_code, title)
 
         gradeai_db.connection.commit()
         cursor.close()
@@ -523,9 +482,7 @@ def assignment_creation(course_code):
         assignment_id = create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
         zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title, assignment_id)
 
-        # Create notifications for all students
-        #deadline_datetime = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M")
-        #notify_students_about_assignment(cursor, course_code, assignment_title, deadline_datetime)
+       
 
         gradeai_db.connection.commit()
         cursor.close()

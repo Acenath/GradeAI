@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Course Grades</title>
+  <title>Gradia - Student Grades</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href = "{{ url_for('static', filename = 'css/course_grades_student.css') }}", type = 'text/css', rel = 'stylesheet'/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+  <link href="{{ url_for('static', filename='css/course_grades_student.css') }}" type="text/css" rel="stylesheet"/>
 </head>
 <body>
   <div class="nav-bar">
@@ -16,33 +17,48 @@
     <div class="nav-links">
       <a href="{{url_for('about')}}">About Us</a>
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-      <div class="notification-icon">
-        <i class="fas fa-bell" style="font-size: 18px;"></i>
-        <div class="notification-badge">0</div>
+    </div>
+  </div>
+
+  <div class="container mt-4">
+    <div class="profile-section mb-4">
+      <div class="profile-pic">
+        <i class="far fa-smile" style="font-size: 24px;"></i>
+      </div>
+      <div class="profile-name">{{current_user.first_name}} {{current_user.last_name}}</div>
+    </div>
+
+    <div class="grades-table-container">
+      <div class="grades-header mb-3">
+        <h2>My Lectures</h2>
+      </div>
+
+      <div class="grades-table">
+        <div class="grades-table-header">
+          <div class="grades-table-column column-courses">Lecture Name</div>
+          <div class="grades-table-column column-code">Code</div>
+          <div class="grades-table-column column-grades">Grade</div>
+          <div class="grades-table-column column-status">Status</div>
+        </div>
+        
+        {% for lecture in lectures %}
+        <div class="grades-table-row">
+          <div class="row-course">{{ lecture.name }}</div>
+          <div class="row-code">{{ lecture.code }}</div>
+          <div class="row-grade">{{ lecture.grade }}</div>
+          <div class="row-status">
+            {% if lecture.status == 'completed' %}
+              <span class="badge bg-success">Completed</span>
+            {% else %}
+              <span class="badge bg-warning">Current</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
       </div>
     </div>
   </div>
 
-  <div class="profile-section">
-    <div class="profile-pic">
-      <i class="far fa-smile" style="font-size: 24px;"></i>
-    </div>
-    <div class="profile-name">{{current_user.first_name}} {{current_user.last_name}}</div>
-  </div>
-
-  <div class="grades-table">
-    <div class="grades-table-header">
-      <div class="grades-table-column column-courses">Courses</div>
-      <div class="grades-table-column column-grades">Grades</div>
-    </div>
-    <div class="grades-table-row">
-      <div class="row-course">Course Name - 1</div>
-      <div class="row-grade">70</div>
-    </div>
-    <div class="grades-table-row">
-      <div class="row-course">Course Name - 2</div>
-      <div class="row-grade">50</div>
-    </div>
-  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -17,7 +17,7 @@
     {% if announcement %}
       <div class="announcement-header">
         <div class="announcement-title-section">
-          <h2>{{ announcement[0].split('_')[1] }}</h2>
+          <h2>{{ announcement[-1] }}</h2>
           <span class="announcement-date">
             <i class="far fa-calendar-alt"></i>
             Posted: {{ announcement[2].strftime('%B %d, %Y') }}

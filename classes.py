@@ -627,18 +627,6 @@ class RubricIDManager:
         """
         return f"rubric_{assignment_id}_{rubric_index:03d}"
 
-class NotificationIDManager:
-    """Manages notification IDs consistently"""
-    
-    @staticmethod
-    def create_notification_id(user_id: str, notification_type: str) -> str:
-        """
-        Creates unique notification ID
-        Format: notif_{user_id}_{type}_{timestamp}
-        """
-        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        return f"notif_{user_id}_{notification_type}_{timestamp}"
-
 # Updated helper functions for your existing code
 def create_assignment_fixed(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
     """Updated create_assignment function with proper ID generation"""
@@ -679,3 +667,59 @@ def create_rubric_fixed(cursor, score, description, created_by, assignment_id, r
         ''', (rubric_id, assignment_id, score, description, datetime.datetime.now(), created_by))
     
     return rubric_id
+
+class AnnouncementIDManager:
+    """Clean announcement ID management with stable primary keys"""
+    
+    @staticmethod
+    def create_announcement_id() -> str:
+        """
+        Creates stable announcement ID (PRIMARY KEY) - NEVER changes
+        Format: announce_{uuid}
+        """
+        unique_id = str(uuid.uuid4()).replace('-', '')[:16]
+        return f"announce_{unique_id}"
+
+# Clean implementation
+def create_announcement_fixed(cursor, announcement_title, announcement_content, class_id, created_by):
+    """Create announcement with stable UUID-based ID"""
+    # Primary key - never changes, always unique
+    announcement_id = AnnouncementIDManager.create_announcement_id()
+    
+    cursor.execute(''' 
+        INSERT INTO announcement (announcement_id, title, content, class_id, created_by, created_at) 
+        VALUES (%s, %s, %s, %s, %s, %s)
+    ''', (announcement_id, announcement_title, announcement_content, class_id, created_by, datetime.datetime.now()))
+    
+    return announcement_id
+
+def update_announcement_fixed(cursor, announcement_id, new_title, new_content):
+    """Update announcement - ID never changes, only content updates"""
+    cursor.execute('''
+        UPDATE announcement 
+        SET title = %s, content = %s, updated_at = %s
+        WHERE announcement_id = %s
+    ''', (new_title, new_content, datetime.datetime.now(), announcement_id))
+    
+    return announcement_id  # Same ID always!
+
+def create_announcement_auto_increment(cursor, announcement_title, announcement_content, class_id, created_by):
+    """Create announcement with auto-increment ID"""
+    cursor.execute(''' 
+        INSERT INTO announcement (title, content, class_id, created_by, created_at) 
+        VALUES (%s, %s, %s, %s, %s)
+    ''', (announcement_title, announcement_content, class_id, created_by, datetime.datetime.now()))
+    
+    # Get the auto-generated ID
+    announcement_id = cursor.lastrowid
+    return announcement_id
+
+def update_announcement_auto_increment(cursor, announcement_id, new_title, new_content):
+    """Update announcement with auto-increment ID"""
+    cursor.execute('''
+        UPDATE announcement 
+        SET title = %s, content = %s, updated_at = %s
+        WHERE announcement_id = %s
+    ''', (new_title, new_content, datetime.datetime.now(), announcement_id))
+    
+    return announcement_id

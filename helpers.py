@@ -294,13 +294,29 @@ def get_course_assignments(cursor, course_code):
     """, (course_code,))
     return cursor.fetchall()
 
+def get_student_submissions(cursor, user_id, assignment_id):
+    cursor.execute(""" 
+                    SELECT submission_id FROM submission 
+                    WHERE student_id = %s AND assignment_id = %s
+                    """, (user_id, assignment_id,))
+    
+    return cursor.fetchall()
+
 def get_assignment_details(cursor, assignment_id, course_code):
-    cursor.execute("""
-        SELECT a.title, a.description, a.deadline, a.total_score, c.name as course_name
+    if not course_code:
+        cursor.execute(""" 
+        SELECT *
         FROM assignment a
-        JOIN class c ON a.class_id = c.class_id
-        WHERE a.assignment_id = %s AND a.class_id = %s
-    """, (assignment_id, course_code))
+        WHERE a.assignment_id = %s
+                    """, (assignment_id, ))
+    else:
+        cursor.execute("""
+            SELECT a.title, a.description, a.deadline, a.total_score, c.name as course_name
+            FROM assignment a
+            JOIN class c ON a.class_id = c.class_id
+            WHERE a.assignment_id = %s AND a.class_id = %s
+        """, (assignment_id, course_code))
+
     return cursor.fetchone()
 
 def get_files(section, course_code, title):
@@ -334,7 +350,26 @@ def get_students_submissions(cursor, assignment_id, course_code):
     """, (assignment_id, course_code))
     return cursor.fetchall()
 
-def get_submission_details(cursor, submission_id, course_code):
+def get_user_info(cursor, user_id):
+    cursor.execute(""" SELECT * FROM users WHERE user_id = %s""", (user_id,))
+    return cursor.fetchone()
+
+
+
+def get_grade_details(cursor, submission_id, course_code):
+    cursor.execute("""
+        SELECT * 
+        FROM grade 
+        WHERE submission_id = %s
+    """, (submission_id,))
+    return cursor.fetchone()
+
+
+def get_rubrics(cursor, assignment_id):
+    cursor.execute(""" SELECT * FROM rubric WHERE assignment_id = %s""", (assignment_id,))
+    return cursor.fetch_all()
+
+def get_submission_details(cursor, submission_id):
     cursor.execute("""
         SELECT 
             s.submitted_at,
@@ -344,14 +379,15 @@ def get_submission_details(cursor, submission_id, course_code):
             u.last_name,
             u.user_id,
             a.title as assignment_title,
-            c.name as course_name
+            c.code
+            a.assignment_id      
         FROM submission s
         JOIN users u ON s.student_id = u.user_id
         JOIN assignment a ON s.assignment_id = a.assignment_id
-        JOIN class c ON a.class_id = c.class_id
         LEFT JOIN grade g ON s.submission_id = g.submission_id
-        WHERE s.submission_id = %s AND a.class_id = %s
-    """, (submission_id, course_code))
+        LEFT JOIN enrollment e ON e.student_id = u.user_id
+        WHERE s.submission_id = %s
+    """, (submission_id))
     return cursor.fetchone()
 
 def get_submission_for_grading(cursor, submission_id, course_code):
@@ -394,21 +430,36 @@ def check_existing_grade(cursor, submission_id):
 def update_grade(cursor, submission_id, score, feedback):
     cursor.execute("""
         UPDATE Grade
-        SET score = %s, feedback = %s
+        SET score = %s, feedback = %s, adjusted_at = %s, is_adjusted = %s
         WHERE submission_id = %s
-    """, (score, feedback, submission_id))
+    """, (score, feedback, datetime.date.now(), 1, submission_id))
 
-def insert_grade(cursor, submission_id, score, feedback):
-    cursor.execute("""
-        INSERT INTO grade (submission_id, score, feedback, created_at)
-        VALUES (%s, %s, %s, %s)
-    """, (submission_id, score, feedback, datetime.datetime.now()))
+
+def delete_grade(cursor, grade_id, submission_id):
+    if grade_id:
+        cursor.execute('''
+                    DELETE FROM grade
+                   WHERE grade_id = %s
+                   ''', (grade_id, ))
+    elif submission_id:
+        cursor.execute('''
+                    DELETE FROM grade
+                   WHERE submission_id = %s
+                   ''', (submission_id, ))
+    
+        
 
 def delete_submissions(cursor, user_id, assignment_id):
     cursor.execute('''
         DELETE FROM submission 
         WHERE student_id = %s AND assignment_id = %s
     ''', (user_id, assignment_id))
+
+def delete_submission(cursor, submission_id):
+    cursor.execute('''
+                DELETE FROM submission 
+                   WHERE submission_id = %s
+                   ''', (submission_id, ))
 
 def delete_announcement(cursor, announcement_id):
     try:
@@ -461,21 +512,6 @@ def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
         
     return cursor.fetchall()
 
-#THIS IS WRONG
-def get_grades(cursor, user_id, course_code):
-       cursor.execute("""
-        SELECT a.title as assignment_title, g.score, g.feedback, 
-               g.adjusted_at as graded_at, c.name as course_name, 
-               c.class_id as course_code
-        FROM grade g 
-        JOIN submission s ON g.submission_id = s.submission_id 
-        JOIN assignment a ON s.assignment_id = a.assignment_id 
-        JOIN class c ON a.class_id = c.class_id 
-        WHERE s.student_id = %s AND c.class_id = %s
-        ORDER BY g.adjusted_at DESC
-    """, (user_id, course_code))
-       
-       return cursor.fetchall()
 def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
     """Fetch recent feedback given by the teacher"""
     if is_teacher:
@@ -559,6 +595,13 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
         
     return cursor.fetchall()
 
+
+def get_course_teacher(cursor, course_code):
+    cursor.execute(""" 
+                    SELECT u.user_id, u.first_name, u.last_name FROM user u LEFT JOIN class c ON u.user_id = c.teacher_id
+                   WHERE c.class_id = %s                
+                    """, (course_code))
+    return cursor.fetchone()
 def fetch_recent_class_announcements(cursor, course_code):
     cursor.execute('''
         SELECT announcement_id, content, posted_at, title

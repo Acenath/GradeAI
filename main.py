@@ -2,7 +2,6 @@ from flask import Flask, render_template, url_for, request, session, redirect, f
 from flask_mysqldb import MySQL
 from flask_login import *
 from itsdangerous import URLSafeTimedSerializer
-
 from helpers import *
 from classes import *
 import os
@@ -241,7 +240,7 @@ def blockview_teacher():
         #enroll_students
         if enrollment_csv_file:
             save_files(enrollment_csv_file, "enrollments", course_code)
-            csv_student_list = process_csv(cursor, ENROLLMENTS_FILES_DIR, course_code)
+            csv_student_list = process_csv(ENROLLMENTS_FILES_DIR, course_code)
             for student_id in csv_student_list:
                 student_list.add(student_id)
 

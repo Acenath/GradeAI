@@ -50,10 +50,10 @@ def save_files(given_files, section, course_code, title, ):
             file_path = os.path.join(intended_dir, filename)
             f.save(file_path)
 
-def process_csv(cursor, csv_path, course_code):
+def process_csv(csv_path, course_code):
     student_list = set()
     try:
-        with open(csv_path, 'r+') as f:
+        with open(os.path.join(ENROLLMENTS_FILES_DIR, course_code), 'r+') as f:
             csv_reader = csv.reader(f)
             for row in csv_reader:
                 if not row or not row[0].strip():  # skip empty rows

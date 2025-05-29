@@ -331,7 +331,7 @@ def teacher_dashboard():
                            total_student_dict=total_student_dict,
                            )
 
-
+#DONE
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>/<title>')
 @login_required
 def announcement_student(course_code, course_name, announcement_id, title):
@@ -339,11 +339,7 @@ def announcement_student(course_code, course_name, announcement_id, title):
     attachments = []
 
     announcement = fetch_announcement_details(cursor, announcement_id)
-    file_dir = os.path.join(app.root_path, "static", "uploads", "announcements", course_code, title)
-
-    if os.path.exists(file_dir):
-        for filename in os.listdir(file_dir):
-            attachments.append(filename)
+    attachments =  get_files('announcement', course_code, title)
 
     cursor.close()
 
@@ -354,7 +350,7 @@ def announcement_student(course_code, course_name, announcement_id, title):
                            attachments=attachments,
                            folder_name=title)
 
-
+#DONE
 @app.route('/announcement_view_student/<course_name>/<course_code>')
 @login_required
 def announcement_view_student(course_name, course_code):
@@ -367,7 +363,7 @@ def announcement_view_student(course_name, course_code):
                            course_code=course_code,
                            announcements=announcements)
 
-
+#DONE
 @app.route('/announcement_teacher/<course_name>/<course_code>')
 @login_required
 def announcement_teacher(course_name, course_code):
@@ -410,7 +406,7 @@ def announcement_edit(course_name, course_code, announcement_id):
                             course_code=course_code,
                             announcement=announcement)
 
-
+#DONE
 @app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>')
 @login_required
 def announcement_delete(course_name, course_code, announcement_id):
@@ -421,7 +417,7 @@ def announcement_delete(course_name, course_code, announcement_id):
 
     return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
 
-
+#DONE
 @app.route('/announcement_view_teacher/<course_name>/<course_code>', methods=["GET", "POST"])
 @login_required
 def announcement_view_teacher(course_name, course_code):
@@ -441,19 +437,17 @@ def announcement_view_teacher(course_name, course_code):
 
     return render_template("announcement_view_teacher.html", course_name=course_name, course_code=course_code)
 
-
+#DONE
 @app.route('/assignments/<course_code>')
 @login_required
 def view_assignments(course_code):
     cursor = gradeai_db.connection.cursor()
 
-    # Get course name
     course = get_course_name(cursor, course_code)
     if not course:
         flash("Course not found", "error")
         return redirect(url_for("teacher_dashboard"))
 
-    # Get all assignments for this course
     assignments = get_course_assignments(cursor, course_code)
 
     cursor.close()
@@ -463,7 +457,7 @@ def view_assignments(course_code):
                            course_code=course_code,
                            assignments=assignments)
 
-
+#DONE
 @app.route('/assignment_creation/<course_code>', methods=["GET", "POST"])
 @login_required
 def assignment_creation(course_code):
@@ -473,15 +467,13 @@ def assignment_creation(course_code):
         assignment_desc = request.form.get("description")
         assignment_files = request.files.getlist("attachments")
         deadline = request.form.get("Date")
-        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist(
-            "rubric_values[]")
-        total_score = sum([int(i) for i in rubric_vals])
+        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist("rubric_values[]")
+        
+        total_score = calculate_total_sum(rubric_vals)
 
-        save_files(assignment_files, course_code, assignment_title)
+        save_files(assignment_files, 'assignments', course_code, assignment_title)
         assignment_id = create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
         zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title, assignment_id)
-
-       
 
         gradeai_db.connection.commit()
         cursor.close()
@@ -489,9 +481,8 @@ def assignment_creation(course_code):
         flash("Assignment created successfully", "success")
         return redirect(url_for("view_assignments", course_code=course_code))
 
-    cursor = gradeai_db.connection.cursor()
-    cursor.execute("SELECT name FROM class WHERE class_id = %s", (course_code,))
-    course = cursor.fetchone()
+  
+    course = get_course_name(cursor, course_code)
     cursor.close()
 
     if not course:
@@ -506,17 +497,13 @@ def assignment_creation(course_code):
 @app.route('/generate_rubric', methods=["POST"])
 @login_required
 def generate_rubric():
-    """
-    API endpoint to generate rubric suggestions based on assignment description.
-    Expects JSON with 'description' and optional 'course_type' fields.
-    Returns JSON array of suggested rubric items.
-    """
     data = request.get_json()
     if not data or 'description' not in data:
         return jsonify({'error': 'Missing assignment description'}), 400
         
     description = data.get('description', '')
     existing_rubrics = data.get('existing_rubrics', [])
+
     if existing_rubrics:
         current_rubrics, current_points = [], []
         for entry in existing_rubrics:
@@ -525,13 +512,12 @@ def generate_rubric():
 
     grading_assistant.create_rubric_instructions(current_rubrics, current_points)
     grading_assistant.consume_question(description)
-    # Don't generate for very short descriptions
+
     if len(description.strip()) < 10:
         return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
     
-    # Generate rubric suggestions
     llm_output = grading_assistant.generate_rubric()
-    print(llm_output)
+
     rubric_items = [
         {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
         for item in llm_output

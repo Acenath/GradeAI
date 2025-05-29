@@ -24,6 +24,10 @@ ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg']
 
 #FUNCTIONS
 
+def calculate_total_sum(array):
+    #i value inside the for loop may need int wrapper
+    return sum([i for i in array])
+
 def change_password(cursor, user_id, new_password):
     hashed_password = hash_password(new_password)
     cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (hashed_password, user_id))
@@ -299,12 +303,19 @@ def get_assignment_details(cursor, assignment_id, course_code):
     """, (assignment_id, course_code))
     return cursor.fetchone()
 
-def get_assignment_files(course_code, assignment_title):
-    assignment_files = []
-    assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, assignment_title)
-    if os.path.exists(assignment_dir):
-        assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
-    return assignment_files
+def get_files(section, course_code, title):
+    attachments = []
+    intended_dir = ''
+    if section == 'assingment':
+        intended_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, title)
+    elif section == 'submission':
+        intended_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, title)
+    elif section == 'announcement':
+        intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, course_code, title)
+
+    if os.path.exists(intended_dir):
+        attachments = [f for f in os.listdir(intended_dir) if os.path.isfile(os.path.join(intended_dir, f))]
+    return attachments
 
 def get_student_submissions(cursor, assignment_id, course_code):
     cursor.execute("""

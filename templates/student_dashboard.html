@@ -56,6 +56,11 @@
     <h2>Welcome {{current_user.first_name}} {{current_user.last_name}}!</h2>
     <div class="profile-links">
       <a href="{{url_for('profile_student')}}">Profile</a>
+      {% if courses_and_instructors %}
+        <a href="{{url_for('course_grades_student', course_name=courses_and_instructors[0][2], course_code=courses_and_instructors[0][0])}}">Grades</a>
+      {% else %}
+        <a href="#" onclick="alert('You are not enrolled in any courses yet.'); return false;">Grades</a>
+      {% endif %}
       <a href="{{url_for('logout')}}">Log Out</a>
     </div>
   </div>

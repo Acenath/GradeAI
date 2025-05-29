@@ -1594,6 +1594,29 @@ def edit_email():
             cursor.close()
             
     return render_template('edit_email.html')
+@app.route('/course_grades_student/<course_name>/<course_code>')
+@login_required
+def course_grades_student(course_name, course_code):
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute("""
+        SELECT a.title as assignment_title, g.score, g.feedback, 
+               g.adjusted_at as graded_at, c.name as course_name, 
+               c.class_id as course_code
+        FROM grade g 
+        JOIN submission s ON g.submission_id = s.submission_id 
+        JOIN assignment a ON s.assignment_id = a.assignment_id 
+        JOIN class c ON a.class_id = c.class_id 
+        WHERE s.student_id = %s
+        ORDER BY g.adjusted_at DESC
+    """, (current_user.user_id,))
+    grades = cursor.fetchall()
+    cursor.close()
+    return render_template("course_grades_student.html",
+                           grades=grades,
+                           course_name=course_name,
+                           course_code=course_code)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
+

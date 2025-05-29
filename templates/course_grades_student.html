@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gradia - Student Grades</title>
+  <title>Gradia - All Course Grades</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
   <link href="{{ url_for('static', filename='css/course_grades_student.css') }}" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-  <div class="nav-bar">
-    <div class="logo-container">
-      <i class="fas fa-brain logo-icon" style="color: #000;"></i>
-      <strong>Gradia</strong>
+    <div class="nav-bar">
+    <div class="d-flex align-items-center">
+      <button onclick="goBack()" class="back-button">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+      <strong> Gradia</strong>
     </div>
     <div class="nav-links">
       <a href="{{url_for('about')}}">About Us</a>
@@ -30,35 +33,47 @@
 
     <div class="grades-table-container">
       <div class="grades-header mb-3">
-        <h2>My Lectures</h2>
+        <h2>All Course Grades</h2>
       </div>
 
-      <div class="grades-table">
-        <div class="grades-table-header">
-          <div class="grades-table-column column-courses">Lecture Name</div>
-          <div class="grades-table-column column-code">Code</div>
-          <div class="grades-table-column column-grades">Grade</div>
-          <div class="grades-table-column column-status">Status</div>
+      {% if grades %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Assignment</th>
+                        <th>Course</th>
+                        <th>Grade</th>
+                        <th>Feedback</th>
+                        <th>Graded On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for grade in grades %}
+                    <tr>
+                        <td>{{ grade[0] }}</td>
+                        <td>{{ grade[4] }} ({{ grade[5] }})</td>
+                        <td>{{ grade[1] }}</td>
+                        <td>{{ grade[2] }}</td>
+                        <td>{{ grade[3].strftime('%B %d, %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        
-        {% for lecture in lectures %}
-        <div class="grades-table-row">
-          <div class="row-course">{{ lecture.name }}</div>
-          <div class="row-code">{{ lecture.code }}</div>
-          <div class="row-grade">{{ lecture.grade }}</div>
-          <div class="row-status">
-            {% if lecture.status == 'completed' %}
-              <span class="badge bg-success">Completed</span>
-            {% else %}
-              <span class="badge bg-warning">Current</span>
-            {% endif %}
-          </div>
+    {% else %}
+        <div class="alert alert-info">
+            No grades available yet.
         </div>
-        {% endfor %}
-      </div>
-    </div>
+    {% endif %}
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Back button functionality
+    function goBack() {
+        window.history.back();
+    }
+    </script>
 </body>
 </html>

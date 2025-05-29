@@ -317,7 +317,7 @@ def get_files(section, course_code, title):
         attachments = [f for f in os.listdir(intended_dir) if os.path.isfile(os.path.join(intended_dir, f))]
     return attachments
 
-def get_student_submissions(cursor, assignment_id, course_code):
+def get_students_submissions(cursor, assignment_id, course_code):
     cursor.execute("""
         SELECT 
             u.first_name, u.last_name, u.user_id,
@@ -404,24 +404,11 @@ def insert_grade(cursor, submission_id, score, feedback):
         VALUES (%s, %s, %s, %s)
     """, (submission_id, score, feedback, datetime.datetime.now()))
 
-'''def ensure_grade_created_at_exists(cursor):
-    """Ensure the Grade table has a created_at column"""
-    try:
-        # Check if the column exists
-        cursor.execute("SHOW COLUMNS FROM Grade LIKE 'created_at'")
-        result = cursor.fetchone()
-        
-        if not result:
-            # Add the column if it doesn't exist
-            cursor.execute("""
-                ALTER TABLE Grade 
-                ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            """)
-            return True
-        return False
-    except Exception as e:
-        print(f"Error checking/adding created_at column: {e}")
-        return False'''
+def delete_submissions(cursor, user_id, assignment_id):
+    cursor.execute('''
+        DELETE FROM submission 
+        WHERE student_id = %s AND assignment_id = %s
+    ''', (user_id, assignment_id))
 
 def delete_announcement(cursor, announcement_id):
     try:
@@ -473,6 +460,22 @@ def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
                        LIMIT %s''', (user_id, limit))
         
     return cursor.fetchall()
+
+#THIS IS WRONG
+def get_grades(cursor, user_id, course_code):
+       cursor.execute("""
+        SELECT a.title as assignment_title, g.score, g.feedback, 
+               g.adjusted_at as graded_at, c.name as course_name, 
+               c.class_id as course_code
+        FROM grade g 
+        JOIN submission s ON g.submission_id = s.submission_id 
+        JOIN assignment a ON s.assignment_id = a.assignment_id 
+        JOIN class c ON a.class_id = c.class_id 
+        WHERE s.student_id = %s AND c.class_id = %s
+        ORDER BY g.adjusted_at DESC
+    """, (user_id, course_code))
+       
+       return cursor.fetchall()
 def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
     """Fetch recent feedback given by the teacher"""
     if is_teacher:

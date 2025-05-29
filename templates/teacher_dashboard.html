@@ -132,7 +132,7 @@
             <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>
           <div class="announcement-info">
-            <div>{{ announcement[0].split("_")[1]|truncate(40) }}</div>
+            <div>{{ announcement[-1]|truncate(40) }}</div>
             <div class="course-code">{{ announcement[3] }} - {{ announcement[1] }}</div>
             <div class="date">{{ announcement[2].strftime('%A, %b %d %Y') }}</div>
           </div>

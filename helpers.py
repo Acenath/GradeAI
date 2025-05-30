@@ -148,29 +148,19 @@ def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title, assig
     for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
         create_rubric(cursor, rubric_val, rubric_desc, user_id, class_id, assignment_id, assignment_title, fold)
 
-def create_rubric(cursor, score, description, created_by, class_id, assignment_id, assignment_title, fold):
+def create_rubric(cursor, score, description, created_by, assignment_id, fold):
     """Updated create_rubric with proper ID generation"""
     rubric_id = RubricIDManager.create_rubric_id(assignment_id, fold)
-    
-    cursor.execute('SELECT rubric_id FROM rubric WHERE rubric_id = %s', (rubric_id,))
-    existing_rubric = cursor.fetchone()
-    
-    if existing_rubric:
-        cursor.execute('''
-            UPDATE rubric 
-            SET score = %s, description = %s, created_at = %s, created_by = %s
-            WHERE rubric_id = %s
-        ''', (score, description, datetime.datetime.now(), created_by, rubric_id))
-    else:
-        cursor.execute('''
-            INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (rubric_id, assignment_id, score, description, datetime.datetime.now(), created_by))
-    
+    cursor.execute('''
+        INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    ''', (rubric_id, assignment_id, score, description, datetime.datetime.now(), created_by))
+
     return rubric_id
 
 def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
     """Updated create_assignment with proper ID generation"""
+    flag = False
     assignment_id = AssignmentIDManager.create_assignment_id(class_id, assignment_title)
     
     # Check for uniqueness and add timestamp if needed
@@ -178,13 +168,14 @@ def create_assignment(cursor, assignment_title, assignment_desc, assignment_dead
     if cursor.fetchone():
         timestamp = datetime.datetime.now().strftime("%H%M%S")
         assignment_id = f"{assignment_id}_{timestamp}"
+        flag = True
     
     cursor.execute(''' 
         INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
         VALUES (%s, %s, %s, %s, %s, %s)
     ''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
     
-    return assignment_id
+    return assignment_id, flag
 
 def create_grade_with_proper_id(cursor, submission_id, score, feedback, teacher_id):
     """Helper function to create grade with proper ID"""

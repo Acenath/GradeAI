@@ -83,16 +83,17 @@ import ast
 import gc
 import docx
 
+# Fixed GradingAssistant class methods for better rubric protection
+
 class GradingAssistant():
     def __init__(self):
         self.model_name = "meta-llama/Llama-3.2-1B-Instruct"
-        self.max_new_tokens = 512  # Reduced for faster generation
-        self.temperature = 0.2     # Lower for more consistent output
-        self.top_p = 0.9          # Slightly lower for better control
+        self.max_new_tokens = 512
+        self.temperature = 0.2
+        self.top_p = 0.9
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         print("Loading model and tokenizer...")
-        # Load model ONCE during initialization
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
@@ -101,33 +102,56 @@ class GradingAssistant():
             attn_implementation="sdpa"
         ).eval()
         
-        # Set padding token
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
         print("Model loaded successfully!")
 
     def create_rubric_instructions(self, current_rubrics, current_points):
-        # Calculate existing points total
-        existing_total = sum(current_points) if current_points else 0
+        """FIXED: Better handling of manual rubrics with improved validation"""
+        
+        # FIXED: Validate and sanitize input data
+        if current_rubrics is None:
+            current_rubrics = []
+        if current_points is None:
+            current_points = []
+            
+        # Ensure lists are the same length
+        min_length = min(len(current_rubrics), len(current_points))
+        current_rubrics = current_rubrics[:min_length]
+        current_points = current_points[:min_length]
+        
+        # FIXED: Only count rubrics with points > 0 for remaining calculation
+        valid_existing_points = [p for p in current_points if p > 0]
+        existing_total = sum(valid_existing_points)
         remaining_points = 100 - existing_total
         
-        # Store for fallback use
+        # Store for fallback use with better validation
+        self.current_rubrics = current_rubrics
         self.current_points = current_points
-        self.remaining_points = remaining_points
+        self.remaining_points = max(0, remaining_points)  # Ensure non-negative
         self.existing_total = existing_total
         
-        # Build existing rubrics display for context
+        # FIXED: Better display of existing rubrics with validation
         existing_rubrics_display = ""
         if current_rubrics and current_points:
-            existing_rubrics_display = "EXISTING RUBRICS (already added by teacher):\n"
-            for i, (rubric, points) in enumerate(zip(current_rubrics, current_points), 1):
-                existing_rubrics_display += f"{i}. {rubric} ({points} pt)\n"
-            existing_rubrics_display += f"\nTotal existing points: {existing_total}/100\n"
+            # Only show rubrics with points > 0 in the instructions
+            valid_rubrics = [(r, p) for r, p in zip(current_rubrics, current_points) if p > 0]
+            
+            if valid_rubrics:
+                existing_rubrics_display = "EXISTING RUBRICS (already added by teacher - DO NOT MODIFY OR RECREATE THESE):\n"
+                for i, (rubric, points) in enumerate(valid_rubrics, 1):
+                    # FIXED: Sanitize rubric text to prevent instruction injection
+                    safe_rubric = str(rubric).replace('\n', ' ').strip()[:100]  # Limit length
+                    existing_rubrics_display += f"{i}. {safe_rubric} ({points} pt)\n"
+                existing_rubrics_display += f"\nTotal existing points: {existing_total}/100\n"
+                existing_rubrics_display += "IMPORTANT: Do NOT include these existing rubrics in your response. Only create NEW additional rubrics.\n"
+            else:
+                existing_rubrics_display = "EXISTING RUBRICS: None (you are creating the first rubrics)\n"
         else:
             existing_rubrics_display = "EXISTING RUBRICS: None (you are creating the first rubrics)\n"
 
-        # Essay-specific rubric instructions with strict 100-point requirement
+        # FIXED: Enhanced rubric instructions with better validation
         self.rubric_instructions = f"""
 You are helping a teacher create essay grading rubrics. The teacher may have already added some rubrics manually.
 
@@ -137,18 +161,21 @@ ESSAY ASSIGNMENT CONTEXT:
 {existing_rubrics_display}
 
 CRITICAL REQUIREMENTS - MUST FOLLOW EXACTLY:
-1. You must create rubric items that total EXACTLY {remaining_points} points
-2. The final rubric system must total exactly 100 points when combined with existing rubrics
-3. Each rubric item must be relevant to essay evaluation (thesis, arguments, evidence, organization, writing quality, etc.)
-4. Use clear, specific criteria that teachers can easily apply when grading
-5. Distribute points logically based on importance of each criterion
+1. DO NOT recreate, modify, or include any of the existing rubrics listed above
+2. Only create NEW rubric items that total EXACTLY {self.remaining_points} points
+3. The NEW rubrics must complement the existing ones to reach exactly 100 points total
+4. Each NEW rubric item must be relevant to essay evaluation (thesis, arguments, evidence, organization, writing quality, etc.)
+5. Use clear, specific criteria that teachers can easily apply when grading
+6. Distribute points logically based on importance of each criterion
+7. Points must be positive integers (no zero or negative values)
 
 STRICT FORMAT REQUIREMENTS:
 - Each line MUST start with a number and period: "1. "
 - Each line MUST end with points in parentheses: "(X pt)"
 - NO additional text, explanations, or commentary
 - Points must be whole numbers (no decimals)
-- All points must sum to exactly {remaining_points}
+- All points must sum to exactly {self.remaining_points}
+- Minimum 1 point per rubric item
 
 EXAMPLE FORMAT (if you needed to create 45 points):
 1. Clear thesis statement with well-defined argument (15 pt)
@@ -156,21 +183,16 @@ EXAMPLE FORMAT (if you needed to create 45 points):
 3. Logical organization and smooth transitions (10 pt)
 4. Proper grammar and writing mechanics (5 pt)
 
-IMPORTANT CONSIDERATIONS FOR TEACHERS:
-- Focus on measurable criteria that can be consistently applied
-- Balance between content (ideas, arguments, evidence) and form (organization, grammar)
-- Consider the academic level and assignment requirements
-- Make criteria specific enough to reduce grading subjectivity
-
 YOUR TASK:
-Create rubric items worth exactly {remaining_points} points that complement any existing rubrics to total 100 points.
-If {remaining_points} is 0 or negative, respond with: "All 100 points have been allocated. No additional rubrics needed."
+Create ONLY NEW rubric items worth exactly {self.remaining_points} points that complement the existing rubrics to total 100 points.
+If {self.remaining_points} is 0 or negative, respond with: "All 100 points have been allocated. No additional rubrics needed."
 
 START YOUR RESPONSE WITH "1." (or appropriate number):
         """
 
     def consume_question(self, question):
-        self.question = question
+        """FIXED: Sanitize question input"""
+        self.question = str(question).strip()[:500] if question else "Essay writing assignment"
 
     def flush_memory(self):
         if self.device == "cuda":
@@ -178,7 +200,7 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         gc.collect()
 
     def _check_response_format(self, response):
-        """Check if response follows the required rubric format and adds up to correct total"""
+        """FIXED: Enhanced format validation with better error reporting"""
         lines = response.strip().split('\n')
         valid_lines = 0
         total_points = 0
@@ -199,78 +221,25 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         # Check if format is correct AND points add up correctly
         remaining_points = getattr(self, 'remaining_points', 100)
         points_correct = (total_points == remaining_points)
-        format_correct = (valid_lines >= 1)  # At least 1 valid rubric line
+        format_correct = (valid_lines >= 1)
         
         print(f"Format check: {valid_lines} valid lines, {total_points} points (need {remaining_points})")
         
+        if not format_correct:
+            print(f"❌ Format error: Expected at least 1 valid rubric line")
+        if not points_correct:
+            print(f"❌ Points error: Got {total_points}, expected {remaining_points}")
+            
         return format_correct and points_correct
 
-    def _generate_response_with_retry(self, messages, max_retries=5):
-        """Generate response with retry logic for better results - increased retries for point accuracy"""
-        for attempt in range(max_retries):
-            print(f"Generation attempt {attempt + 1}/{max_retries}")
-            
-            # Adjust temperature based on attempt (start strict, then allow more variation)
-            temp = 0.1 + (attempt * 0.05)  # 0.1, 0.15, 0.2, 0.25, 0.3
-            
-            prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
-            
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
-
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=300,  # Increased slightly for more rubrics
-                    temperature=temp,    # Progressive temperature increase
-                    top_p=0.7,          # More restrictive
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    use_cache=True,
-                    repetition_penalty=1.2,
-                    no_repeat_ngram_size=3,
-                )
-
-            # Extract response
-            full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Better response extraction
-            if "assistant" in full_response:
-                response = full_response.split("assistant")[-1]
-            else:
-                input_length = len(self.tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True))
-                response = full_response[input_length:]
-            
-            # Clean up response
-            response = response.strip()
-            for stop_token in ["<|eot_id|>", "</s>", "<|end|>"]:
-                if stop_token in response:
-                    response = response.split(stop_token)[0]
-            
-            # Check if response follows format AND has correct point total
-            if self._check_response_format(response):
-                print(f"✅ Attempt {attempt + 1} passed format and point total check")
-                return response.strip()
-            else:
-                print(f"❌ Attempt {attempt + 1} failed format or point total check")
-                print(f"Response was: {response[:200]}...")
-                if attempt < max_retries - 1:
-                    print("Retrying with adjusted parameters...")
-        
-        print("⚠️ All attempts failed, creating manual fallback")
-        return self._create_manual_rubric_response()
-
     def _create_manual_rubric_response(self):
-        """Create a properly formatted rubric response when model fails"""
+        """FIXED: Better fallback rubric creation with point validation"""
         remaining_points = getattr(self, 'remaining_points', 100)
         
         if remaining_points <= 0:
             return "All 100 points have been allocated. No additional rubrics needed."
         
-        # Create balanced essay rubrics that total exactly the remaining points
+        # FIXED: Better essay rubric templates with flexible point distribution
         essay_templates = [
             ("Clear thesis statement and main argument", 0.25),
             ("Strong supporting evidence and examples", 0.25),
@@ -279,70 +248,112 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
             ("Critical analysis and depth of thought", 0.15)
         ]
         
-        # Calculate points for each rubric
+        # FIXED: Ensure exact point allocation
         rubric_response = ""
         allocated_points = 0
         
-        for i, (desc, weight) in enumerate(essay_templates, 1):
-            if i == len(essay_templates):
-                # Last item gets remaining points to ensure exact total
+        # Calculate how many rubrics we can create
+        max_rubrics = min(len(essay_templates), remaining_points)  # Can't exceed available points
+        
+        for i, (desc, weight) in enumerate(essay_templates[:max_rubrics], 1):
+            if i == max_rubrics:
+                # Last item gets all remaining points
                 points = remaining_points - allocated_points
             else:
                 points = max(1, int(remaining_points * weight))
+                # Ensure we don't exceed remaining points
+                points = min(points, remaining_points - allocated_points - (max_rubrics - i))
             
-            if allocated_points + points <= remaining_points:
+            if points > 0:  # Only add if we have points to allocate
                 rubric_response += f"{i}. {desc} ({points} pt)\n"
                 allocated_points += points
             
             if allocated_points >= remaining_points:
                 break
         
+        # FIXED: Verification that we allocated exactly the right amount
+        if allocated_points != remaining_points:
+            print(f"⚠️ Fallback allocation mismatch: {allocated_points} != {remaining_points}")
+            # Simple fix: adjust the last item
+            lines = rubric_response.strip().split('\n')
+            if lines:
+                last_line = lines[-1]
+                # Extract the last point value and adjust
+                import re
+                match = re.search(r'\((\d+) pt\)', last_line)
+                if match:
+                    current_last_points = int(match.group(1))
+                    adjustment = remaining_points - allocated_points
+                    new_last_points = current_last_points + adjustment
+                    if new_last_points > 0:
+                        lines[-1] = re.sub(r'\(\d+ pt\)', f'({new_last_points} pt)', last_line)
+                        rubric_response = '\n'.join(lines) + '\n'
+        
         return rubric_response.strip()
 
-    def _generate_response(self, messages):
-        """Shared generation method (kept for compatibility)"""
-        return self._generate_response_with_retry(messages, max_retries=1)
+    def _generate_response_with_retry(self, messages, max_retries=5):
+        """FIXED: Enhanced retry logic with better error handling"""
+        for attempt in range(max_retries):
+            print(f"Generation attempt {attempt + 1}/{max_retries}")
+            
+            try:
+                # Adjust temperature based on attempt
+                temp = 0.1 + (attempt * 0.05)
+                
+                prompt = self.tokenizer.apply_chat_template(
+                    messages,
+                    tokenize=False,
+                    add_generation_prompt=True
+                )
+                
+                inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
 
-    def _create_fallback_rubrics(self):
-        """Create essay-specific fallback rubrics that total exactly remaining points"""
-        print("Creating essay-specific fallback rubrics...")
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=300,
+                        temperature=temp,
+                        top_p=0.7,
+                        do_sample=True,
+                        pad_token_id=self.tokenizer.eos_token_id,
+                        use_cache=True,
+                        repetition_penalty=1.2,
+                        no_repeat_ngram_size=3,
+                    )
+
+                # Extract response
+                full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                
+                if "assistant" in full_response:
+                    response = full_response.split("assistant")[-1]
+                else:
+                    input_length = len(self.tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True))
+                    response = full_response[input_length:]
+                
+                response = response.strip()
+                for stop_token in ["<|eot_id|>", "</s>", "<|end|>"]:
+                    if stop_token in response:
+                        response = response.split(stop_token)[0]
+                
+                # Check if response follows format AND has correct point total
+                if self._check_response_format(response):
+                    print(f"✅ Attempt {attempt + 1} passed format and point total check")
+                    return response.strip()
+                else:
+                    print(f"❌ Attempt {attempt + 1} failed format or point total check")
+                    print(f"Response was: {response[:200]}...")
+                    
+            except Exception as e:
+                print(f"❌ Attempt {attempt + 1} failed with error: {e}")
+                
+            if attempt < max_retries - 1:
+                print("Retrying with adjusted parameters...")
         
-        remaining_points = getattr(self, 'remaining_points', 100)
-        
-        if remaining_points <= 0:
-            print("No points remaining for additional rubrics")
-            return []
-        
-        # Essay-specific rubric templates with balanced point distribution
-        base_rubrics = [
-            "Clear thesis statement and main argument",
-            "Strong supporting evidence and examples", 
-            "Logical organization and paragraph structure",
-            "Grammar, style, and writing mechanics",
-            "Critical analysis and depth of thought",
-            "Proper citations and source integration"
-        ]
-        
-        # Calculate points per rubric to total exactly remaining_points
-        num_rubrics = min(len(base_rubrics), max(1, remaining_points // 5))  # At least 5 points per rubric
-        points_per_rubric = remaining_points // num_rubrics
-        extra_points = remaining_points % num_rubrics
-        
-        essay_rubrics = []
-        for i in range(num_rubrics):
-            points = points_per_rubric + (1 if i < extra_points else 0)
-            essay_rubrics.append({
-                "rubric_desc": base_rubrics[i],
-                "rubric_score": str(points)
-            })
-        
-        print(f"Created {len(essay_rubrics)} essay rubrics totaling {remaining_points} points:")
-        for item in essay_rubrics:
-            print(f"  {item['rubric_desc']} ({item['rubric_score']} pt)")
-        
-        return essay_rubrics
+        print("⚠️ All attempts failed, creating manual fallback")
+        return self._create_manual_rubric_response()
 
     def generate_rubric(self):
+        """FIXED: Enhanced rubric generation with better validation"""
         print("Generating essay rubric...")
         
         # Check if all points are already allocated
@@ -351,9 +362,21 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
             print("All 100 points already allocated. No additional rubrics needed.")
             return []
         
-        # Essay-specific system message with emphasis on 100-point total
+        # FIXED: Enhanced system message with clearer instructions
+        system_message = f"""You are an essay grading rubric generator for teachers. 
+
+CRITICAL RULES:
+- Create rubric items that total EXACTLY {remaining_points} points
+- Output ONLY numbered criteria with points in parentheses
+- Format: '1. Thesis statement quality (25 pt)'
+- No explanations, just the rubric items
+- Points must be positive integers
+- All points must sum to exactly {remaining_points}
+
+The final rubric system must total exactly 100 points when combined with existing rubrics."""
+
         chat = [
-            {"role": "system", "content": f"You are an essay grading rubric generator for teachers. Create rubric items that total exactly {remaining_points} points. Output ONLY numbered criteria with points in parentheses. Format: '1. Thesis statement quality (25 pt)'. The final rubric system must total exactly 100 points."},
+            {"role": "system", "content": system_message},
             {"role": "user", "content": self.rubric_instructions}
         ]
         
@@ -366,20 +389,75 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         # Parse and validate point totals
         rubrics = self._parse_rubric(rubric_text)
         
-        # Validate total points
-        total_generated = sum(int(float(item['rubric_score'])) for item in rubrics)
-        print(f"Generated {len(rubrics)} rubric items totaling {total_generated} points (needed {remaining_points})")
-        
-        for item in rubrics:
-            print(f"  {item['rubric_desc']} ({item['rubric_score']} pt)")
-        
-        # Fallback if parsing fails or points don't match
-        if not rubrics or len(rubrics) < 1 or total_generated != remaining_points:
-            print("⚠️ Generated rubrics don't meet requirements, creating fallback...")
+        # FIXED: Enhanced validation
+        if rubrics:
+            total_generated = sum(int(float(item['rubric_score'])) for item in rubrics)
+            print(f"Generated {len(rubrics)} rubric items totaling {total_generated} points (needed {remaining_points})")
+            
+            for item in rubrics:
+                print(f"  {item['rubric_desc']} ({item['rubric_score']} pt)")
+            
+            # Validate that we have the right total
+            if total_generated != remaining_points:
+                print(f"⚠️ Point total mismatch: {total_generated} != {remaining_points}")
+                rubrics = self._create_fallback_rubrics()
+        else:
+            print("⚠️ No valid rubrics generated, creating fallback...")
             rubrics = self._create_fallback_rubrics()
         
         self.rubrics = rubrics
         return rubrics
+
+    def _create_fallback_rubrics(self):
+        """FIXED: Enhanced fallback rubric creation with exact point allocation"""
+        print("Creating essay-specific fallback rubrics...")
+        
+        remaining_points = getattr(self, 'remaining_points', 100)
+        
+        if remaining_points <= 0:
+            print("No points remaining for additional rubrics")
+            return []
+        
+        # FIXED: Better essay rubric templates
+        base_rubrics = [
+            "Clear thesis statement and main argument",
+            "Strong supporting evidence and examples", 
+            "Logical organization and paragraph structure",
+            "Grammar, style, and writing mechanics",
+            "Critical analysis and depth of thought",
+            "Proper citations and source integration",
+            "Conclusion and synthesis of ideas"
+        ]
+        
+        # FIXED: Calculate exact point distribution
+        num_rubrics = min(len(base_rubrics), max(1, remaining_points // 3))  # At least 3 points per rubric
+        
+        essay_rubrics = []
+        allocated_points = 0
+        
+        for i in range(num_rubrics):
+            if i == num_rubrics - 1:
+                # Last rubric gets all remaining points
+                points = remaining_points - allocated_points
+            else:
+                # Distribute points fairly
+                points_per_remaining = (remaining_points - allocated_points) // (num_rubrics - i)
+                points = max(1, points_per_remaining)
+            
+            if points > 0:
+                essay_rubrics.append({
+                    "rubric_desc": base_rubrics[i],
+                    "rubric_score": str(points)
+                })
+                allocated_points += points
+        
+        # FIXED: Verify exact allocation
+        final_total = sum(int(item["rubric_score"]) for item in essay_rubrics)
+        print(f"Created {len(essay_rubrics)} essay rubrics totaling {final_total} points (needed {remaining_points}):")
+        for item in essay_rubrics:
+            print(f"  {item['rubric_desc']} ({item['rubric_score']} pt)")
+        
+        return essay_rubrics
 
     def _parse_rubric(self, rubric_text):
         """Improved rubric parsing with point validation"""

@@ -621,15 +621,15 @@ def student_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 0)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 0)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
-    profile_pic = fetch_profile_picture(None, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
 
+    print("Debug - student_dashboard recent_feedback: ", recent_feedback)
     return render_template("student_dashboard.html",
-                         courses_and_instructors=courses_and_instructors,
-                         upcoming_deadlines=upcoming_deadlines,
-                         recent_feedback=recent_feedback,
-                         recent_announcements=recent_announcements,
-                         profile_pic=profile_pic)
+                           courses_and_instructors=courses_and_instructors,
+                           upcoming_deadlines=upcoming_deadlines,
+                           recent_feedback=recent_feedback,
+                           recent_announcements=recent_announcements,)
 
 
 @app.route('/teacher_dashboard')
@@ -641,16 +641,16 @@ def teacher_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
-    profile_pic = fetch_profile_picture(None, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
 
     return render_template("teacher_dashboard.html",
-                         courses=courses,
-                         upcoming_deadlines=upcoming_deadlines,
-                         recent_feedback=recent_feedback,
-                         recent_announcements=recent_announcements,
-                         total_student_dict=total_student_dict,
-                         profile_pic=profile_pic)
+                           courses=courses,
+                           upcoming_deadlines=upcoming_deadlines,
+                           recent_feedback=recent_feedback,
+                           recent_announcements=recent_announcements,
+                           total_student_dict=total_student_dict,
+                           )
 
 #DONE
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>/<title>')
@@ -778,130 +778,9 @@ def view_assignments(course_code):
                            course_code=course_code,
                            assignments=assignments)
 
-#DONE
-@app.route('/assignment_creation/<course_code>', methods=["GET", "POST"])
+@app.route('/assignment_creation/<course_code>', methods=['GET', 'POST'])
 @login_required
 def assignment_creation(course_code):
-    cursor = gradeai_db.connection.cursor()
-    if request.method == "POST":
-        assignment_title = request.form.get("title")
-        assignment_desc = request.form.get("description")
-        assignment_files = request.files.getlist("attachments")
-        deadline = request.form.get("Date")
-        rubric_descs, rubric_vals = request.form.getlist("rubric_descriptions[]"), request.form.getlist("rubric_values[]")
-        
-        total_score = calculate_total_sum(rubric_vals)
-
-        save_files(assignment_files, 'assignments', course_code, assignment_title)
-        assignment_id = create_assignment(cursor, assignment_title, assignment_desc, deadline, course_code, total_score)
-        zip_to_rubric(cursor, zip(rubric_descs, rubric_vals), current_user.user_id, course_code, assignment_title, assignment_id)
-
-        gradeai_db.connection.commit()
-        cursor.close()
-
-        flash("Assignment created successfully", "success")
-        return redirect(url_for("view_assignments", course_code=course_code))
-
-  
-    course = get_course_name(cursor, course_code)
-    cursor.close()
-
-    if not course:
-        flash("Course not found", "error")
-        return redirect(url_for("teacher_dashboard"))
-
-    return render_template("assignment_creation.html",
-                           course_name=course[0],
-                           course_code=course_code,
-                           today = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))
-
-
-# Helper route for the original generate_rubric endpoint (for API compatibility)
-@app.route('/generate_rubric', methods=["POST"])
-@login_required
-def generate_rubric():
-    current_rubrics, current_points = [], []
-    data = request.get_json()
-    
-    if not data or 'description' not in data:
-        return jsonify({'error': 'Missing assignment description'}), 400
-    
-    description = data.get('description', '')
-    existing_rubrics = data.get('existing_rubrics', [])
-    
-    if existing_rubrics:
-        for entry in existing_rubrics:
-            current_rubrics.append(entry["description"])
-            current_points.append(entry["points"])
-    
-    grading_assistant.create_rubric_instructions(current_rubrics, current_points)
-    grading_assistant.consume_question(description)
-    
-    if len(description.strip()) < 10:
-        return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
-    
-    try:
-        llm_output = grading_assistant.generate_rubric()
-        rubric_items = [
-            {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
-            for item in llm_output
-        ]
-        
-        return jsonify({
-            'success': True,
-            'rubric_items': rubric_items
-        })
-    except Exception as e:
-        return jsonify({'error': f'Error generating rubric: {str(e)}'}), 500
-
-#DONE
-@app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
-@login_required
-def assignment_feedback_teacher(course_name, course_code):
-    cursor = gradeai_db.connection.cursor()
-    feedbacks = fetch_feedbacks_by_teacher(cursor, current_user.user_id)
-    cursor.close()
-    return render_template("assignment_feedback_teacher.html", feedbacks=feedbacks, course_name=course_name,
-                           course_code=course_code)
-
-@app.route('/assignment_grades_student/<course_name>/<course_code>')
-@login_required
-def assignment_grades_student(course_name, course_code):
-    cursor = gradeai_db.connection.cursor()
-    cursor.execute("""
-        SELECT a.title as assignment_title, g.score, g.feedback, 
-               g.adjusted_at as graded_at, c.name as course_name, 
-               c.class_id as course_code
-        FROM grade g 
-        JOIN submission s ON g.submission_id = s.submission_id 
-        JOIN assignment a ON s.assignment_id = a.assignment_id 
-        JOIN class c ON a.class_id = c.class_id 
-        WHERE s.student_id = %s AND c.class_id = %s
-        ORDER BY g.adjusted_at DESC
-    """, (current_user.user_id, course_code))
-    grades = cursor.fetchall()
-    cursor.close()
-    return render_template("assignment_grades_student.html",
-                           grades=grades,
-                           course_name=course_name,
-                           course_code=course_code)
-
-#DONE
-@app.route('/assignments_student/<course_code>/<course_name>')
-@login_required
-def assignments_student(course_code, course_name):
-    cursor = gradeai_db.connection.cursor()
-    assignments = get_course_assignments(cursor, course_code)
-    cursor.close()
-
-    return render_template("assignments_student.html",
-                           course_name=course_name,
-                           course_code=course_code,
-                           assignments=assignments)
-
-@app.route('/assignment_submit_student/<course_code>', methods=['GET', 'POST'])
-@login_required
-def assignment_submit_student(course_code):
     cursor = gradeai_db.connection.cursor()
     
     # Get course name
@@ -922,7 +801,7 @@ def assignment_submit_student(course_code):
     }
     
     # Get today's date for min datetime
-    today = datetime.now().strftime('%Y-%m-%dT%H:%M')
+    today = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M')
     
     if request.method == 'POST':
         action = request.form.get('action', 'create_assignment')
@@ -1059,8 +938,8 @@ def assignment_submit_student(course_code):
             
             # Validate due date
             try:
-                due_date = datetime.strptime(form_data['due_date'], '%Y-%m-%dT%H:%M')
-                if due_date <= datetime.now():
+                due_date = datetime.datetime.strptime(form_data['due_date'], '%Y-%m-%dT%H:%M')
+                if due_date <= datetime.datetime.now():
                     errors.append("Due date must be in the future")
             except ValueError:
                 errors.append("Invalid due date format")
@@ -1078,7 +957,7 @@ def assignment_submit_student(course_code):
                     if 'attachments' in request.files:
                         files = request.files.getlist('attachments')
                         if files and files[0].filename:
-                            assignment_dir = os.path.join(ASSIGNMENT_ATTACHMENTS_DIR, course_code, form_data['title'])
+                            assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, form_data['title'])
                             os.makedirs(assignment_dir, exist_ok=True)
                             
                             for file in files:
@@ -1089,20 +968,23 @@ def assignment_submit_student(course_code):
                                     uploaded_files.append(filename)
                     
                     # Create assignment
-                    assignment_id = create_assignment(
+                    assignment_id, existing_assignment = create_assignment(
                         cursor, 
                         form_data['title'], 
                         form_data['description'], 
-                        form_data['due_date'], 
-                        total_points, 
-                        teacher_id, 
+                        form_data['due_date'],
                         course_code,
-                        form_data['file_type']
-                    )
+                        total_points,                     
+                        )
+                    if existing_assignment:
+                        flash(f"You cannot create an assignment with this title. An assignment titled '{form_data['title']}' already exists in this course.", "error")
+                        return redirect(url_for('assignment_creation', course_code=course_code))
                     
                     # Create rubrics
-                    for rubric in valid_rubrics:
-                        create_rubric(cursor, assignment_id, rubric['description'], rubric['points'])
+                    for fold, rubric in enumerate(valid_rubrics):
+                        rubric_id = RubricIDManager.create_rubric_id(assignment_id, fold)
+                        cursor.execute(""" INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
+                                       VALUES (%s, %s, %s, %s, %s, %s)""", (rubric_id, assignment_id, rubric["points"], rubric["description"], datetime.datetime.now(), teacher_id))
                     
                     gradeai_db.connection.commit()
                     cursor.close()
@@ -1126,6 +1008,151 @@ def assignment_submit_student(course_code):
                          course_name=course_name,
                          today=today,
                          **form_data)
+
+# Helper route for the original generate_rubric endpoint (for API compatibility)
+@app.route('/generate_rubric', methods=["POST"])
+@login_required
+def generate_rubric():
+    current_rubrics, current_points = [], []
+    data = request.get_json()
+    
+    if not data or 'description' not in data:
+        return jsonify({'error': 'Missing assignment description'}), 400
+    
+    description = data.get('description', '')
+    existing_rubrics = data.get('existing_rubrics', [])
+    
+    if existing_rubrics:
+        for entry in existing_rubrics:
+            current_rubrics.append(entry["description"])
+            current_points.append(entry["points"])
+    
+    grading_assistant.create_rubric_instructions(current_rubrics, current_points)
+    grading_assistant.consume_question(description)
+    
+    if len(description.strip()) < 10:
+        return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
+    
+    try:
+        llm_output = grading_assistant.generate_rubric()
+        rubric_items = [
+            {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
+            for item in llm_output
+        ]
+        
+        return jsonify({
+            'success': True,
+            'rubric_items': rubric_items
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error generating rubric: {str(e)}'}), 500
+
+#DONE
+@app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
+@login_required
+def assignment_feedback_teacher(course_name, course_code):
+    cursor = gradeai_db.connection.cursor()
+    feedbacks = fetch_feedbacks_by_teacher(cursor, current_user.user_id)
+    cursor.close()
+    return render_template("assignment_feedback_teacher.html", feedbacks=feedbacks, course_name=course_name,
+                           course_code=course_code)
+
+@app.route('/assignment_grades_student/<course_name>/<course_code>')
+@login_required
+def assignment_grades_student(course_name, course_code):
+    cursor = gradeai_db.connection.cursor()
+    cursor.execute("""
+        SELECT a.title as assignment_title, g.score, g.feedback, 
+               g.adjusted_at as graded_at, c.name as course_name, 
+               c.class_id as course_code
+        FROM grade g 
+        JOIN submission s ON g.submission_id = s.submission_id 
+        JOIN assignment a ON s.assignment_id = a.assignment_id 
+        JOIN class c ON a.class_id = c.class_id 
+        WHERE s.student_id = %s AND c.class_id = %s
+        ORDER BY g.adjusted_at DESC
+    """, (current_user.user_id, course_code))
+    grades = cursor.fetchall()
+    cursor.close()
+    return render_template("assignment_grades_student.html",
+                           grades=grades,
+                           course_name=course_name,
+                           course_code=course_code)
+
+#DONE
+@app.route('/assignments_student/<course_code>/<course_name>')
+@login_required
+def assignments_student(course_code, course_name):
+    cursor = gradeai_db.connection.cursor()
+    assignments = get_course_assignments(cursor, course_code)
+    cursor.close()
+
+    return render_template("assignments_student.html",
+                           course_name=course_name,
+                           course_code=course_code,
+                           assignments=assignments)
+#DONE
+@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods=["GET", "POST"])
+@login_required
+def assignment_submit_student(course_code, course_name, assignment_id):
+    cursor = gradeai_db.connection.cursor()
+    
+    assignment_data = get_assignment_details(cursor, assignment_id, course_code)
+    
+    if not assignment_data:
+        flash("Assignment not found", "error")
+        cursor.close()
+        return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
+
+    submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_data[0], current_user.user_id)
+    
+    os.makedirs(submission_dir, exist_ok=True)
+
+    assignment_files = []
+    assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, assignment_data[0])
+    
+    if os.path.exists(assignment_dir):
+        assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
+
+    delete_submissions(cursor, current_user.user_id, assignment_id)
+    gradeai_db.connection.commit()
+
+    files = []
+    current_time = ''
+    if os.path.exists(submission_dir):
+        try:
+            for f in os.listdir(submission_dir):
+                if os.path.isfile(os.path.join(submission_dir, f)):
+                    files.append(f)
+                    current_time = datetime.datetime.now()
+                    create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, f)
+                    
+        except Exception as e:
+            print(f"Error processing submission directory: {e}")
+
+    gradeai_db.connection.commit()
+
+    # Format assignment data for template
+    assignment = {
+        'id': assignment_id,
+        'title': assignment_data[0],
+        'description': assignment_data[1],
+        'due_date': assignment_data[2],
+        'total_score': assignment_data[3],
+        'attachments': [{'filename': f, 'id': i} for i, f in enumerate(assignment_files)],
+        'is_submitted': True if files else False,
+        'submission': {
+            'files': files,
+            'submitted_at': current_time if files else None
+        } 
+    }
+    
+    cursor.close()
+    return render_template("assignment_submit_student.html",
+                           assignment=assignment,
+                           course_code=course_code,
+                           course_name=course_name,
+                           current_datetime=datetime.datetime.now())
 
 #DONE
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
@@ -1199,62 +1226,75 @@ def edit_image():
                 flash('File size exceeds the limit of 5MB. Please upload a smaller file.', 'error')
                 return redirect(url_for('edit_image'))
 
-            # Get old profile picture path before generating new filename
-            old_pic = fetch_profile_picture(None, current_user.user_id)
-            old_path = None
-            if old_pic:
-                old_path = os.path.join('static', old_pic.replace('/', os.path.sep))
-                app.logger.info(f"Found old profile picture at: {old_path}")
-
             # Generate unique filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(file.filename)}"
             
-            # Create uploads directory if it doesn't exist
-            upload_dir = os.path.join('static', 'uploads', 'profile_pics')
-            os.makedirs(upload_dir, exist_ok=True)
-            
-            # Save the file using OS path for filesystem operations
-            file_path = os.path.join(upload_dir, unique_filename)
-            
             # Save the file
-            app.logger.info(f"Attempting to save file to: {file_path}")
+            file_path = os.path.join(PROFILE_PICS_DIR, unique_filename)
             file.save(file_path)
             
-            # Verify file was saved and is readable
+            # Verify file was saved
             if not os.path.exists(file_path):
                 raise Exception(f"Failed to save file at {file_path}")
             
             app.logger.info(f"File saved successfully at: {file_path}")
             
-            # Try to open the file to verify it's a valid image
+            # Get relative path for database storage (without 'static/' prefix)
+            relative_path = os.path.join('uploads', 'profile_pics', unique_filename).replace('\\', '/')
+            app.logger.info(f"Relative path for database: {relative_path}")
+            
+            # Update database
+            cursor = gradeai_db.connection.cursor()
             try:
-                from PIL import Image
-                with Image.open(file_path) as img:
-                    img.verify()
-                app.logger.info("Image verification successful")
+                # First, get the current profile picture url
+                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
+                result = cursor.fetchone()
+                app.logger.info(f"Current profile picture in database: {result[0] if result else 'None'}")
+                
+                if result and result[0]:
+                    old_filepath = result[0]
+                    # Delete old file if it exists
+                    try:
+                        old_full_path = os.path.join(app.root_path, 'static', old_filepath)
+                        app.logger.info(f"Attempting to delete old profile picture at: {old_full_path}")
+                        if os.path.exists(old_full_path):
+                            os.remove(old_full_path)
+                            app.logger.info(f"Successfully deleted old profile picture")
+                        else:
+                            app.logger.warning(f"Old profile picture not found at: {old_full_path}")
+                    except Exception as e:
+                        app.logger.warning(f"Could not delete old profile picture: {str(e)}")
+                
+                # Update the database with new filepath
+                cursor.execute("UPDATE users SET profile_picture_url = %s WHERE user_id = %s", (relative_path, current_user.user_id))
+                gradeai_db.connection.commit()
+                
+                # Verify the update
+                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
+                updated_path = cursor.fetchone()
+                app.logger.info(f"Updated profile picture path in database: {updated_path[0] if updated_path else 'None'}")
+                
+                # Verify the file exists at the new path
+                new_full_path = os.path.join(app.root_path, 'static', relative_path)
+                app.logger.info(f"Checking if new profile picture exists at: {new_full_path}")
+                if os.path.exists(new_full_path):
+                    app.logger.info("New profile picture file exists")
+                else:
+                    app.logger.error("New profile picture file not found!")
+                
+                flash('Profile picture updated successfully!', 'success')
             except Exception as e:
-                app.logger.error(f"Image verification failed: {str(e)}")
+                gradeai_db.connection.rollback()
+                app.logger.error(f"Database error: {str(e)}")
+                flash('Database update failed. Please try again.', 'error')
+                # Clean up the file if database update failed
                 if os.path.exists(file_path):
                     os.remove(file_path)
-                raise Exception(f"Invalid image file: {str(e)}")
-            
-            # Only delete old profile picture after new one is verified
-            if old_path and os.path.exists(old_path) and old_path != file_path:
-                try:
-                    os.remove(old_path)
-                    app.logger.info(f"Deleted old profile picture at {old_path}")
-                except Exception as e:
-                    app.logger.warning(f"Failed to delete old profile picture: {str(e)}")
-            
-            # Final verification that the new file exists
-            if not os.path.exists(file_path):
-                app.logger.error(f"File not found at final verification: {file_path}")
-                raise Exception("File was not saved properly")
-            
-            app.logger.info("Profile picture update completed successfully")
-            flash('Profile picture updated successfully!', 'success')
-            
+                return redirect(url_for('edit_image'))
+            finally:
+                cursor.close()
+
             # Redirect based on user role
             user_role = role_parser(current_user.email)
             if isinstance(user_role, bytes):
@@ -1267,14 +1307,7 @@ def edit_image():
 
         except Exception as e:
             app.logger.error(f"Error in profile picture upload: {str(e)}")
-            # Clean up any partially saved file
-            if 'file_path' in locals() and os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                    app.logger.info(f"Cleaned up partially saved file: {file_path}")
-                except Exception as cleanup_error:
-                    app.logger.error(f"Failed to clean up file: {str(cleanup_error)}")
-            flash(f'Failed to update profile picture: {str(e)}', 'error')
+            flash('Failed to update profile picture. Please try again.', 'error')
             return redirect(url_for('edit_image'))
     
     # If GET request, render the edit image page
@@ -1282,12 +1315,13 @@ def edit_image():
     if isinstance(user_role, bytes):
         user_role = int.from_bytes(user_role, byteorder='big')
 
+    cursor = gradeai_db.connection.cursor()
     try:
-        profile_pic = fetch_profile_picture(None, current_user.user_id)
+        profile_pic = fetch_profile_picture(cursor, current_user.user_id)
         if profile_pic:
             app.logger.info(f"Current profile picture path: {profile_pic}")
-            # Verify the file exists using OS path
-            full_path = os.path.join('static', profile_pic.replace('/', os.path.sep))
+            # Verify the file exists
+            full_path = os.path.join(app.root_path, 'static', profile_pic)
             app.logger.info(f"Checking profile picture at: {full_path}")
             if not os.path.exists(full_path):
                 app.logger.warning(f"Profile picture file not found at: {full_path}")
@@ -1301,28 +1335,26 @@ def edit_image():
     except Exception as e:
         app.logger.error(f"Error fetching profile picture: {str(e)}")
         return render_template("edit_image.html", user_role=user_role, profile_pic=None)
+    finally:
+        cursor.close()
 
 @app.route('/profile_student')
 @login_required
 def profile_student():
     cursor = gradeai_db.connection.cursor()
     courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
-    profile_pic = fetch_profile_picture(None, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_idlll)
     cursor.close()
-    return render_template("profile_student.html", 
-                         courses_and_instructors=courses_and_instructors,
-                         profile_pic=profile_pic)
+    return render_template("profile_student.html", courses_and_instructors=courses_and_instructors)
 
 @app.route('/profile_teacher')
 @login_required
 def profile_teacher():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
-    profile_pic = fetch_profile_picture(None, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
     cursor.close()
-    return render_template("profile_teacher.html", 
-                         courses=courses,
-                         profile_pic=profile_pic)
+    return render_template("profile_teacher.html", courses=courses)
 
 #DONE
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>/<student_id>', methods=['GET', 'POST'])
@@ -1416,7 +1448,7 @@ def submit_assignment(course_code, course_name, assignment_id):
 
     assignment_title = assignment[1]
 
-    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id)
+    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1]  , current_user.user_id)
     print(submission_dir_student)
     delete_file = request.form.get("delete-file")
     delete_all = request.form.get("delete-all")
@@ -1598,6 +1630,79 @@ def submit_assignment(course_code, course_name, assignment_id):
 
 
 
+@app.route('/upload_profile_pic', methods=['POST'])
+@login_required
+def upload_profile_pic():
+    if 'profile_pic' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(request.referrer)
+
+    file = request.files['profile_pic']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(request.referrer)
+
+    if file and allowed_file(file.filename):
+        # Create uploads directory if it doesn't exist
+        upload_dir = os.path.join('static', 'uploads', 'profile_pics')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Generate unique filename
+        filename = secure_filename(f"{current_user.user_id}_{file.filename}")
+        file_path = os.path.join(upload_dir, filename)
+
+        # Save the file
+        file.save(file_path)
+
+        # Update database with profile picture path
+        cursor = gradeai_db.connection.cursor()
+        cursor.execute("""
+            UPDATE users 
+            SET profile_pic = %s 
+            WHERE user_id = %s
+        """, (filename, current_user.user_id))
+        gradeai_db.connection.commit()
+        cursor.close()
+
+        flash('Profile picture updated successfully', 'success')
+    else:
+        flash('Invalid file type. Please upload an image.', 'error')
+
+    return redirect(request.referrer)
+
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/update_grade/<submission_id>', methods=['POST'])
+@login_required
+def update_grade(submission_id):
+    cursor = gradeai_db.connection.cursor()
+    score = request.form.get('score')
+    feedback = request.form.get('feedback')
+    
+    update_grade_db(cursor, submission_id, score, feedback)
+    gradeai_db.connection.commit()
+    print("Merhaba")
+    flash("Grade and feedback updated successfully!", "success")
+    
+    result = get_submission_details(cursor, submission_id)
+    
+    if result:
+        course_code, assignment_id, student_id = result[-2], result[-1], result[5] # not sure tho changed get_submission_details
+        cursor.close()
+        return redirect(url_for('grade_submission', 
+                                course_code=course_code, 
+                                assignment_id=assignment_id, 
+                                submission_id=submission_id, 
+                                student_id=student_id))
+    else:
+        cursor.close()
+        return redirect(url_for("teacher_dashboard"))
+            
+
 @app.route('/edit_email', methods=['GET', 'POST'])
 @login_required
 def edit_email():
@@ -1636,10 +1741,6 @@ def edit_email():
             cursor.close()
             
     return render_template('edit_email.html')
-
-def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 #LOOK AGAIN
 @app.route('/course_grades_student/<course_name>/<course_code>')

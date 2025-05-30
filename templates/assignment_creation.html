@@ -137,11 +137,74 @@ document.addEventListener('DOMContentLoaded', () => {
     let total = 0;
     pointInputs.forEach(input => total += parseInt(input.value) || 0);
     totalPointsDisplay.textContent = `Total: ${total} points`;
+    
+    // Add visual feedback for 100-point target
+    if (total === 100) {
+      totalPointsDisplay.className = 'badge bg-success';
+      totalPointsDisplay.textContent = `Total: ${total} points ✓`;
+    } else if (total > 100) {
+      totalPointsDisplay.className = 'badge bg-danger';
+      totalPointsDisplay.textContent = `Total: ${total} points (exceeds 100)`;
+    } else {
+      totalPointsDisplay.className = 'badge bg-primary';
+      totalPointsDisplay.textContent = `Total: ${total} points`;
+    }
   }
 
-  function addRubricEntry(description = '', points = 1) {
+  function setupRubricEventListeners(rubricEntry) {
+    // Setup remove button
+    const removeBtn = rubricEntry.querySelector('.remove-rubric-btn');
+    if (removeBtn) {
+      // Remove any existing listeners to prevent duplicates
+      removeBtn.replaceWith(removeBtn.cloneNode(true));
+      const newRemoveBtn = rubricEntry.querySelector('.remove-rubric-btn');
+      
+      newRemoveBtn.addEventListener('click', function () {
+        rubricEntry.remove();
+        updateTotalPoints();
+        
+        // Ensure at least one rubric entry exists
+        if (document.querySelectorAll('.rubric-entry').length === 0) {
+          addRubricEntry('', 0);
+        }
+        
+        // Update visibility of remove buttons
+        updateRemoveButtonVisibility();
+      });
+    }
+
+    // Setup point value change listener
+    const pointInput = rubricEntry.querySelector('.point-value');
+    if (pointInput) {
+      // Remove any existing listeners to prevent duplicates
+      pointInput.replaceWith(pointInput.cloneNode(true));
+      const newPointInput = rubricEntry.querySelector('.point-value');
+      
+      newPointInput.addEventListener('input', updateTotalPoints);
+      newPointInput.addEventListener('change', updateTotalPoints);
+    }
+  }
+
+  function updateRemoveButtonVisibility() {
+    const rubricEntries = document.querySelectorAll('.rubric-entry');
+    rubricEntries.forEach((entry, index) => {
+      const removeBtn = entry.querySelector('.remove-rubric-btn');
+      if (removeBtn) {
+        // Show remove button for all entries except when there's only one
+        removeBtn.style.visibility = rubricEntries.length > 1 ? 'visible' : 'hidden';
+      }
+    });
+  }
+
+  function addRubricEntry(description = '', points = 0, isManual = true) {
     const newRubric = document.createElement('div');
     newRubric.classList.add('rubric-entry');
+    
+    // Add data attribute to track if this is manually entered
+    if (isManual) {
+      newRubric.setAttribute('data-manual', 'true');
+    }
+    
     newRubric.innerHTML = `
       <textarea name="rubric_descriptions[]" rows="2" placeholder="Rubric description..." required>${description}</textarea>
       <input type="number" name="rubric_values[]" placeholder="Value" value="${points}" min="0" required class="point-value" />
@@ -150,31 +213,70 @@ document.addEventListener('DOMContentLoaded', () => {
       </button>
     `;
 
-    newRubric.querySelector('.remove-rubric-btn').addEventListener('click', function () {
-      newRubric.remove();
-      updateTotalPoints();
-      if (document.querySelectorAll('.rubric-entry').length === 0) {
-        addRubricEntry();
-      }
-    });
-
-    newRubric.querySelector('.point-value').addEventListener('change', updateTotalPoints);
-
     rubricContainer.appendChild(newRubric);
+    
+    // Setup event listeners for the new entry
+    setupRubricEventListeners(newRubric);
+    
+    // Update total points and button visibility
     updateTotalPoints();
+    updateRemoveButtonVisibility();
+    
     return newRubric;
   }
 
-  document.querySelectorAll('.rubric-entry').forEach(entry => {
-    const pointInput = entry.querySelector('.point-value');
-    if (pointInput) pointInput.addEventListener('change', updateTotalPoints);
-  });
+  function clearAllRubrics() {
+    // Remove all existing rubric entries
+    const existingEntries = document.querySelectorAll('.rubric-entry');
+    existingEntries.forEach(entry => entry.remove());
+  }
+
+  function initializeExistingRubrics() {
+    // Setup event listeners for any existing rubric entries
+    document.querySelectorAll('.rubric-entry').forEach(entry => {
+      // Mark existing rubrics as manual
+      entry.setAttribute('data-manual', 'true');
+      setupRubricEventListeners(entry);
+    });
+    updateRemoveButtonVisibility();
+    updateTotalPoints();
+  }
+
+  // FIXED: Improved collection of existing rubrics
+  function collectExistingRubrics() {
+    const rubricEntries = document.querySelectorAll('.rubric-entry');
+    const existingRubrics = [];
+    
+    rubricEntries.forEach(entry => {
+      const descTextarea = entry.querySelector('textarea[name="rubric_descriptions[]"]');
+      const pointsInput = entry.querySelector('input[name="rubric_values[]"]');
+      
+      if (descTextarea && pointsInput) {
+        const description = descTextarea.value.trim();
+        const points = parseInt(pointsInput.value) || 0;
+        
+        // FIXED: Include all rubrics with descriptions, even if points are 0
+        // This ensures manually entered rubrics are preserved
+        if (description) {
+          existingRubrics.push({
+            description: description,
+            points: points,
+            isManual: entry.getAttribute('data-manual') === 'true'
+          });
+        }
+      }
+    });
+    
+    console.log('Collected existing rubrics:', existingRubrics);
+    return existingRubrics;
+  }
+
+  // Initialize existing rubrics on page load
+  initializeExistingRubrics();
 
   addRubricBtn.addEventListener('click', () => addRubricEntry());
 
-  updateTotalPoints();
-
-  // Rubric generation with existing rubrics
+  // FIXED: Improved rubric generation with better protection
   const generateRubricBtn = document.getElementById('generate-rubric-btn');
   const generationStatus = document.getElementById('generation-status');
   const assignmentDescription = document.getElementById('assignment-description');
@@ -187,14 +289,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Collect existing rubric descriptions and values
-    const rubricDescriptions = Array.from(document.getElementsByName('rubric_descriptions[]')).map(el => el.value.trim());
-    const rubricValues = Array.from(document.getElementsByName('rubric_values[]')).map(el => parseInt(el.value) || 0);
-
-    const existingRubrics = rubricDescriptions.map((desc, i) => ({
-      description: desc,
-      points: rubricValues[i]
-    }));
+    // FIXED: Better collection and validation of existing rubrics
+    const existingRubrics = collectExistingRubrics();
+    
+    // Calculate total existing points (only count rubrics with points > 0)
+    const validExistingRubrics = existingRubrics.filter(r => r.points > 0);
+    const totalExistingPoints = validExistingRubrics.reduce((sum, rubric) => sum + rubric.points, 0);
+    
+    // Show confirmation if there are existing rubrics with points
+    if (validExistingRubrics.length > 0) {
+      const confirmMessage = `You have ${validExistingRubrics.length} existing rubric(s) worth ${totalExistingPoints} points total.\n\nClick OK to generate new rubrics that will complement your existing ones to reach 100 points.\n\nClick Cancel to keep your current rubrics.`;
+      
+      if (!confirm(confirmMessage)) {
+        return; // User cancelled
+      }
+    }
 
     generateRubricBtn.disabled = true;
     generationStatus.style.display = 'block';
@@ -204,26 +313,78 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          description,
-          existing_rubrics: existingRubrics
+          description: description,
+          existing_rubrics: validExistingRubrics // Only send rubrics with points > 0
         })
       });
 
       const data = await response.json();
+      console.log('Server response:', data);
 
       if (data.success && Array.isArray(data.rubric_items)) {
-        // Clear and insert new rubrics
-        document.querySelectorAll('.rubric-entry').forEach(entry => entry.remove());
-        data.rubric_items.forEach(item => addRubricEntry(item.description, item.points));
+        if (data.rubric_items.length === 0) {
+          alert('All 100 points have been allocated with your existing rubrics. No additional rubrics needed.');
+          return;
+        }
+
+        // FIXED: Preserve ALL existing rubrics (including those with 0 points)
+        clearAllRubrics();
+        
+        // Add back ALL existing rubrics (including manual ones with 0 points)
+        existingRubrics.forEach(rubric => {
+          addRubricEntry(rubric.description, rubric.points, rubric.isManual);
+        });
+        
+        // Then add the new generated rubrics (marked as non-manual)
+        data.rubric_items.forEach(item => {
+          addRubricEntry(item.description, item.points, false);
+        });
+        
+        // Show success message with point breakdown
+        const newPoints = data.rubric_items.reduce((sum, item) => sum + item.points, 0);
+        const totalPoints = totalExistingPoints + newPoints;
+        
+        alert(`Successfully generated ${data.rubric_items.length} new rubric(s) worth ${newPoints} points.\n\nTotal rubric system: ${totalPoints} points`);
+        
       } else {
-        alert('Could not generate rubric suggestions. Please try again.');
+        console.error('Server error:', data);
+        alert(data.message || 'Could not generate rubric suggestions. Please try again.');
       }
     } catch (err) {
-      console.error(err);
-      alert('An error occurred while generating rubric suggestions.');
+      console.error('Request error:', err);
+      alert('An error occurred while generating rubric suggestions. Please check your connection and try again.');
     } finally {
       generateRubricBtn.disabled = false;
       generationStatus.style.display = 'none';
+    }
+  });
+
+  // Form submission validation
+  const assignmentForm = document.getElementById('assignment-form');
+  assignmentForm.addEventListener('submit', (e) => {
+    const totalPoints = document.querySelectorAll('.point-value');
+    let sum = 0;
+    totalPoints.forEach(input => sum += parseInt(input.value) || 0);
+    
+    if (sum !== 100) {
+      e.preventDefault();
+      alert(`Total rubric points must equal 100. Currently: ${sum} points.\n\nPlease adjust your rubric values or use "Generate Rubric Suggestions" to reach exactly 100 points.`);
+      return false;
+    }
+    
+    // Check for empty rubric descriptions
+    const descriptions = document.querySelectorAll('textarea[name="rubric_descriptions[]"]');
+    let hasEmptyDescription = false;
+    descriptions.forEach(desc => {
+      if (!desc.value.trim()) {
+        hasEmptyDescription = true;
+      }
+    });
+    
+    if (hasEmptyDescription) {
+      e.preventDefault();
+      alert('Please fill in all rubric descriptions or remove empty rubrics.');
+      return false;
     }
   });
 });

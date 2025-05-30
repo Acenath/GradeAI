@@ -214,9 +214,22 @@ def fetch_classes(cursor, user_id):
     return courses
 
 def fetch_profile_picture(cursor, user_id):
-    cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (user_id,))
-    result = cursor.fetchone()
-    return result[0] if result else None
+    # Look for profile pictures in the uploads directory
+    profile_pics_dir = os.path.join('static', 'uploads', 'profile_pics')
+    if not os.path.exists(profile_pics_dir):
+        os.makedirs(profile_pics_dir, exist_ok=True)
+        return None
+        
+    # Look for files that start with the user_id
+    for filename in os.listdir(profile_pics_dir):
+        if filename.startswith(f"{user_id}_"):
+            # Convert Windows path to URL path
+            relative_path = 'uploads/profile_pics/' + filename
+            # Verify the file exists using OS path
+            full_path = os.path.join('static', 'uploads', 'profile_pics', filename)
+            if os.path.exists(full_path):
+                return relative_path
+    return None
 
 def enroll_student(cursor, student_id, class_id):
     cursor.execute(''' INSERT INTO enrollment (enrollment_id, enrolled_at, class_id, student_id)

@@ -12,12 +12,6 @@
     </a>
 </div>
 
-    <!-- Debug information -->
-    <div class="debug-info mb-3">
-        <p>Course Code: {{ course_code }}</p>
-        <p>Number of announcements: {{ announcements|length }}</p>
-    </div>
-
     <div class="announcements-list">
         {% if announcements %}
             {% for announcement in announcements %}

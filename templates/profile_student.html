@@ -32,12 +32,7 @@
       <div class="profile-pic-container position-relative d-inline-block">
         <div class="profile-pic">
           {% if profile_pic %}
-            <!-- Debug info -->
-            <div style="display: none;" id="debug-info">
-              Profile pic path: {{ profile_pic }}
-              Full URL: {{ url_for('static', filename=profile_pic) }}
-            </div>
-            <img src="{{ url_for('static', filename=profile_pic) }}" alt="Profile Picture" class="profile-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="console.error('Failed to load profile picture:', this.src); document.getElementById('debug-info').style.display='block'; this.onerror=null; this.parentElement.innerHTML='<i class=\'far fa-user\' style=\'font-size: 40px; color: #6c757d;\'></i>';">
+            <img src="{{ url_for('static', filename=profile_pic) }}" alt="Profile Picture" class="profile-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'far fa-user\' style=\'font-size: 40px; color: #6c757d;\'></i>';">
           {% else %}
             <i class="far fa-user" style="font-size: 40px; color: #6c757d;"></i>
           {% endif %}

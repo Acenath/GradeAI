@@ -38,27 +38,16 @@
   <div class="upload-container">
     <h2 class="upload-title">Update Profile Picture</h2>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages and request.method == 'POST' %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}">
-            {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
     <!-- Current Profile Picture Preview -->
     <div class="current-profile">
       <div class="profile-preview">
         {% if profile_pic %}
-          <img src="{{ url_for('static', filename=profile_pic) }}" alt="Current Profile Picture" id="profile-preview-img">
+          <img src="{{ url_for('static', filename=profile_pic) }}" alt="Current Profile Picture" id="profile-preview-img" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'far fa-user default-user-icon\'></i>';">
         {% else %}
           <i class="far fa-user default-user-icon"></i>
         {% endif %}
       </div>
-      <p>Current Profile Picture</p>
+      <p id="preview-label">Current Profile Picture</p>
     </div>
 
     <!-- Upload Form -->
@@ -69,7 +58,7 @@
           <label for="profile_image" class="file-upload-label">
             <i class="fas fa-upload"></i> Choose File
           </label>
-          <input type="file" id="profile_image" name="profile_image" class="form-control" accept="image/png, image/jpeg, image/jpg" onchange="updateFileName(this)">
+          <input type="file" id="profile_image" name="profile_image" class="form-control" accept="image/png, image/jpeg, image/jpg" onchange="previewImage(this)">
           <div id="file-name">No file chosen</div>
         </div>
         <small class="form-text text-muted">
@@ -82,61 +71,23 @@
       </div>
     </form>
   </div>
-
   <script>
-    // Display selected filename
-    function updateFileName(input) {
-      const fileName = input.files[0] ? input.files[0].name : "No file chosen";
-      document.getElementById('file-name').textContent = fileName;
-
-      // Preview the image
+    function previewImage(input) {
       if (input.files && input.files[0]) {
-        const reader = new FileReader();
-
+        var reader = new FileReader();
         reader.onload = function(e) {
-          const previewContainer = document.querySelector('.profile-preview');
-
-          // Remove default icon if it exists
-          const defaultIcon = previewContainer.querySelector('.default-user-icon');
-          if (defaultIcon) {
-            defaultIcon.remove();
-          }
-
-          // Check if image already exists
-          let previewImg = document.getElementById('profile-preview-img');
-
-          if (!previewImg) {
-            // Create new image element if it doesn't exist
-            previewImg = document.createElement('img');
-            previewImg.id = 'profile-preview-img';
-            previewImg.alt = 'Profile Picture Preview';
-            previewContainer.appendChild(previewImg);
-          }
-
-          // Set the image source
-          previewImg.src = e.target.result;
+          var previewContainer = document.querySelector('.profile-preview');
+          var previewLabel = document.getElementById('preview-label');
+          // Update the preview image
+          previewContainer.innerHTML = `<img src="${e.target.result}" alt="New Profile Picture Preview" style="max-width: 200px; max-height: 200px; border-radius: 50%;">`;
+          // Update the label
+          previewLabel.textContent = 'New Profile Picture Preview';
+          // Update file name
+          document.getElementById('file-name').textContent = input.files[0].name;
         }
-
         reader.readAsDataURL(input.files[0]);
       }
     }
-
-    // Log errors if profile image fails to load
-    document.addEventListener('DOMContentLoaded', function() {
-      const profileImg = document.getElementById('profile-preview-img');
-      if (profileImg) {
-        profileImg.onerror = function() {
-          console.error('Failed to load profile image:', this.src);
-          // Replace with default icon if image fails to load
-          const previewContainer = document.querySelector('.profile-preview');
-          this.remove();
-
-          const defaultIcon = document.createElement('i');
-          defaultIcon.className = 'far fa-user default-user-icon';
-          previewContainer.appendChild(defaultIcon);
-        }
-      }
-    });
   </script>
 </body>
 </html>

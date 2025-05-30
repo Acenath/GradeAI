@@ -7,7 +7,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/teacher_course_base.css') }}" />
-
 </head>
 <body>
   <!-- Navbar -->
@@ -37,16 +36,19 @@
 
   <!-- Main Content -->
   <div class="content-container">
-    <!-- Wrap everything important inside the form -->
-    <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" id="classForm">
+    <!-- Add Student Section -->
+    <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" class="mb-4">
+      <input type="hidden" name="action" value="add_student">
+      <input type="hidden" name="temp_students_json" value="{{ temp_students_json or '' }}">
+      
       <!-- Course Section -->
       <div class="section course-section">
         <div class="course-header">
           <h5 class="section-title">Course Information</h5>
           <div class="course-inputs d-flex align-items-center">
-            <input type="text" class="form-control me-2" style="max-width: 250px;" name="course_name" required placeholder="Course Name">
+            <input type="text" class="form-control me-2" style="max-width: 250px;" name="course_name" required placeholder="Course Name" value="{{ course_name or '' }}">
             /
-            <input type="text" class="form-control ms-2" style="max-width: 150px;" name="course_code" required placeholder="Code">
+            <input type="text" class="form-control ms-2" style="max-width: 150px;" name="course_code" required placeholder="Code" value="{{ course_code or '' }}">
           </div>
         </div>
       </div>
@@ -58,229 +60,90 @@
         <!-- Add Student Section -->
         <div class="add-student-section mb-4">
           <div class="input-group mb-3" style="max-width: 320px;">
-            <input type="text" id="studentNo" class="form-control" placeholder="Student Number e.g. 21SOFT1013">
-            <button type="button" id="addStudentBtn" class="btn btn-primary">
+            <input type="text" name="studentNo" class="form-control" placeholder="Student Number e.g. 21SOFT1013">
+            <button type="submit" class="btn btn-primary">
               <i class="fas fa-plus"></i> Add Student
             </button>
           </div>
-
-          <div class="csv-option mt-3">
-            <p class="text-muted">Or upload CSV file</p>
-            <label for="fileInput" class="file-upload-btn">
-              <i class="fas fa-file-upload"></i> Choose File
-            </label>
-            <input type="file" id="fileInput" name="fileInput" accept=".csv">
-            <span id="fileName">No file chosen</span>
-          </div>
-        </div>
-
-        <!-- Student List Section -->
-        <div class="student-list-section">
-          <div class="table-scroll-container">
-            <table class="student-table">
-              <thead>
-                <tr>
-                  <th>Student No</th>
-                  <th>Student Name</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="studentTableBody">
-                {% if enrolled_students %}
-                  {% for student in enrolled_students %}
-                    <tr data-student-no="{{ student[0] }}">
-                      <td>{{ student[0] }}</td>
-                      <td>{{ student[1] }} {{ student[2] }}</td>
-                      <td>
-                        <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
-                          <i class="fas fa-trash"></i> Remove
-                        </button>
-                      </td>
-                    </tr>
-                  {% endfor %}
-                {% endif %}
-              </tbody>
-            </table>
-          </div>
-
-          {% if not enrolled_students %}
-          <div class="no-students-message" id="noStudentsMessage">
-            No students added yet. Add students manually or upload a CSV file.
-          </div>
-          {% endif %}
         </div>
       </div>
-
-      <!-- Create Button -->
-      <button type="submit" class="create-button">
-        {% if course_code %}Update{% else %}Create{% endif %} Class
-      </button>
-
-      <!-- Hidden input to store student data -->
-      <input type="hidden" id="studentsData" name="studentsData" value="">
-      <input type="hidden" id="deleteStudents" name="deleteStudents" value="[]">
     </form>
-  </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      updateNoStudentsMessage();
-      updateStudentsData();
-    });
-
-    // Track deleted students
-    const deletedStudents = new Set();
-
-    function addStudent() {
-      const studentNo = document.getElementById('studentNo').value.trim();
-
-      if (!studentNo) {
-        alert('Please enter a student number');
-        return;
-      }
-
-      // Check for duplicates
-      const existingRows = document.querySelectorAll('#studentTableBody tr');
-      for (let row of existingRows) {
-        if (row.dataset.studentNo === studentNo) {
-          alert('This student is already in the list');
-          return;
-        }
-      }
-
-      // Add row with loading state
-      const row = document.createElement('tr');
-      row.dataset.studentNo = studentNo;
-      row.innerHTML = `
-        <td>${studentNo}</td>
-        <td><span class="loader"></span> Loading...</td>
-        <td>
-          <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
-            <i class="fas fa-trash"></i> Remove
-          </button>
-        </td>
-      `;
-      document.getElementById('studentTableBody').appendChild(row);
-
-      // Fetch student info
-      fetch(`/get_student_info/${studentNo}`)
-        .then(response => response.json())
-        .then(data => {
-          const nameCell = row.cells[1];
-          if (data.success) {
-            nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
-          } else {
-            nameCell.innerHTML = '<span class="text-danger">Not in system</span>';
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching student info:', error);
-          const nameCell = row.cells[1];
-          nameCell.innerHTML = '<span class="text-danger">Error fetching info</span>';
-        });
-
-      document.getElementById('studentNo').value = ''; // Clear input
-      updateNoStudentsMessage();
-      updateStudentsData();
-    }
-
-    function removeStudent(button) {
-      const row = button.closest('tr');
-      const studentNo = row.dataset.studentNo;
-
-      deletedStudents.add(studentNo);
-      document.getElementById('deleteStudents').value = JSON.stringify(Array.from(deletedStudents));
-      row.remove();
-      updateNoStudentsMessage();
-      updateStudentsData();
-    }
-
-    function updateStudentsData() {
-      const students = Array.from(document.querySelectorAll('#studentTableBody tr')).map(row =>
-        row.cells[0].textContent.trim()
-      );
-      document.getElementById('studentsData').value = JSON.stringify(students);
-    }
-
-    function updateNoStudentsMessage() {
-      const hasStudents = document.querySelectorAll('#studentTableBody tr').length > 0;
-      const noStudentsMessage = document.getElementById('noStudentsMessage');
-
-      if (noStudentsMessage) {
-        noStudentsMessage.style.display = hasStudents ? 'none' : 'block';
-      }
-    }
-
-    function processCSVFile(file) {
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const csvData = event.target.result;
-        const lines = csvData.split('\n');
-
-        // Process each line
-        lines.forEach(line => {
-          const studentNo = line.trim();
-          if (!studentNo) return; // Skip empty lines
-
-          // Check for duplicates
-          const existingRows = document.querySelectorAll('#studentTableBody tr');
-          let isDuplicate = false;
-          for (let row of existingRows) {
-            if (row.dataset.studentNo === studentNo) {
-              isDuplicate = true;
-              break;
-            }
-          }
-
-          if (!isDuplicate) {
-            // Add row with loading state
-            const row = document.createElement('tr');
-            row.dataset.studentNo = studentNo;
-            row.innerHTML = `
-              <td>${studentNo}</td>
-              <td><span class="loader"></span> Loading...</td>
-              <td>
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeStudent(this)">
-                  <i class="fas fa-trash"></i> Remove
-                </button>
-              </td>
-            `;
-            document.getElementById('studentTableBody').appendChild(row);
-
-            // Fetch student info
-            fetch(`/get_student_info/${studentNo}`)
-              .then(response => response.json())
-              .then(data => {
-                const nameCell = row.cells[1];
-                if (data.success) {
-                  nameCell.innerHTML = `${data.firstName} ${data.lastName}`;
-                } else {
-                  nameCell.innerHTML = '<span class="text-danger">Not in system</span>';
-                }
-              })
-              .catch(error => {
-                console.error('Error fetching student info:', error);
-                const nameCell = row.cells[1];
-                nameCell.innerHTML = '<span class="text-danger">Error fetching info</span>';
-              });
-          }
-        });
-        
-        updateNoStudentsMessage();
-        updateStudentsData();
-      };
-      reader.readAsText(file);
-    }
-
-    document.getElementById('addStudentBtn').addEventListener('click', addStudent);
-    
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
+    <!-- CSV Upload Section -->
+    <form action="{{ url_for('blockview_teacher') }}" method="POST" enctype="multipart/form-data" class="mb-4">
+      <input type="hidden" name="course_name" value="{{ course_name or '' }}">
+      <input type="hidden" name="course_code" value="{{ course_code or '' }}">
+      <input type="hidden" name="action" value="upload_csv">
+      <input type="hidden" name="temp_students_json" value="{{ temp_students_json or '' }}">
       
-      document.getElementById('fileName').textContent = file.name;
-      processCSVFile(file);
-    });
-  </script>
+      <div class="section student-management">
+        <div class="csv-option">
+          <p class="text-muted">Or upload CSV file</p>
+          <div class="d-flex align-items-center">
+            <input type="file" name="fileInput" accept=".csv" class="form-control me-2" style="max-width: 300px;">
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-file-upload"></i> Upload CSV
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Student List Section -->
+    <div class="section student-management">
+      <div class="student-list-section">
+        {% if enrolled_students %}
+        <div class="table-scroll-container">
+          <table class="student-table">
+            <thead>
+              <tr>
+                <th>Student No</th>
+                <th>Student Name</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for student in enrolled_students %}
+                <tr>
+                  <td>{{ student[0] }}</td>
+                  <td>{{ student[1] }} {{ student[2] }}</td>
+                  <td>
+                    <form action="{{ url_for('blockview_teacher') }}" method="POST" style="display: inline;">
+                      <input type="hidden" name="course_name" value="{{ course_name }}">
+                      <input type="hidden" name="course_code" value="{{ course_code }}">
+                      <input type="hidden" name="action" value="remove_student">
+                      <input type="hidden" name="student_to_remove" value="{{ student[0] }}">
+                      <input type="hidden" name="temp_students_json" value="{{ temp_students_json or '' }}">
+                      <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to remove this student?')">
+                        <i class="fas fa-trash"></i> Remove
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="no-students-message">
+          No students added yet. Add students manually or upload a CSV file.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Create/Update Course Button -->
+    {% if not course_code or (course_code and enrolled_students) %}
+    <form action="{{ url_for('blockview_teacher') }}" method="POST">
+      <input type="hidden" name="course_name" value="{{ course_name or '' }}">
+      <input type="hidden" name="course_code" value="{{ course_code or '' }}">
+      <input type="hidden" name="action" value="create_course">
+      <input type="hidden" name="temp_students_json" value="{{ temp_students_json or '' }}">
+      <button type="submit" class="create-button">
+        Create Class
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </body>
 </html>

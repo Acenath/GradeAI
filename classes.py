@@ -552,7 +552,7 @@ class SubmissionIDManager:
         """
         filename_base = filename.split('.')[0] if '.' in filename else filename
         # Use hash to handle long filenames and special characters
-        filename_hash = hashlib.md5(filename_base.encode()).hexdigest()[:8]
+        filename_hash = hashlib.md5(student_id.encode()).hexdigest()[:8]
         return f"{assignment_id}_{student_id}_{filename_hash}"
     
     @staticmethod

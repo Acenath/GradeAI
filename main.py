@@ -223,75 +223,396 @@ def about():
     return render_template("aboutus.html")
 
 
-@app.route('/blockview_teacher', methods=["GET", "POST"])
+@app.route('/blockview_teacher', methods=['GET', 'POST'])
 @login_required
 def blockview_teacher():
-    if request.method == "POST":
-        student_list = set()
-        course_name = request.form.get("course_name")
-        course_code = request.form.get("course_code")
-        student_id = request.form.get("studentNo")
-        enrollment_csv_file = request.files.get("fileInput")
-        student_list.add(student_id)
-        cursor = gradeai_db.connection.cursor()
-
-        handle_class_creation(cursor, course_code, course_name, current_user.user_id)
-
-        #enroll_students
-        if enrollment_csv_file:
-            save_files(enrollment_csv_file, "enrollments", course_code)
-            csv_student_list = process_csv(ENROLLMENTS_FILES_DIR, course_code)
-            for student_id in csv_student_list:
-                student_list.add(student_id)
-
-        if student_list:
-            for student_id in student_list:
-                enroll_student(cursor, student_id, course_code)
-
-        #TODO:
-        # Problem here
-        # User should be able to delete any user he or she wants whenever clicks on the remove button located at html
-        # It should be dynamic
-        deleted_students = request.form.get("deleteStudents")
-        if deleted_students:
-            removed = handle_student_removal(cursor, deleted_students, course_code)
-            if removed:
-                flash(f"{len(removed)} students removed from the course.", "success")
-
-        #TODO END
-        gradeai_db.connection.commit()
-
-        enrolled_students = get_enrolled_students(cursor, course_code)
-        cursor.close()
-
-        return render_template("blockview_teacher.html",
-                               course_name=course_name,
-                               course_code=course_code,
-                               enrolled_students=enrolled_students)
-
-    return render_template("blockview_teacher.html")
-
-
-@app.route('/get_student_info/<student_id>', methods=["GET", "POST"])
-@login_required
-def get_student_info(student_id):
+    """Handle class creation with student management functionality"""
+    
+    if request.method == 'GET':
+        # Initialize empty form for new class creation
+        return render_template('blockview_teacher.html', 
+                             course_name='', 
+                             course_code='', 
+                             enrolled_students=[],
+                             temp_students_json='')
+    
+    # Handle POST requests
     cursor = gradeai_db.connection.cursor()
-    student = fetch_student_info(cursor, student_id)
-    cursor.close()
+    
+    try:
+        # Get form data
+        course_name = request.form.get('course_name', '').strip()
+        course_code = request.form.get('course_code', '').strip()
+        action = request.form.get('action', '')
+        temp_students_json = request.form.get('temp_students_json', '')
+        
+        # Parse existing temporary students from form
+        temp_students = []
+        if temp_students_json:
+            try:
+                import json
+                temp_students = json.loads(temp_students_json)
+            except:
+                temp_students = []
+        
+        # Get current enrolled students
+        enrolled_students = get_current_students_list(cursor, course_code, temp_students)
+        
+        # Handle different actions
+        if action == 'add_student':
+            return handle_add_student(cursor, course_name, course_code, enrolled_students, temp_students)
+            
+        elif action == 'upload_csv':
+            return handle_csv_upload(cursor, course_name, course_code, enrolled_students, temp_students)
+            
+        elif action == 'remove_student':
+            return handle_remove_student(cursor, course_name, course_code, enrolled_students, temp_students)
+            
+        elif action == 'create_course':
+            return handle_create_course(cursor, course_name, course_code, enrolled_students)
+        
+        else:
+            flash('Invalid action', 'danger')
+            return render_template('blockview_teacher.html', 
+                                 course_name=course_name, 
+                                 course_code=course_code, 
+                                 enrolled_students=enrolled_students,
+                                 temp_students_json=temp_students_json)
+    
+    except Exception as e:
+        flash(f'An error occurred: {str(e)}', 'danger')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name or '', 
+                             course_code=course_code or '', 
+                             enrolled_students=[],
+                             temp_students_json='')
+    finally:
+        if cursor:
+            cursor.close()
 
-    if student["success"]:
-        return jsonify({
-            "success": True,
-            "firstName": student["first_name"],
-            "lastName": student["last_name"]
-        })
+def get_current_students_list(cursor, course_code, temp_students):
+    """Get current students - either from database (if course exists) or from temp list"""
+    if course_code:
+        # Check if course actually exists in database
+        try:
+            cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+            course_exists = cursor.fetchone() is not None
+            
+            if course_exists:
+                # Course exists, get from database
+                return get_enrolled_students(cursor, course_code)
+            else:
+                # Course code provided but doesn't exist yet, use temp students
+                return temp_students
+        except:
+            return temp_students
     else:
-        return jsonify({
-            "success": False,
-            "message": student.get("message", "Student not found")
-        })
+        # No course code provided, use temp students
+        return temp_students
 
+def create_temp_students_json(temp_students):
+    """Convert temp students list to JSON string for form persistence"""
+    import json
+    return json.dumps(temp_students)
 
+def handle_add_student(cursor, course_name, course_code, current_students, temp_students):
+    """Handle adding a single student manually"""
+    student_id = request.form.get('studentNo', '').strip()
+    
+    # Convert temp_students to JSON for persistence
+    temp_students_json = create_temp_students_json(temp_students)
+    
+    if not student_id:
+        flash('Please enter a student number', 'warning')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    # Check if student exists in users table
+    student_info = fetch_student_info(cursor, student_id)
+    if not student_info['success']:
+        flash(f'Student {student_id} not found in the system', 'danger')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    # Check if student is already in the list
+    student_already_exists = any(student[0] == student_id for student in current_students)
+    if student_already_exists:
+        flash(f'Student {student_id} is already in the list', 'warning')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    # Check if course exists in database
+    cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+    course_exists = cursor.fetchone() is not None
+    
+    if course_exists:
+        # Course exists in database, enroll immediately
+        enroll_student(cursor, student_id, course_code)
+        gradeai_db.connection.commit()  # Commit the transaction
+        flash(f'Student {student_id} ({student_info["first_name"]} {student_info["last_name"]}) added successfully', 'success')
+        # Refresh enrolled students list from database
+        current_students = get_enrolled_students(cursor, course_code)
+        temp_students_json = create_temp_students_json([])  # Clear temp list for existing course
+    else:
+        # Course doesn't exist yet, add to temporary list
+        flash(f'Student {student_id} ({student_info["first_name"]} {student_info["last_name"]}) added to list', 'success')
+        temp_student = [student_id, student_info['first_name'], student_info['last_name']]
+        temp_students.append(temp_student)
+        current_students = temp_students
+        temp_students_json = create_temp_students_json(temp_students)
+        del temp_students_json
+    
+    return render_template('blockview_teacher.html', 
+                         course_name=course_name, 
+                         course_code=course_code, 
+                         enrolled_students=current_students,
+                         temp_students_json=temp_students_json)
+
+def handle_csv_upload(cursor, course_name, course_code, current_students, temp_students):
+    """Handle CSV file upload for bulk student enrollment"""
+    
+    # Convert temp_students to JSON for persistence
+    temp_students_json = create_temp_students_json(temp_students)
+    
+    if 'fileInput' not in request.files:
+        flash('No file selected', 'danger')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    file = request.files['fileInput']
+    
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    if not file.filename.lower().endswith('.csv'):
+        flash('Please upload a CSV file', 'danger')
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    try:
+        # Save the uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_path = os.path.join(ENROLLMENTS_FILES_DIR, filename)
+        os.makedirs(ENROLLMENTS_FILES_DIR, exist_ok=True)
+        file.save(temp_path)
+        
+        # Process CSV file
+        added_students = []
+        failed_students = []
+        current_student_ids = [student[0] for student in current_students]
+        
+        with open(temp_path, 'r', newline='', encoding='utf-8') as csvfile:
+            csv_reader = csv.reader(csvfile)
+            
+            for row_num, row in enumerate(csv_reader, 1):
+                if not row or not row[0].strip():  # Skip empty rows
+                    continue
+                
+                student_id = row[0].strip()
+                
+                # Check if student already in current list
+                if student_id in current_student_ids:
+                    failed_students.append(f"Row {row_num}: Student {student_id} already in list")
+                    continue
+                
+                # Check if student exists
+                student_info = fetch_student_info(cursor, student_id)
+                if not student_info['success']:
+                    failed_students.append(f"Row {row_num}: Student {student_id} not found")
+                    continue
+                
+                # Check if course exists in database
+                course_exists = False
+                if course_code:
+                    cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+                    course_exists = cursor.fetchone() is not None
+                
+                if course_exists:
+                    # Course exists, enroll immediately
+                    enroll_student(cursor, student_id, course_code)
+                    added_students.append(f"{student_id} ({student_info['first_name']} {student_info['last_name']})")
+                else:
+                    # Course doesn't exist yet, add to temporary list
+                    added_students.append(f"{student_id} ({student_info['first_name']} {student_info['last_name']})")
+                    temp_student = [student_id, student_info['first_name'], student_info['last_name']]
+                    temp_students.append(temp_student)
+        
+        # Commit database changes if course exists
+        course_exists = False
+        if course_code:
+            cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+            course_exists = cursor.fetchone() is not None
+            
+        if course_exists:
+            gradeai_db.connection.commit()
+            # Refresh from database
+            current_students = get_enrolled_students(cursor, course_code)
+            temp_students_json = create_temp_students_json([])
+        else:
+            # Update current list and JSON
+            current_students = temp_students
+            temp_students_json = create_temp_students_json(temp_students)
+        
+        # Clean up temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        # Show results
+        if added_students:
+            flash(f'Successfully processed {len(added_students)} students', 'success')
+        
+        if failed_students:
+            flash(f'{len(failed_students)} students failed: {"; ".join(failed_students[:3])}{"..." if len(failed_students) > 3 else ""}', 'warning')
+    
+    except Exception as e:
+        flash(f'Error processing CSV file: {str(e)}', 'danger')
+        # Clean up temporary file on error
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+    
+    return render_template('blockview_teacher.html', 
+                         course_name=course_name, 
+                         course_code=course_code, 
+                         enrolled_students=current_students,
+                         temp_students_json=temp_students_json)
+
+def handle_remove_student(cursor, course_name, course_code, current_students, temp_students):
+    """Handle removing a student from the course"""
+    student_to_remove = request.form.get('student_to_remove', '').strip()
+    
+    if not student_to_remove:
+        flash('No student specified for removal', 'danger')
+        temp_students_json = create_temp_students_json(temp_students)
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    try:
+        # Check if course exists in database
+        course_exists = False
+        if course_code:
+            cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+            course_exists = cursor.fetchone() is not None
+            
+        if course_exists:
+            # Course exists, remove from database
+            removed_students = handle_student_removal(cursor, student_to_remove, course_code)
+            
+            if removed_students:
+                gradeai_db.connection.commit()  # Commit the transaction
+                flash(f'Student {student_to_remove} removed successfully', 'success')
+                # Refresh enrolled students list from database
+                current_students = get_enrolled_students(cursor, course_code)
+                temp_students_json = create_temp_students_json([])
+            else:
+                flash(f'Failed to remove student {student_to_remove}', 'danger')
+                temp_students_json = create_temp_students_json([])
+        else:
+            # Course doesn't exist yet, remove from temporary list
+            temp_students = [student for student in temp_students if student[0] != student_to_remove]
+            current_students = temp_students
+            temp_students_json = create_temp_students_json(temp_students)
+            flash(f'Student {student_to_remove} removed from list', 'success')
+    
+    except Exception as e:
+        flash(f'Error removing student: {str(e)}', 'danger')
+        temp_students_json = create_temp_students_json(temp_students)
+    
+    return render_template('blockview_teacher.html', 
+                         course_name=course_name, 
+                         course_code=course_code, 
+                         enrolled_students=current_students,
+                         temp_students_json=temp_students_json)
+
+def handle_create_course(cursor, course_name, course_code, current_students):
+    """Handle creating the course/class"""
+    
+    # Validate required fields
+    if not course_name or not course_code:
+        flash('Course name and code are required', 'danger')
+        temp_students_json = create_temp_students_json(current_students if not course_code else [])
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json)
+    
+    try:
+        # Check if class already exists
+        cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
+        existing_class = cursor.fetchone()
+        
+        if existing_class:
+            flash(f'A class with code {course_code} already exists', 'danger')
+            temp_students_json = create_temp_students_json(current_students if not course_code else [])
+            return render_template('blockview_teacher.html', 
+                                 course_name=course_name, 
+                                 course_code=course_code, 
+                                 enrolled_students=current_students,
+                                 temp_students_json=temp_students_json)
+        
+        # Create the class
+        teacher_id = current_user.user_id
+        create_class(cursor, course_code, course_name, teacher_id)
+        
+        # If there are students in the temporary list, enroll them
+        enrolled_count = 0
+        if current_students:
+            for student in current_students:
+                student_id = student[0]
+                try:
+                    if not is_student_enrolled(cursor, student_id, course_code):
+                        enroll_student(cursor, student_id, course_code)
+                        enrolled_count += 1
+                except Exception as e:
+                    print(f"Error enrolling student {student_id}: {e}")
+                    continue
+        
+        # Commit all changes
+        gradeai_db.connection.commit()
+        
+        # Success message
+        success_msg = f'Class "{course_name}" ({course_code}) created successfully'
+        if enrolled_count > 0:
+            success_msg += f' with {enrolled_count} students enrolled'
+        
+        flash(success_msg, 'success')
+        
+        # Redirect to course management or dashboard
+        return redirect(url_for('teacher_dashboard'))  # or wherever you want to redirect
+        
+    except Exception as e:
+        flash(f'Error creating class: {str(e)}', 'danger')
+        # Rollback on error
+        gradeai_db.connection.rollback()
+        temp_students_json = create_temp_students_json(current_students if not course_code else [])
+        return render_template('blockview_teacher.html', 
+                             course_name=course_name, 
+                             course_code=course_code, 
+                             enrolled_students=current_students,
+                             temp_students_json=temp_students_json) 
 @app.route('/student_dashboard')
 @login_required
 def student_dashboard():
@@ -461,8 +782,8 @@ def view_assignments(course_code):
 @app.route('/assignment_creation/<course_code>', methods=["GET", "POST"])
 @login_required
 def assignment_creation(course_code):
+    cursor = gradeai_db.connection.cursor()
     if request.method == "POST":
-        cursor = gradeai_db.connection.cursor()
         assignment_title = request.form.get("title")
         assignment_desc = request.form.get("description")
         assignment_files = request.files.getlist("attachments")
@@ -538,12 +859,21 @@ def assignment_feedback_teacher(course_name, course_code):
     return render_template("assignment_feedback_teacher.html", feedbacks=feedbacks, course_name=course_name,
                            course_code=course_code)
 
-
 @app.route('/assignment_grades_student/<course_name>/<course_code>')
 @login_required
 def assignment_grades_student(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
- 
+    cursor.execute("""
+        SELECT a.title as assignment_title, g.score, g.feedback, 
+               g.adjusted_at as graded_at, c.name as course_name, 
+               c.class_id as course_code
+        FROM grade g 
+        JOIN submission s ON g.submission_id = s.submission_id 
+        JOIN assignment a ON s.assignment_id = a.assignment_id 
+        JOIN class c ON a.class_id = c.class_id 
+        WHERE s.student_id = %s AND c.class_id = %s
+        ORDER BY g.adjusted_at DESC
+    """, (current_user.user_id, course_code))
     grades = cursor.fetchall()
     cursor.close()
     return render_template("assignment_grades_student.html",
@@ -835,7 +1165,7 @@ def grade_submission(course_code, assignment_id, submission_id, student_id):
     cursor = gradeai_db.connection.cursor()
     
     # Get student info
-    student = get_user_info(student_id)
+    student = get_user_info(cursor, student_id)
     student = {'first_name': student[3], 'last_name': student[4], 'user_id': student[0]}
     
     # Get assignment info
@@ -848,8 +1178,8 @@ def grade_submission(course_code, assignment_id, submission_id, student_id):
     
     # Get existing grade and feedback
     
-    grade = get_grade_details
-    current_score = grade[1] if grade else 0
+    grade = get_grade_details(cursor, submission_id, course_code)
+    current_score = grade[2] if grade else 0
     current_feedback = grade[3] if grade else ""
     
     submission = {
@@ -876,7 +1206,7 @@ def grade_submission(course_code, assignment_id, submission_id, student_id):
     rubrics = get_rubrics(cursor, assignment_id)
     for rubric_desc in rubrics:
         rubric_l.append({"description": rubric_desc[2]})
-    
+
     cursor.close()
     return render_template("grade_submission.html", 
                          student=student, 
@@ -911,19 +1241,17 @@ def download_submission(course_code, assignment_id, user_id, filename):
 @login_required
 def submit_assignment(course_code, course_name, assignment_id):
     cursor = gradeai_db.connection.cursor()
-    assignment = get_assignment_details(cursor, assignment_id, course_code)
-
+    assignment = get_assignment_details(cursor, assignment_id, None)
+    print(assignment)
     if not assignment:
         flash("Assignment not found", "error")
         cursor.close()
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
 
-    assignment_title = assignment[0]
-    actual_course_code = assignment_id
-    
-    # Correct directory path using actual assignment title
-    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, actual_course_code, assignment_title, current_user.user_id)
+    assignment_title = assignment[1]
 
+    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1]  , current_user.user_id)
+    print(submission_dir_student)
     delete_file = request.form.get("delete-file")
     delete_all = request.form.get("delete-all")
     
@@ -934,7 +1262,6 @@ def submit_assignment(course_code, course_name, assignment_id):
                 
         delete_grade(cursor, grade_id)
         delete_submission(cursor, submission_id)
-        
         file_path = os.path.join(submission_dir_student, delete_file)
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -951,11 +1278,13 @@ def submit_assignment(course_code, course_name, assignment_id):
         # Get all submissions for this student and assignment
         submissions = get_student_submissions(cursor, current_user.user_id, assignment_id)
         # Delete grades and submissions
+        print("Debug - submit_assignment: ", submissions)
         for submission in submissions:
-            delete_grade(cursor, submission_id = submission[0])
+            cursor.execute("DELETE FROM grade WHERE submission_id = %s", (submission[0], ))
         
         delete_submissions(cursor, current_user.user_id, assignment_id)
-        
+        gradeai_db.connection.commit()
+        print(submission_dir_student)
         if os.path.exists(submission_dir_student):
             try:
                 for filename in os.listdir(submission_dir_student):
@@ -978,24 +1307,24 @@ def submit_assignment(course_code, course_name, assignment_id):
         flash("Please select at least one file to submit", "error")
         cursor.close()
         return redirect(url_for("assignment_submit_student",
-                                course_code=actual_course_code,
+                                course_code=course_code,
                                 course_name=assignment[2],
                                 assignment_id=assignment_id))
     
     try:
         # Create submission directory using correct path
-        submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, actual_course_code, assignment_title, str(current_user.user_id))
+        submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, str(current_user.user_id))
         os.makedirs(submission_dir, exist_ok=True)
 
         # Save files and create submissions
         saved_files = []
         submission_records = []
         
-        for file in files:
-            if file and file.filename:
-                filename = secure_filename(file.filename)
+        for f in files:
+            if f and f.filename:
+                filename = secure_filename(f.filename)
                 file_path = os.path.join(submission_dir, filename)
-                file.save(file_path)
+                f.save(file_path)
                 saved_files.append(filename)                
                 submission_id = SubmissionIDManager.create_submission_id(
                     assignment_id, current_user.user_id, filename
@@ -1006,7 +1335,7 @@ def submit_assignment(course_code, course_name, assignment_id):
             flash("No files were saved", "error")
             cursor.close()
             return redirect(url_for("assignment_submit_student",
-                                    course_code=actual_course_code,
+                                    course_code=course_code,
                                     course_name=assignment[2],
                                     assignment_id=assignment_id))
         
@@ -1019,7 +1348,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         
         # Delete grades for existing submissions
         for existing_sub in existing_submissions:
-            delete_grade(cursor, submission_id = existing_sub[0])
+            cursor.execute(""" DELETE FROM grade WHERE submission_id = %s""", (existing_sub[0], ))
         
         delete_submissions(cursor, current_user.user_id, assignment_id)
 
@@ -1050,7 +1379,7 @@ def submit_assignment(course_code, course_name, assignment_id):
             print(f"Debug - Formatted rubrics: {rubrics}")
             
             # Get teacher ID
-            teacher_result = get_course_teacher(cursor, course_code)
+            teacher_result = get_course_teacher_id(cursor, course_code)
             
             teacher_id = teacher_result[0] if teacher_result else None
             submission_scores = []
@@ -1066,7 +1395,6 @@ def submit_assignment(course_code, course_name, assignment_id):
                     print(f"Debug - Grading result: {submission_score}")
                     # Add grade into DB
                     create_grade_with_proper_id(cursor, submission_id, submission_score, "This submission is graded by system!", teacher_id)
-                    print(f"Debug - Inserted grade: {grade_id} with score: {submission_score}")
                     
                     submission_scores.append({
                         "filename": filename, 
@@ -1097,7 +1425,7 @@ def submit_assignment(course_code, course_name, assignment_id):
 
     cursor.close()
     return redirect(url_for("assignment_submit_student",
-                            course_code=actual_course_code,
+                            course_code=course_code,
                             course_name=assignment[2], 
                             assignment_id=assignment_id))
 
@@ -1157,30 +1485,25 @@ def update_grade(submission_id):
     score = request.form.get('score')
     feedback = request.form.get('feedback')
     
-    try:
-        update_grade(submission_id, score, feedback)
-        gradeai_db.connection.commit()
-
-        flash("Grade and feedback updated successfully!", "success")
-        
-        result = get_submission_details(cursor, submission_id)
-        
-        if result:
-            course_code, assignment_id, student_id = result[-2], result[-1], result[5] # not sure tho changed get_submission_details
-            return redirect(url_for('grade_submission', 
-                                   course_code=course_code, 
-                                   assignment_id=assignment_id, 
-                                   submission_id=submission_id, 
-                                   student_id=student_id))
-        else:
-            return redirect(url_for("teacher_dashboard"))
-            
-    except Exception as e:
-        gradeai_db.connection.rollback()
-        flash(f"Error updating grade: {str(e)}", "error")
-        return redirect(url_for("teacher_dashboard"))
-    finally:
+    update_grade_db(cursor, submission_id, score, feedback)
+    gradeai_db.connection.commit()
+    print("Merhaba")
+    flash("Grade and feedback updated successfully!", "success")
+    
+    result = get_submission_details(cursor, submission_id)
+    
+    if result:
+        course_code, assignment_id, student_id = result[-2], result[-1], result[5] # not sure tho changed get_submission_details
         cursor.close()
+        return redirect(url_for('grade_submission', 
+                                course_code=course_code, 
+                                assignment_id=assignment_id, 
+                                submission_id=submission_id, 
+                                student_id=student_id))
+    else:
+        cursor.close()
+        return redirect(url_for("teacher_dashboard"))
+            
 
 @app.route('/edit_email', methods=['GET', 'POST'])
 @login_required

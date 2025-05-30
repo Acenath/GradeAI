@@ -1,0 +1,19 @@
+- all the css changes
+- edit_email ?
+- blockview teacher csv ve geri dönme tuşu
+- course_grades_student ???
+- öğrenci deadline geçti ödev kapanmalı -> galiba oldu bu
+- sol şerit annuncements uzun kalıyor css düzenleme
+- öğrenci iki dosya yükleyince 2 farklı ödev olarak algılıyor -> galiba oldu bu
+- öğrenci bir ödeve birden fazla specify edilmediği halde ödev koyabiliyor ???
+- flush düzelt ilk class oluşturunca
+- blockview_teacher csv js kısmı
+- aynı isim class code oluşturmaya çalılştırırsa hoca error versin boş dönüyor yoksa
+- aynı isim assignment error düzgün yansıt
+- prompt 100 üzerinden puan versin prompt düzelt
+- öğrencinin deadline sonrası ai + teacher adjustment notunu görmesi öncesinde görmemesi
+- sql dizaynında gerek olmayan şeyleri sildik belirtelimmmm (Tik)
+- GradeAI aboutus teacher or student dashboard
+
+
+ profile -> edit mail -> mail -> logout -> login

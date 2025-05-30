@@ -25,14 +25,13 @@ ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg']
 #FUNCTIONS
 
 def calculate_total_sum(array):
-    #i value inside the for loop may need int wrapper
-    return sum([i for i in array])
+    return sum([int(i) for i in array])
 
 def change_password(cursor, user_id, new_password):
     hashed_password = hash_password(new_password)
     cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (hashed_password, user_id))
 
-def save_files(given_files, section, course_code, title, ):
+def save_files(given_files, section, course_code, title: None):
     intended_dir = ''
     if section == 'announcements':
         intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, str(course_code), title)
@@ -86,18 +85,51 @@ def handle_class_creation(cursor, course_code, course_name, teacher_id):
         return True
     return False
 
-def handle_student_removal(cursor, deleted_students, course_code):
-    try:
-        deleted_list = json.loads(deleted_students)
-    except json.JSONDecodeError:
-        return []
+def handle_student_removal(cursor, students_to_remove, course_code):
+    """
+    Remove students from a course
     
+    Args:
+        cursor: Database cursor
+        students_to_remove: Either a single student ID (string) or list of student IDs
+        course_code: Course code string
+    
+    Returns:
+        List of successfully removed student IDs
+    """
     removed_students = []
     
-    for student_id in deleted_list:
-        if is_student_enrolled(cursor, student_id, course_code):
-            remove_student(cursor, student_id, course_code)
-            removed_students.append(student_id)
+    # Convert single student to list for uniform processing
+    if isinstance(students_to_remove, str):
+        students_list = [students_to_remove]
+    elif isinstance(students_to_remove, list):
+        students_list = students_to_remove
+    else:
+        # Handle JSON string from frontend (if any legacy code sends it)
+        try:
+            students_list = json.loads(students_to_remove)
+        except:
+            return removed_students
+    
+    for student_id in students_list:
+        if not student_id or not student_id.strip():
+            continue
+            
+        try:
+            # Remove student from enrollment table
+            cursor.execute("""
+                DELETE FROM enrollments 
+                WHERE student_id = %s AND course_code = %s
+            """, (student_id.strip(), course_code))
+            
+            # Check if the deletion was successful
+            if cursor.rowcount > 0:
+                removed_students.append(student_id.strip())
+                
+        except Exception as e:
+            print(f"Error removing student {student_id}: {e}")
+            # Continue with other students even if one fails
+            continue
     
     return removed_students
 
@@ -302,7 +334,7 @@ def get_student_submissions(cursor, user_id, assignment_id):
     
     return cursor.fetchall()
 
-def get_assignment_details(cursor, assignment_id, course_code):
+def get_assignment_details(cursor, assignment_id, course_code: None):
     if not course_code:
         cursor.execute(""" 
         SELECT *
@@ -367,27 +399,28 @@ def get_grade_details(cursor, submission_id, course_code):
 
 def get_rubrics(cursor, assignment_id):
     cursor.execute(""" SELECT * FROM rubric WHERE assignment_id = %s""", (assignment_id,))
-    return cursor.fetch_all()
+    return cursor.fetchall()
 
 def get_submission_details(cursor, submission_id):
     cursor.execute("""
-        SELECT 
-            s.submitted_at,
-            g.score,
-            g.feedback,
-            u.first_name,
-            u.last_name,
-            u.user_id,
-            a.title as assignment_title,
-            c.code
-            a.assignment_id      
-        FROM submission s
-        JOIN users u ON s.student_id = u.user_id
-        JOIN assignment a ON s.assignment_id = a.assignment_id
-        LEFT JOIN grade g ON s.submission_id = g.submission_id
-        LEFT JOIN enrollment e ON e.student_id = u.user_id
-        WHERE s.submission_id = %s
-    """, (submission_id))
+    SELECT
+        s.submitted_at,
+        g.score,
+        g.feedback,
+        u.first_name,
+        u.last_name,
+        u.user_id,
+        a.title as assignment_title,
+        c.class_id,
+        a.assignment_id
+    FROM submission s
+    JOIN users u ON s.student_id = u.user_id
+    JOIN assignment a ON s.assignment_id = a.assignment_id
+    LEFT JOIN grade g ON s.submission_id = g.submission_id
+    LEFT JOIN enrollment e ON e.student_id = u.user_id
+    LEFT JOIN class c ON e.class_id = c.class_id
+    WHERE s.submission_id = %s
+    """, (submission_id,))
     return cursor.fetchone()
 
 def get_submission_for_grading(cursor, submission_id, course_code):
@@ -427,33 +460,26 @@ def check_existing_grade(cursor, submission_id):
     """, (submission_id,))
     return cursor.fetchone()
 
-def update_grade(cursor, submission_id, score, feedback):
+def update_grade_db(cursor, submission_id, score, feedback):
     cursor.execute("""
-        UPDATE Grade
+        UPDATE grade
         SET score = %s, feedback = %s, adjusted_at = %s, is_adjusted = %s
         WHERE submission_id = %s
-    """, (score, feedback, datetime.date.now(), 1, submission_id))
+    """, (score, feedback, datetime.datetime.now(), 1, submission_id))
 
 
-def delete_grade(cursor, grade_id, submission_id):
-    if grade_id:
+def delete_grade(cursor, grade_id):
         cursor.execute('''
                     DELETE FROM grade
                    WHERE grade_id = %s
                    ''', (grade_id, ))
-    elif submission_id:
-        cursor.execute('''
-                    DELETE FROM grade
-                   WHERE submission_id = %s
-                   ''', (submission_id, ))
-    
-        
+ 
 
 def delete_submissions(cursor, user_id, assignment_id):
     cursor.execute('''
         DELETE FROM submission 
         WHERE student_id = %s AND assignment_id = %s
-    ''', (user_id, assignment_id))
+    ''', (user_id, assignment_id, ))
 
 def delete_submission(cursor, submission_id):
     cursor.execute('''
@@ -596,11 +622,11 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
     return cursor.fetchall()
 
 
-def get_course_teacher(cursor, course_code):
+def get_course_teacher_id(cursor, course_code):
     cursor.execute(""" 
-                    SELECT u.user_id, u.first_name, u.last_name FROM user u LEFT JOIN class c ON u.user_id = c.teacher_id
+                    SELECT teacher_id FROM class c
                    WHERE c.class_id = %s                
-                    """, (course_code))
+                    """, (course_code, ))
     return cursor.fetchone()
 def fetch_recent_class_announcements(cursor, course_code):
     cursor.execute('''

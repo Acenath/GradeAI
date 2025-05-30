@@ -23,7 +23,7 @@
                         <td>{{ grade[4] }} ({{ grade[5] }})</td>
                         <td>{{ grade[1] }}</td>
                         <td>{{ grade[2] }}</td>
-                        <td>{{ grade[3].strftime('%B %d, %Y') }}</td>
+                        <td>{{ grade[3].strftime('%B %d, %Y') if grade[3] else "-"}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -1,0 +1,5 @@
+1-) Read an article
+2-) Learn Data Science, Machine Learning, Deep Learning
+3-) Develop a project or code for at least two hours
+4-) Study for university for at least 2 hours
+5-) Solve Leetcode (At least the daily ones)

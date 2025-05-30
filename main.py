@@ -815,39 +815,44 @@ def assignment_creation(course_code):
                            course_code=course_code,
                            today = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M'))
 
-#DONE
+
+# Helper route for the original generate_rubric endpoint (for API compatibility)
 @app.route('/generate_rubric', methods=["POST"])
 @login_required
 def generate_rubric():
+    current_rubrics, current_points = [], []
     data = request.get_json()
+    
     if not data or 'description' not in data:
         return jsonify({'error': 'Missing assignment description'}), 400
-        
+    
     description = data.get('description', '')
     existing_rubrics = data.get('existing_rubrics', [])
-
+    
     if existing_rubrics:
-        current_rubrics, current_points = [], []
         for entry in existing_rubrics:
             current_rubrics.append(entry["description"])
             current_points.append(entry["points"])
-
+    
     grading_assistant.create_rubric_instructions(current_rubrics, current_points)
     grading_assistant.consume_question(description)
-
+    
     if len(description.strip()) < 10:
         return jsonify({'error': 'Description too short for meaningful rubric generation'}), 400
     
-    llm_output = grading_assistant.generate_rubric()
-
-    rubric_items = [
-        {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
-        for item in llm_output
-    ]
-    return jsonify({
-        'success': True,
-        'rubric_items': rubric_items
-    })
+    try:
+        llm_output = grading_assistant.generate_rubric()
+        rubric_items = [
+            {"description": item["rubric_desc"], "points": int(item["rubric_score"])}
+            for item in llm_output
+        ]
+        
+        return jsonify({
+            'success': True,
+            'rubric_items': rubric_items
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error generating rubric: {str(e)}'}), 500
 
 #DONE
 @app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
@@ -893,68 +898,234 @@ def assignments_student(course_code, course_name):
                            course_name=course_name,
                            course_code=course_code,
                            assignments=assignments)
-#DONE
-@app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods=["GET", "POST"])
+
+@app.route('/assignment_submit_student/<course_code>', methods=['GET', 'POST'])
 @login_required
-def assignment_submit_student(course_code, course_name, assignment_id):
+def assignment_submit_student(course_code):
     cursor = gradeai_db.connection.cursor()
     
-    assignment_data = get_assignment_details(cursor, assignment_id, course_code)
-    
-    if not assignment_data:
-        flash("Assignment not found", "error")
+    # Get course name
+    course_name = get_course_name(cursor, course_code)
+    if not course_name:
+        flash("Course not found", "error")
         cursor.close()
-        return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
-
-    submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_data[0], current_user.user_id)
+        return redirect(url_for('teacher_dashboard'))
     
-    os.makedirs(submission_dir, exist_ok=True)
-
-    assignment_files = []
-    assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, assignment_data[0])
-    
-    if os.path.exists(assignment_dir):
-        assignment_files = [f for f in os.listdir(assignment_dir) if os.path.isfile(os.path.join(assignment_dir, f))]
-
-    delete_submissions(cursor, current_user.user_id, assignment_id)
-    gradeai_db.connection.commit()
-
-    files = []
-    current_time = ''
-    if os.path.exists(submission_dir):
-        try:
-            for f in os.listdir(submission_dir):
-                if os.path.isfile(os.path.join(submission_dir, f)):
-                    files.append(f)
-                    current_time = datetime.datetime.now()
-                    create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, f)
-                    
-        except Exception as e:
-            print(f"Error processing submission directory: {e}")
-
-    gradeai_db.connection.commit()
-
-    # Format assignment data for template
-    assignment = {
-        'id': assignment_id,
-        'title': assignment_data[0],
-        'description': assignment_data[1],
-        'due_date': assignment_data[2],
-        'total_score': assignment_data[3],
-        'attachments': [{'filename': f, 'id': i} for i, f in enumerate(assignment_files)],
-        'is_submitted': True if files else False,
-        'submission': {
-            'files': files,
-            'submitted_at': current_time if files else None
-        } 
+    # Initialize form data
+    form_data = {
+        'title': '',
+        'description': '',
+        'due_date': '',
+        'file_type': 'Any',
+        'rubrics': [{'description': '', 'points': 0}],
+        'uploaded_files': []
     }
     
+    # Get today's date for min datetime
+    today = datetime.now().strftime('%Y-%m-%dT%H:%M')
+    
+    if request.method == 'POST':
+        action = request.form.get('action', 'create_assignment')
+        
+        # Preserve form data
+        form_data.update({
+            'title': request.form.get('title', ''),
+            'description': request.form.get('description', ''),
+            'due_date': request.form.get('Date', ''),
+            'file_type': request.form.get('file_type', 'Any')
+        })
+        
+        # Get rubric data
+        rubric_descriptions = request.form.getlist('rubric_descriptions[]')
+        rubric_values = request.form.getlist('rubric_values[]')
+        
+        # Build rubrics list
+        form_data['rubrics'] = []
+        for i, (desc, val) in enumerate(zip(rubric_descriptions, rubric_values)):
+            try:
+                points = int(val) if val else 0
+            except ValueError:
+                points = 0
+            form_data['rubrics'].append({
+                'description': desc.strip(),
+                'points': points
+            })
+        
+        # Handle different actions
+        if action == 'add_rubric':
+            form_data['rubrics'].append({'description': '', 'points': 0})
+            
+        elif action.startswith('remove_rubric_'):
+            try:
+                index = int(action.split('_')[-1])
+                if 0 <= index < len(form_data['rubrics']) and len(form_data['rubrics']) > 1:
+                    form_data['rubrics'].pop(index)
+            except (ValueError, IndexError):
+                flash("Error removing rubric", "error")
+                
+        elif action == 'generate_rubric':
+            description = form_data['description'].strip()
+            
+            if len(description) < 10:
+                flash("Please enter a more detailed assignment description for meaningful rubric generation.", "error")
+            else:
+                try:
+                    # Prepare existing rubrics for the grading assistant
+                    current_rubrics = []
+                    current_points = []
+                    
+                    for rubric in form_data['rubrics']:
+                        if rubric['description'].strip() and rubric['points'] > 0:
+                            current_rubrics.append(rubric['description'].strip())
+                            current_points.append(rubric['points'])
+                    
+                    total_existing = sum(current_points)
+                    
+                    if total_existing >= 100:
+                        flash("All 100 points have been allocated. No additional rubrics needed.", "info")
+                    else:
+                        # Generate rubrics using the grading assistant
+                        grading_assistant.create_rubric_instructions(current_rubrics, current_points)
+                        grading_assistant.consume_question(description)
+                        
+                        llm_output = grading_assistant.generate_rubric()
+                        
+                        if llm_output:
+                            # Clear existing rubrics and rebuild with existing + new
+                            new_rubrics = []
+                            
+                            # Add existing rubrics back
+                            for desc, points in zip(current_rubrics, current_points):
+                                new_rubrics.append({'description': desc, 'points': points})
+                            
+                            # Add generated rubrics
+                            generated_count = 0
+                            for item in llm_output:
+                                try:
+                                    points = int(item["rubric_score"])
+                                    new_rubrics.append({
+                                        'description': item["rubric_desc"],
+                                        'points': points
+                                    })
+                                    generated_count += 1
+                                except (ValueError, KeyError) as e:
+                                    print(f"Error processing rubric item: {e}")
+                                    continue
+                            
+                            form_data['rubrics'] = new_rubrics
+                            
+                            if generated_count > 0:
+                                total_new_points = sum(int(item["rubric_score"]) for item in llm_output)
+                                flash(f"Successfully generated {generated_count} new rubric(s) worth {total_new_points} points.", "success")
+                            else:
+                                flash("Could not generate rubric suggestions. Please try again.", "warning")
+                        else:
+                            flash("Could not generate rubric suggestions. Please try again.", "warning")
+                            
+                except Exception as e:
+                    print(f"Error generating rubrics: {e}")
+                    flash("An error occurred while generating rubrics. Please try again.", "error")
+        
+        elif action == 'create_assignment':
+            # Validate form data
+            errors = []
+            
+            if not form_data['title'].strip():
+                errors.append("Assignment title is required")
+            
+            if not form_data['description'].strip():
+                errors.append("Assignment description is required")
+            
+            if not form_data['due_date']:
+                errors.append("Due date is required")
+            
+            # Validate rubrics
+            valid_rubrics = []
+            total_points = 0
+            
+            for rubric in form_data['rubrics']:
+                if rubric['description'].strip():
+                    if rubric['points'] <= 0:
+                        errors.append(f"Rubric '{rubric['description'][:30]}...' must have points greater than 0")
+                    else:
+                        valid_rubrics.append(rubric)
+                        total_points += rubric['points']
+            
+            if not valid_rubrics:
+                errors.append("At least one rubric is required")
+            
+            if total_points != 100:
+                errors.append(f"Total rubric points must equal 100. Currently: {total_points} points")
+            
+            # Validate due date
+            try:
+                due_date = datetime.strptime(form_data['due_date'], '%Y-%m-%dT%H:%M')
+                if due_date <= datetime.now():
+                    errors.append("Due date must be in the future")
+            except ValueError:
+                errors.append("Invalid due date format")
+            
+            if errors:
+                for error in errors:
+                    flash(error, "error")
+            else:
+                try:
+                    # Create assignment in database
+                    teacher_id = current_user.user_id
+                    
+                    # Handle file uploads
+                    uploaded_files = []
+                    if 'attachments' in request.files:
+                        files = request.files.getlist('attachments')
+                        if files and files[0].filename:
+                            assignment_dir = os.path.join(ASSIGNMENT_ATTACHMENTS_DIR, course_code, form_data['title'])
+                            os.makedirs(assignment_dir, exist_ok=True)
+                            
+                            for file in files:
+                                if file and file.filename:
+                                    filename = secure_filename(file.filename)
+                                    file_path = os.path.join(assignment_dir, filename)
+                                    file.save(file_path)
+                                    uploaded_files.append(filename)
+                    
+                    # Create assignment
+                    assignment_id = create_assignment(
+                        cursor, 
+                        form_data['title'], 
+                        form_data['description'], 
+                        form_data['due_date'], 
+                        total_points, 
+                        teacher_id, 
+                        course_code,
+                        form_data['file_type']
+                    )
+                    
+                    # Create rubrics
+                    for rubric in valid_rubrics:
+                        create_rubric(cursor, assignment_id, rubric['description'], rubric['points'])
+                    
+                    gradeai_db.connection.commit()
+                    cursor.close()
+                    
+                    flash(f"Assignment '{form_data['title']}' created successfully with {len(valid_rubrics)} rubrics totaling {total_points} points!", "success")
+                    return redirect(url_for('teacher_course_assignments', course_code=course_code))
+                    
+                except Exception as e:
+                    gradeai_db.connection.rollback()
+                    print(f"Error creating assignment: {e}")
+                    flash("An error occurred while creating the assignment. Please try again.", "error")
+    
+    # Ensure at least one rubric entry exists
+    if not form_data['rubrics'] or all(not r['description'].strip() and r['points'] == 0 for r in form_data['rubrics']):
+        form_data['rubrics'] = [{'description': '', 'points': 0}]
+    
     cursor.close()
-    return render_template("assignment_submit_student.html",
-                           assignment=assignment,
-                           course_code=course_code,
-                           course_name=course_name,
-                           current_datetime=datetime.datetime.now())
+    
+    return render_template('assignment_creation.html',
+                         course_code=course_code,
+                         course_name=course_name,
+                         today=today,
+                         **form_data)
 
 #DONE
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')

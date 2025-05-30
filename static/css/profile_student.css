@@ -1,62 +1,55 @@
-/* General Styles */
 body {
-  background-color: #bcdde5;
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
+    background-color: #bcdde5;
+    font-family: Arial, sans-serif;
+    color: #333;
+    line-height: 1.6;
 }
 
-/* Navigation Bar */
 .nav-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  border-bottom: 1px solid black;
-  background-color: #bcdde5;
-}
-
-.nav-bar-left {
-  display: flex;
-  align-items: center;
-}
-
-.nav-links {
-  text-align: right;
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.nav-links a {
-  color: black;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.back-button-container {
-  padding: 1rem 2rem;
-  background-color: #bcdde5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid black;
+    background-color: #bcdde5;
 }
 
 .back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #000;
-  text-decoration: none;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  transition: background-color 0.3s ease;
+    background: none;
+    border: none;
+    padding: 5px 10px;
+    margin-right: 15px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #000;
+    transition: transform 0.2s ease;
 }
 
 .back-button:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  color: #000;
+    transform: translateX(-3px);
 }
 
-/* Profile Header */
+.back-button:focus {
+    outline: none;
+}
+
+.nav-bar i {
+    font-size: 25px;
+    color: #000;
+    margin-right: 10px;
+}
+
+.nav-links a {
+    margin-left: 20px;
+    color: black;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.nav-links a:hover {
+    color: #1e73e4;
+}
+
 
 
 .profile-pic-container {
@@ -191,38 +184,7 @@ body {
   color: #007bff;
 }
 
-/* Notification Container */
-.notification-container {
-  position: relative;
-  display: inline-block;
-}
 
-.notification-bell {
-  font-size: 20px;
-  color: #000;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background-color 0.3s;
-}
-
-.notification-bell:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-.notification-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: #ff4444;
-  color: white;
-  border-radius: 50%;
-  padding: 2px 6px;
-  font-size: 12px;
-  display: none;
-}
-
-/* Responsive Design */
 @media (max-width: 768px) {
   .nav-bar {
     padding: 1rem;

@@ -1,34 +1,70 @@
 body {
     background-color: #bcdde5;
     font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-  }
-  .nav-bar {
+    color: #333;
+    line-height: 1.6;
+}
+
+.nav-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 30px;
-    border-bottom: 2px solid black;
+    padding: 10px 20px;
+    border-bottom: 1px solid black;
     background-color: #bcdde5;
-    height: 60px;
-    box-sizing: border-box;
-  }
-  .nav-bar-left {
-    display: flex;
-    align-items: center;
-  }
-  .nav-links {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-  .nav-links a {
+}
+.nav-bar i {
+    font-size: 25px;
+    color: #000;
+    margin-right: 10px;
+}
+
+.nav-links a {
     margin-left: 20px;
     color: black;
     text-decoration: none;
     font-size: 0.9rem;
-  }
+}
+
+.nav-links a:hover {
+    color: #1e73e4;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+}
+
+.logo-container i {
+    font-size: 25px;
+    color: #000;
+    margin-right: 10px;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 24px;
+}
+
+nav a {
+    margin: 0 10px;
+    text-decoration: none;
+    color: black;
+    font-size: 14px;
+}
+header {
+    background-color: #c6dce4;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #000;
+    font-size: 15px;
+    color: #000;
+    margin: 0 0px;
+
+}
+
   .profile-section {
     display: flex;
     padding: 20px;
@@ -214,171 +250,8 @@ body {
     color: #555;
     font-style: italic;
   }
-  .notification-container {
-      position: relative;
-      margin-left: 0;
-    }
 
-    .notification-bell {
-      font-size: 20px;
-      color: #000;
-      cursor: pointer;
-      padding: 8px;
-      border-radius: 50%;
-      transition: background-color 0.3s;
-    }
 
-    .notification-bell:hover {
-      background-color: #f0f0f0;
-    }
-
-    .notification-badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      background-color: #ff4444;
-      color: white;
-      border-radius: 50%;
-      padding: 2px 6px;
-      font-size: 12px;
-      display: none;
-    }
-
-    .notification-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      width: 300px;
-      max-height: 400px;
-      overflow-y: auto;
-      display: none;
-      z-index: 1000;
-    }
-
-    .notification-item {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-
-    .notification-item:hover {
-      background-color: #f8f9fa;
-    }
-
-    .notification-item.unread {
-      background-color: #f0f7ff;
-    }
-
-    .notification-item .notification-title {
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-
-    .notification-item .notification-time {
-      font-size: 12px;
-      color: #666;
-    }
-
-    .notification-header {
-      padding: 12px;
-      border-bottom: 1px solid #ddd;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .notification-header h4 {
-      margin: 0;
-    }
-
-    .mark-all-read {
-      color: #007bff;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    .notification-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background-color: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      width: 300px;
-      max-height: 400px;
-      overflow-y: auto;
-      display: none;
-      z-index: 1000;
-}
-
-.notification-item {
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.notification-item:hover {
-  background-color: #f8f9fa;
-}
-
-.notification-item.unread {
-  background-color: #f0f7ff;
-}
-
-.notification-title {
-  font-weight: bold;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.notification-message {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.notification-time {
-  font-size: 0.8em;
-  color: #999;
-}
-
-.no-notifications {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-}
-
-.notification-error {
-  padding: 20px;
-  text-align: center;
-  color: #dc3545;
-}
-
-.notification-header {
-  padding: 12px;
-  border-bottom: 1px solid #ddd;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.mark-all-read {
-  color: #007bff;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.mark-all-read:hover {
-  text-decoration: underline;
-}
 @media (max-width: 1200px) {
     .lecture-card {
         width: calc(50% - 20px); /* 2 cards per row on medium screens */

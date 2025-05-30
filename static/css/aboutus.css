@@ -1,8 +1,7 @@
 body {
     background-color: #bcdde5;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    color: #2c3e50;
+    font-family: Arial, sans-serif;
+    color: #333;
     line-height: 1.6;
 }
 
@@ -15,16 +14,9 @@ body {
     background-color: #bcdde5;
 }
 
-.nav-bar .logo {
-    display: flex;
-    align-items: center;
-    font-size: 24px;
-    font-weight: bold;
+.nav-bar i {
+    font-size: 25px;
     color: #000;
-}
-
-.nav-bar img {
-    height: 30px;
     margin-right: 10px;
 }
 
@@ -37,21 +29,6 @@ body {
 
 .nav-links a:hover {
     color: #1e73e4;
-}
-
-.nav-links a::after {
-    content: '';
-    position: absolute;
-    width: 0;
-    height: 2px;
-    bottom: -4px;
-    left: 0;
-    background-color: #3498db;
-    transition: width 0.3s ease;
-}
-
-.nav-links a:hover::after {
-    width: 100%;
 }
 
 .back-button {
@@ -73,7 +50,6 @@ body {
     outline: none;
 }
 
-/* Main Content Styles */
 .container {
     max-width: 1200px;
     margin: 40px auto;

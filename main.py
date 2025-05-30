@@ -815,7 +815,7 @@ def edit_image():
 def profile_student():
     cursor = gradeai_db.connection.cursor()
     courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
-    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    #profile_pic = fetch_profile_picture(cursor, current_user.user_idlll)
     cursor.close()
     return render_template("profile_student.html", courses_and_instructors=courses_and_instructors)
 

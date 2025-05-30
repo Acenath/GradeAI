@@ -10,30 +10,21 @@
 </head>
 <body>
 
-<!-- Navbar -->
-<div class="nav-bar">
-  <div class="nav-bar-left">
-    <i class="fas fa-brain" style="font-size: 25px; color: #000; margin-right: 10px;"></i>
-    <strong>Gradia</strong>
-  </div>
-  <div class="nav-links">
-    <a href="{{url_for('about')}}">About Us</a>
-    <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-    <div class="notification-container">
-      <i class="fas fa-bell notification-bell" id="notificationBell"></i>
-      <span class="notification-badge" id="notificationBadge">0</span>
-      <div class="notification-dropdown" id="notificationDropdown">
-        <div class="notification-header">
-          <h6>Notifications</h6>
-          <span class="mark-all-read">Mark all as read</span>
-        </div>
-        <div id="notificationList">
-          <!-- Notifications will be dynamically added here -->
+  <div class="nav-bar">
+      <div class="d-flex align-items-center">
+        <div class="logo-container">
+         <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
+            <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+            <strong> Gradia </strong>
+          </a>
         </div>
       </div>
+      <div class="nav-links">
+        <a href="{{url_for('about')}}">About Us</a>
+        <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+      </div>
     </div>
-  </div>
-</div>
 
 <!-- Profile Section -->
 <div class="profile-section">
@@ -163,179 +154,5 @@
     </div>
   </div>
 </div> <!-- End of Dashboard -->
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const notificationBell = document.getElementById('notificationBell');
-  const notificationDropdown = document.getElementById('notificationDropdown');
-  const notificationBadge = document.getElementById('notificationBadge');
-  const notificationList = document.getElementById('notificationList');
-  const markAllRead = document.querySelector('.mark-all-read');
-  
-  // Function to update notification badge
-  function updateNotificationBadge() {
-    const unreadCount = document.querySelectorAll('.notification-item.unread').length;
-    notificationBadge.textContent = unreadCount;
-    notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
-  }
-  
-  // Function to fetch notifications
-  function fetchNotifications() {
-    console.log('Fetching notifications...');
-    fetch('/get_notifications')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log('Received notifications:', data);
-        
-        // Check if we got an error response
-        if (data.error) {
-          throw new Error(data.error);
-        }
-        
-        notificationList.innerHTML = '';
-        let unreadCount = 0;
-        
-        if (!Array.isArray(data) || data.length === 0) {
-          notificationList.innerHTML = '<div class="no-notifications">No notifications</div>';
-          notificationBadge.style.display = 'none';
-          return;
-        }
-        
-        data.forEach(notification => {
-          const notificationItem = document.createElement('div');
-          notificationItem.className = `notification-item ${notification.is_read ? '' : 'unread'}`;
-          notificationItem.dataset.id = notification.id;
-          
-          let icon = '';
-          switch(notification.type) {
-            case 'assignment':
-              icon = '<i class="fas fa-file-alt"></i>';
-              break;
-            case 'feedback':
-              icon = '<i class="fas fa-comments"></i>';
-              break;
-            case 'announcement':
-              icon = '<i class="fas fa-bullhorn"></i>';
-              break;
-            case 'deadline':
-              icon = '<i class="fas fa-clock"></i>';
-              break;
-          }
-          
-          notificationItem.innerHTML = `
-            <div class="notification-title">${icon} ${notification.title}</div>
-            <div class="notification-message">${notification.message}</div>
-            <div class="notification-time">${notification.time}</div>
-          `;
-          
-          if (!notification.is_read) {
-            unreadCount++;
-          }
-          
-          notificationList.appendChild(notificationItem);
-        });
-        
-        // Update badge
-        notificationBadge.textContent = unreadCount;
-        notificationBadge.style.display = unreadCount > 0 ? 'block' : 'none';
-      })
-      .catch(error => {
-        console.error('Error fetching notifications:', error);
-        notificationList.innerHTML = `<div class="notification-error">Error loading notifications: ${error.message}</div>`;
-      });
-  }
-  
-  // Toggle notification dropdown
-  notificationBell.addEventListener('click', function(e) {
-    e.stopPropagation();
-    notificationDropdown.style.display = notificationDropdown.style.display === 'block' ? 'none' : 'block';
-    if (notificationDropdown.style.display === 'block') {
-      fetchNotifications();
-    }
-  });
-  
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(e) {
-    if (!notificationDropdown.contains(e.target) && e.target !== notificationBell) {
-      notificationDropdown.style.display = 'none';
-    }
-  });
-  
-  // Mark all as read
-  markAllRead.addEventListener('click', function() {
-    console.log('Marking all notifications as read...');
-    fetch('/mark_all_notifications_read', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Mark all as read response:', data);
-      if (data.success) {
-        fetchNotifications();
-      } else {
-        throw new Error(data.error || 'Failed to mark notifications as read');
-      }
-    })
-    .catch(error => {
-      console.error('Error marking all notifications as read:', error);
-      alert('Failed to mark notifications as read. Please try again.');
-    });
-  });
-  
-  // Mark individual notification as read
-  notificationList.addEventListener('click', function(e) {
-    const notificationItem = e.target.closest('.notification-item');
-    if (notificationItem && notificationItem.classList.contains('unread')) {
-      const notificationId = notificationItem.dataset.id;
-      console.log('Marking notification as read:', notificationId);
-      
-      fetch(`/mark_notification_read/${notificationId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        console.log('Mark as read response:', data);
-        if (data.success) {
-          notificationItem.classList.remove('unread');
-          updateNotificationBadge();
-        } else {
-          throw new Error(data.error || 'Failed to mark notification as read');
-        }
-      })
-      .catch(error => {
-        console.error('Error marking notification as read:', error);
-        alert('Failed to mark notification as read. Please try again.');
-      });
-    }
-  });
-  
-  // Fetch notifications every minute
-  setInterval(fetchNotifications, 60000);
-  
-  // Initial fetch
-  fetchNotifications();
-});
-</script>
 </body>
 </html>

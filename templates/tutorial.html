@@ -11,11 +11,13 @@
 <body>
     <div class="nav-bar">
         <div class="d-flex align-items-center">
-            <button onclick="goBack()" class="back-button">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-            <strong> Gradia</strong>
+            <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
+                <button onclick="goBack()" class="back-button">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+                <strong> Gradia</strong>
+            </a>
         </div>
         <div class="nav-links">
             {% if not current_user %}

@@ -7,19 +7,23 @@
   <title>Gradia - Home</title>
 </head>
 <body>
-  <header>
+  <div class="nav-bar">
     <div class="d-flex align-items-center">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
-      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-      <strong> Gradia </strong> 
+     <div class="logo-container">
+        <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css ">
+          <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+          <strong> Gradia </strong>
+        </a>
+      </div>
     </div>
-    <nav>
+    <div class="nav-links">
       <a href="{{url_for('login')}}">Log in</a>
       <a href="{{url_for('signup')}}">Sign up</a>
       <a href="{{url_for('about')}}">About Us</a>
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
-    </nav>
-  </header>
+    </div>
+  </div>
 
   <section class="hero" style="display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; max-width: 1200px; margin: 0 auto;">
     <div class="text-content" style="flex: 1; max-width: 600px;">

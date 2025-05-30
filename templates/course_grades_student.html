@@ -14,8 +14,10 @@
       <button onclick="goBack()" class="back-button">
         <i class="fas fa-arrow-left"></i>
       </button>
-      <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-      <strong> Gradia</strong>
+      <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
+        <span class="logo-icon">🎓</span>
+        <span>Gradia</span>
+      </a>
     </div>
     <div class="nav-links">
       <a href="{{url_for('about')}}">About Us</a>

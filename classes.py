@@ -551,7 +551,7 @@ The final rubric system must total exactly 100 points when combined with existin
             total_possible_points += curr_dict["point"]
 
         essay_content = "".join(text_l)
-        
+        print("THIS IS THE ESSAY_CONTENT:", essay_content)
         # Enhanced grading instructions emphasizing the 100-point scale
         grading_instructions = f"""
 Grade this essay using the provided rubrics. The rubrics total {total_possible_points} points out of 100.

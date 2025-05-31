@@ -59,8 +59,9 @@
             <div class="file-upload-area">
                 <div class="upload-box" id="dropZone">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag and drop files here or click to browse</p>
-                    <input type="file" name="files" multiple id="fileInput" style="display: none;">
+                    <p>Drag and drop a file here or click to browse</p>
+                    <p style="font-size: 0.9em; color: #666;">Note: Only one file can be submitted. New submissions will replace existing ones.</p>
+                    <input type="file" name="file" id="fileInput" style="display: none;">
                 </div>
                 <div class="selected-files" id="selectedFiles"></div>
             </div>
@@ -87,7 +88,7 @@
 
     {% if assignment.submission %}
     <div class="section submitted-files">
-        <div class="section-title">Your Submitted Files</div>
+        <div class="section-title">Your Submitted File</div>
         <form action="{{ url_for('submit_assignment', course_code = course_code, course_name = course_name, assignment_id=assignment.id) }}" method="POST">
             <div class="attachments-grid">
                 {% for filename in assignment.submission.files %}
@@ -106,7 +107,7 @@
             {% if not deadline_passed %}
             <div class="button-container">
                 <button type="submit" name="delete-all" value="true" class="delete-all-btn">
-                    <i class="fas fa-trash-alt"></i> Delete All
+                    <i class="fas fa-trash-alt"></i> Delete Submission
                 </button>
             </div>
             {% endif %}
@@ -137,7 +138,11 @@ document.addEventListener('DOMContentLoaded', function() {
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        handleFiles(e.dataTransfer.files);
+        // Modified to handle single file
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFile(e.dataTransfer.files[0]);
+        }
     });
 
     // Handle click to upload
@@ -146,21 +151,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
     });
 
-    function handleFiles(files) {
+    function handleFile(file) {
         selectedFiles.innerHTML = '';
-        Array.from(files).forEach(file => {
-            const fileElement = document.createElement('div');
-            fileElement.className = 'selected-file';
-            fileElement.innerHTML = `
-                <i class="far fa-file"></i>
-                <span>${file.name}</span>
-                <span class="file-size">${formatFileSize(file.size)}</span>
-            `;
-            selectedFiles.appendChild(fileElement);
-        });
+        const fileElement = document.createElement('div');
+        fileElement.className = 'selected-file';
+        fileElement.innerHTML = `
+            <i class="far fa-file"></i>
+            <span>${file.name}</span>
+            <span class="file-size">${formatFileSize(file.size)}</span>
+        `;
+        selectedFiles.appendChild(fileElement);
     }
 
     function formatFileSize(bytes) {

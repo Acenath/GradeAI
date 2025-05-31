@@ -324,9 +324,9 @@ def handle_add_student(cursor, course_name, course_code, current_students, temp_
     
     if not student_id:
         flash('Please enter a student number', 'warning')
-        return render_template('blockview_teacher.html', 
-                             course_name=course_name, 
-                             course_code=course_code, 
+        return render_template('blockview_teacher.html',
+                             course_name=course_name,
+                             course_code=course_code,
                              enrolled_students=current_students,
                              temp_students_json=temp_students_json)
     
@@ -334,9 +334,9 @@ def handle_add_student(cursor, course_name, course_code, current_students, temp_
     student_info = fetch_student_info(cursor, student_id)
     if not student_info['success']:
         flash(f'Student {student_id} not found in the system', 'danger')
-        return render_template('blockview_teacher.html', 
-                             course_name=course_name, 
-                             course_code=course_code, 
+        return render_template('blockview_teacher.html',
+                             course_name=course_name,
+                             course_code=course_code,
                              enrolled_students=current_students,
                              temp_students_json=temp_students_json)
     
@@ -344,9 +344,9 @@ def handle_add_student(cursor, course_name, course_code, current_students, temp_
     student_already_exists = any(student[0] == student_id for student in current_students)
     if student_already_exists:
         flash(f'Student {student_id} is already in the list', 'warning')
-        return render_template('blockview_teacher.html', 
-                             course_name=course_name, 
-                             course_code=course_code, 
+        return render_template('blockview_teacher.html',
+                             course_name=course_name,
+                             course_code=course_code,
                              enrolled_students=current_students,
                              temp_students_json=temp_students_json)
     
@@ -369,11 +369,11 @@ def handle_add_student(cursor, course_name, course_code, current_students, temp_
         temp_students.append(temp_student)
         current_students = temp_students
         temp_students_json = create_temp_students_json(temp_students)
-        del temp_students_json
+        # REMOVED: del temp_students_json
     
-    return render_template('blockview_teacher.html', 
-                         course_name=course_name, 
-                         course_code=course_code, 
+    return render_template('blockview_teacher.html',
+                         course_name=course_name,
+                         course_code=course_code,
                          enrolled_students=current_students,
                          temp_students_json=temp_students_json)
 
@@ -1347,7 +1347,7 @@ def download_submission(course_code, assignment_id, user_id, filename):
     except FileNotFoundError:
         abort(404)
 
-#DONE
+# Modified submit_assignment route
 @app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
 def submit_assignment(course_code, course_name, assignment_id):
@@ -1361,7 +1361,7 @@ def submit_assignment(course_code, course_name, assignment_id):
 
     assignment_title = assignment[1]
 
-    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1]  , current_user.user_id)
+    submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1], current_user.user_id)
     print(submission_dir_student)
     delete_file = request.form.get("delete-file")
     delete_all = request.form.get("delete-all")
@@ -1412,10 +1412,10 @@ def submit_assignment(course_code, course_name, assignment_id):
                                course_name=course_name, 
                                assignment_id=assignment_id))
 
-    # Handle new submission
-    files = request.files.getlist('files')
-    if not files or not files[0].filename:
-        flash("Please select at least one file to submit", "error")
+    # Handle new submission - MODIFIED FOR SINGLE FILE
+    file = request.files.get('file')  # Changed from getlist to get single file
+    if not file or not file.filename:
+        flash("Please select a file to submit", "error")
         cursor.close()
         return redirect(url_for("assignment_submit_student",
                                 course_code=course_code,
@@ -1427,29 +1427,25 @@ def submit_assignment(course_code, course_name, assignment_id):
         submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, str(current_user.user_id))
         os.makedirs(submission_dir, exist_ok=True)
 
-        # Save files and create submissions
-        saved_files = []
-        submission_records = []
-        
-        for f in files:
-            if f and f.filename:
-                filename = secure_filename(f.filename)
-                file_path = os.path.join(submission_dir, filename)
-                f.save(file_path)
-                saved_files.append(filename)                
-                submission_id = SubmissionIDManager.create_submission_id(
-                    assignment_id, current_user.user_id, filename
-                )
-                submission_records.append((submission_id, filename))
+        # MODIFIED: Delete any existing files in the submission directory before saving new one
+        if os.path.exists(submission_dir):
+            try:
+                for existing_file in os.listdir(submission_dir):
+                    file_path = os.path.join(submission_dir, existing_file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+            except Exception as e:
+                print(f"Error deleting existing files: {e}")
 
-        if not saved_files:
-            flash("No files were saved", "error")
-            cursor.close()
-            return redirect(url_for("assignment_submit_student",
-                                    course_code=course_code,
-                                    course_name=assignment[2],
-                                    assignment_id=assignment_id))
+        # Save the single file
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(submission_dir, filename)
+        file.save(file_path)
         
+        submission_id = SubmissionIDManager.create_submission_id(
+            assignment_id, current_user.user_id, filename
+        )
+
         # Delete any existing submissions for this assignment and student
         cursor.execute("""
             SELECT submission_id FROM submission 
@@ -1463,8 +1459,8 @@ def submit_assignment(course_code, course_name, assignment_id):
         
         delete_submissions(cursor, current_user.user_id, assignment_id)
 
-        for submission_id, filename in submission_records:
-            create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, filename)
+        # Create new submission
+        create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, filename)
 
         gradeai_db.connection.commit()
 
@@ -1493,39 +1489,29 @@ def submit_assignment(course_code, course_name, assignment_id):
             teacher_result = get_course_teacher_id(cursor, course_code)
             
             teacher_id = teacher_result[0] if teacher_result else None
-            submission_scores = []
             
-            # Grade each file
-            for filename, (submission_id, _) in zip(saved_files, submission_records):
-                file_extension = filename.split(".")[-1] if "." in filename else "docx"
-                file_path = os.path.join(submission_dir, filename)
+            # Grade the single file
+            file_extension = filename.split(".")[-1] if "." in filename else "docx"
             
-                try:
-                    # Grade the file using the grading assistant
-                    submission_score = grading_assistant.grade_file(file_path, file_extension, rubrics)
-                    print(f"Debug - Grading result: {submission_score}")
-                    # Add grade into DB
-                    create_grade_with_proper_id(cursor, submission_id, submission_score, "This submission is graded by system!", teacher_id)
-                    
-                    submission_scores.append({
-                        "filename": filename, 
-                        "submission_score": submission_score,
-                        "submission_id": submission_id
-                    })
-                    
-                except Exception as grading_error:
-                    print(f"Error grading file {filename}: {grading_error}")
-                    flash(f"Error grading {filename}: {str(grading_error)}", "warning")
-                    
-                    # Create grade entry with score value of 
-                    create_grade_with_proper_id(cursor, submission_id, 0, "This submission is graded by system!", teacher_id)
-            
-            gradeai_db.connection.commit()
-            print(f"Debug - Auto-grading completed. Scores: {submission_scores}")
-            
-            if submission_scores:
-                total_score = sum(item["submission_score"] for item in submission_scores)
-                flash(f"Assignment graded automatically! Total score: {total_score}/{assignment[3]}", "success")
+            try:
+                # Grade the file using the grading assistant
+                submission_score = grading_assistant.grade_file(file_path, file_extension, rubrics)
+                print(f"Debug - Grading result: {submission_score}")
+                # Add grade into DB
+                create_grade_with_proper_id(cursor, submission_id, submission_score, "This submission is graded by system!", teacher_id)
+                
+                gradeai_db.connection.commit()
+                print(f"Debug - Auto-grading completed. Score: {submission_score}")
+                
+                flash(f"Assignment graded automatically! Score: {submission_score}/{assignment[3]}", "success")
+                
+            except Exception as grading_error:
+                print(f"Error grading file {filename}: {grading_error}")
+                flash(f"Error grading {filename}: {str(grading_error)}", "warning")
+                
+                # Create grade entry with score value of 0
+                create_grade_with_proper_id(cursor, submission_id, 0, "This submission is graded by system!", teacher_id)
+                gradeai_db.connection.commit()
         
     except Exception as e:
         gradeai_db.connection.rollback()

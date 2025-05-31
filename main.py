@@ -1,13 +1,11 @@
-from flask import Flask, render_template, url_for, request, session, redirect, flash, jsonify, send_from_directory, abort
+from flask import Flask, render_template, url_for, request, redirect, flash, jsonify, send_from_directory, abort
 from flask_mysqldb import MySQL
 from flask_login import *
-from itsdangerous import URLSafeTimedSerializer
 from helpers import *
 from classes import *
 import os
 from werkzeug.utils import secure_filename
 import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
 from flask_mail import Mail, Message
 
 app = Flask(__name__)
@@ -19,16 +17,6 @@ app.config['MAIL_USERNAME'] = 'gradia.website@gmail.com'
 app.config['MAIL_PASSWORD'] = 'ivln hvqr pfnm zudw'
 app.config['MAIL_DEFAULT_SENDER'] = 'gradia.website@gmail.com'
 app.config['SECUIRTY_PASSWORD_SALT'] = 'gradia_salt'
-mail = Mail(app)
-grading_assistant = GradingAssistant()
-
-# Create directories if they don't exist
-os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
-os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
-os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
-
-# Login
-login_manager = LoginManager()
 
 # Database
 app.config['MYSQL_HOST'] = '127.0.0.1'
@@ -36,23 +24,19 @@ app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'gradeai'
 
+# Login
+login_manager = LoginManager()
+
 gradeai_db = MySQL(app)
 login_manager.init_app(app)
+grading_assistant = GradingAssistant()
+mail = Mail(app)
 
 
-
-def generate_reset_token(email):
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    return serializer.dumps(email, salt=app.config['SECUIRTY_PASSWORD_SALT'])
-
-def verify_reset_token(token, max_age=3600):
-    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-    try:
-        email = serializer.loads(token, salt=app.config['SECUIRTY_PASSWORD_SALT'], max_age=max_age) #expireas after 1 hour
-    except Exception as e:
-        app.logger.error(f"Token verification failed: {str(e)}")
-        return None
-    return email
+# Create directories if they don't exist
+os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
+os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
+os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 
 @app.route('/forgot_password', methods=["GET", "POST"])
 def forgot_password():
@@ -68,7 +52,7 @@ def forgot_password():
 
         if user:
             try:
-                token = generate_reset_token(email)
+                token = generate_reset_token(app, email)
                 reset_url = url_for('new_password', token=token, _external=True)
                 send_password_reset_email(email, user[1], reset_url)
                 flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
@@ -86,7 +70,7 @@ def forgot_password():
 
 @app.route('/new_password/<token>', methods=["GET", "POST"])
 def new_password(token):
-    email = verify_reset_token(token)
+    email = verify_reset_token(app, token)
     if not email:
         flash('The password reset link is invalid or has expired.', 'error')
         return redirect(url_for('forgot_password'))
@@ -369,7 +353,6 @@ def handle_add_student(cursor, course_name, course_code, current_students, temp_
         temp_students.append(temp_student)
         current_students = temp_students
         temp_students_json = create_temp_students_json(temp_students)
-        # REMOVED: del temp_students_json
     
     return render_template('blockview_teacher.html',
                          course_name=course_name,
@@ -391,9 +374,9 @@ def handle_csv_upload(cursor, course_name, course_code, current_students, temp_s
                              enrolled_students=current_students,
                              temp_students_json=temp_students_json)
     
-    file = request.files['fileInput']
+    f = request.files['fileInput']
     
-    if file.filename == '':
+    if f.filename == '':
         flash('No file selected', 'danger')
         return render_template('blockview_teacher.html', 
                              course_name=course_name, 
@@ -401,7 +384,7 @@ def handle_csv_upload(cursor, course_name, course_code, current_students, temp_s
                              enrolled_students=current_students,
                              temp_students_json=temp_students_json)
     
-    if not file.filename.lower().endswith('.csv'):
+    if not f.filename.lower().endswith('.csv'):
         flash('Please upload a CSV file', 'danger')
         return render_template('blockview_teacher.html', 
                              course_name=course_name, 
@@ -411,10 +394,10 @@ def handle_csv_upload(cursor, course_name, course_code, current_students, temp_s
     
     try:
         # Save the uploaded file temporarily
-        filename = secure_filename(file.filename)
+        filename = secure_filename(f.filename)
         temp_path = os.path.join(ENROLLMENTS_FILES_DIR, filename)
         os.makedirs(ENROLLMENTS_FILES_DIR, exist_ok=True)
-        file.save(temp_path)
+        f.save(temp_path)
         
         # Process CSV file
         added_students = []
@@ -612,7 +595,8 @@ def handle_create_course(cursor, course_name, course_code, current_students):
                              course_name=course_name, 
                              course_code=course_code, 
                              enrolled_students=current_students,
-                             temp_students_json=temp_students_json) 
+                             temp_students_json=temp_students_json)
+    
 @app.route('/student_dashboard')
 @login_required
 def student_dashboard():
@@ -1095,7 +1079,7 @@ def assignment_submit_student(course_code, course_name, assignment_id):
                 if os.path.isfile(os.path.join(submission_dir, f)):
                     files.append(f)
                     current_time = datetime.datetime.now()
-                    create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, f)
+                    create_submission(cursor, assignment_id, current_user.user_id, f)
                     
         except Exception as e:
             print(f"Error processing submission directory: {e}")
@@ -1490,7 +1474,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         delete_submissions(cursor, current_user.user_id, assignment_id)
 
         # Create new submission
-        create_submission_with_proper_id(cursor, assignment_id, current_user.user_id, filename)
+        create_submission(cursor, assignment_id, current_user.user_id, filename)
 
         gradeai_db.connection.commit()
 
@@ -1526,7 +1510,7 @@ def submit_assignment(course_code, course_name, assignment_id):
                 submission_score = grading_assistant.grade_file(file_path, file_extension, rubrics)
                 print(f"Debug - Grading result: {submission_score}")
                 # Add grade into DB
-                create_grade_with_proper_id(cursor, submission_id, submission_score, "This submission is graded by system!", teacher_id)
+                create_grade(cursor, submission_id, submission_score, "This submission is graded by system!", teacher_id)
                 
                 gradeai_db.connection.commit()
                 print(f"Debug - Auto-grading completed. Score: {submission_score}")
@@ -1538,7 +1522,7 @@ def submit_assignment(course_code, course_name, assignment_id):
                 flash(f"Error grading {filename}: {str(grading_error)}", "warning")
                 
                 # Create grade entry with score value of 0
-                create_grade_with_proper_id(cursor, submission_id, 0, "This submission is graded by system!", teacher_id)
+                create_grade(cursor, submission_id, 0, "This submission is graded by system!", teacher_id)
                 gradeai_db.connection.commit()
         
     except Exception as e:

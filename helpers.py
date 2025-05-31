@@ -3,11 +3,9 @@ from hashlib import sha256
 import csv
 import os
 import json
+from itsdangerous import URLSafeTimedSerializer
 from collections import defaultdict
-from flask_mail import Mail
-from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
-from flask import flash, jsonify
 from classes import (
     SubmissionIDManager, GradeIDManager, AssignmentIDManager, 
     RubricIDManager, AnnouncementIDManager
@@ -23,6 +21,20 @@ PROFILE_PICS_DIR = os.path.join('static', 'uploads', 'profile_pics')
 ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg']
 
 #FUNCTIONS
+
+def generate_reset_token(app, email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt=app.config['SECUIRTY_PASSWORD_SALT'])
+
+def verify_reset_token(app, token, max_age=3600):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        email = serializer.loads(token, salt=app.config['SECUIRTY_PASSWORD_SALT'], max_age=max_age) #expireas after 1 hour
+    except Exception as e:
+        app.logger.error(f"Token verification failed: {str(e)}")
+        return None
+    return email
+
 
 def calculate_total_sum(array):
     return sum([int(i) for i in array])
@@ -52,38 +64,6 @@ def save_files(given_files, section, course_code, title: None):
             filename = secure_filename(f.filename)
             file_path = os.path.join(intended_dir, filename)
             f.save(file_path)
-
-def process_csv(csv_path, course_code):
-    student_list = set()
-    try:
-        with open(os.path.join(ENROLLMENTS_FILES_DIR, course_code), 'r+') as f:
-            csv_reader = csv.reader(f)
-            for row in csv_reader:
-                if not row or not row[0].strip():  # skip empty rows
-                    continue
-            
-                student_id = row[0].strip()
-                student_list.add(student_id)
-        
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
-
-        return student_list
-    
-    except Exception as e:
-        print(f"Error processing CSV: {e}")
-        if os.path.exists(csv_path):
-            os.remove(csv_path)
-        return {'success': False}
-
-def handle_class_creation(cursor, course_code, course_name, teacher_id):
-    cursor.execute("SELECT * FROM class WHERE class_id = %s", (course_code,))
-    existing_class = cursor.fetchone()
-    
-    if not existing_class:
-        create_class(cursor, course_code, course_name, teacher_id)
-        return True
-    return False
 
 def handle_student_removal(cursor, students_to_remove, course_code):
     """
@@ -133,7 +113,6 @@ def handle_student_removal(cursor, students_to_remove, course_code):
     
     return removed_students
 
-
 def is_student_enrolled(cursor, student_id, class_id):
     cursor.execute(''' SELECT * FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
     enrollment_tuple = cursor.fetchall()
@@ -143,20 +122,6 @@ def is_student_enrolled(cursor, student_id, class_id):
 
 def remove_student(cursor, student_id, class_id):
     cursor.execute(''' DELETE FROM enrollment WHERE student_id = %s AND class_id = %s ''', (student_id, class_id))
-
-def zip_to_rubric(cursor, zip_rubric, user_id, class_id, assignment_title, assignment_id):
-    for fold, (rubric_desc, rubric_val) in enumerate(zip_rubric):
-        create_rubric(cursor, rubric_val, rubric_desc, user_id, class_id, assignment_id, assignment_title, fold)
-
-def create_rubric(cursor, score, description, created_by, assignment_id, fold):
-    """Updated create_rubric with proper ID generation"""
-    rubric_id = RubricIDManager.create_rubric_id(assignment_id, fold)
-    cursor.execute('''
-        INSERT INTO rubric (rubric_id, assignment_id, score, description, created_at, created_by)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    ''', (rubric_id, assignment_id, score, description, datetime.datetime.now(), created_by))
-
-    return rubric_id
 
 def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score, file_type):
     """Updated create_assignment with proper ID generation"""
@@ -177,7 +142,7 @@ def create_assignment(cursor, assignment_title, assignment_desc, assignment_dead
     
     return assignment_id, flag
 
-def create_grade_with_proper_id(cursor, submission_id, score, feedback, teacher_id):
+def create_grade(cursor, submission_id, score, feedback, teacher_id):
     """Helper function to create grade with proper ID"""
     grade_id = GradeIDManager.create_grade_id(submission_id)
     
@@ -188,7 +153,7 @@ def create_grade_with_proper_id(cursor, submission_id, score, feedback, teacher_
     
     return grade_id
 
-def create_submission_with_proper_id(cursor, assignment_id, student_id, filename):
+def create_submission(cursor, assignment_id, student_id, filename):
     """Helper function to create submission with proper ID"""
     submission_id = SubmissionIDManager.create_submission_id(assignment_id, student_id, filename)
     

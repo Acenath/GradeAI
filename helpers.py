@@ -158,7 +158,7 @@ def create_rubric(cursor, score, description, created_by, assignment_id, fold):
 
     return rubric_id
 
-def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
+def create_assignment(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score, file_type):
     """Updated create_assignment with proper ID generation"""
     flag = False
     assignment_id = AssignmentIDManager.create_assignment_id(class_id, assignment_title)
@@ -171,9 +171,9 @@ def create_assignment(cursor, assignment_title, assignment_desc, assignment_dead
         flag = True
     
     cursor.execute(''' 
-        INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score) 
-        VALUES (%s, %s, %s, %s, %s, %s)
-    ''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score))
+        INSERT INTO assignment (assignment_id, title, description, deadline, class_id, total_score, file_type) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    ''', (assignment_id, assignment_title, assignment_desc, assignment_deadline, class_id, total_score, file_type, ))
     
     return assignment_id, flag
 
@@ -340,7 +340,7 @@ def get_assignment_details(cursor, assignment_id, course_code: None):
                     """, (assignment_id, ))
     else:
         cursor.execute("""
-            SELECT a.title, a.description, a.deadline, a.total_score, c.name as course_name
+            SELECT a.title, a.description, a.deadline, a.total_score, c.name as course_name, a.file_type
             FROM assignment a
             JOIN class c ON a.class_id = c.class_id
             WHERE a.assignment_id = %s AND a.class_id = %s

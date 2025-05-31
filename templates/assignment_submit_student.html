@@ -61,7 +61,22 @@
                     <i class="fas fa-cloud-upload-alt"></i>
                     <p>Drag and drop a file here or click to browse</p>
                     <p style="font-size: 0.9em; color: #666;">Note: Only one file can be submitted. New submissions will replace existing ones.</p>
-                    <input type="file" name="file" id="fileInput" style="display: none;">
+                    <p style="font-size: 0.9em; color: #007bff;">
+                        {% if assignment.file_type == 'PDF' %}
+                            Accepted file type: PDF only
+                        {% elif assignment.file_type == 'DOCX' %}
+                            Accepted file type: DOCX only
+                        {% else %}
+                            Accepted file types: PDF or DOCX
+                        {% endif %}
+                    </p>
+                    {% if assignment.file_type == 'PDF' %}
+                        <input type="file" name="file" id="fileInput" accept=".pdf" style="display: none;">
+                    {% elif assignment.file_type == 'DOCX' %}
+                        <input type="file" name="file" id="fileInput" accept=".docx" style="display: none;">
+                    {% else %}
+                        <input type="file" name="file" id="fileInput" accept=".pdf,.docx" style="display: none;">
+                    {% endif %}
                 </div>
                 <div class="selected-files" id="selectedFiles"></div>
             </div>
@@ -124,6 +139,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const selectedFiles = document.getElementById('selectedFiles');
+    
+    // Define allowed file types based on assignment requirement
+    const fileType = '{{ assignment.file_type }}';
+    let allowedExtensions = [];
+    let allowedMimeTypes = [];
+    
+    if (fileType === 'PDF') {
+        allowedExtensions = ['.pdf'];
+        allowedMimeTypes = ['application/pdf'];
+    } else if (fileType === 'DOCX') {
+        allowedExtensions = ['.docx'];
+        allowedMimeTypes = ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    } else {
+        // Allow both PDF and DOCX
+        allowedExtensions = ['.pdf', '.docx'];
+        allowedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    }
 
     // Handle drag and drop
     dropZone.addEventListener('dragover', (e) => {
@@ -140,8 +172,11 @@ document.addEventListener('DOMContentLoaded', function() {
         dropZone.classList.remove('dragover');
         // Modified to handle single file
         if (e.dataTransfer.files.length > 0) {
-            fileInput.files = e.dataTransfer.files;
-            handleFile(e.dataTransfer.files[0]);
+            const file = e.dataTransfer.files[0];
+            if (validateFile(file)) {
+                fileInput.files = e.dataTransfer.files;
+                handleFile(file);
+            }
         }
     });
 
@@ -152,9 +187,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
+            const file = e.target.files[0];
+            if (validateFile(file)) {
+                handleFile(file);
+            } else {
+                // Clear the input if invalid file
+                e.target.value = '';
+            }
         }
     });
+    
+    function validateFile(file) {
+        const fileName = file.name.toLowerCase();
+        const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+        
+        if (!allowedExtensions.includes(fileExtension)) {
+            let message = '';
+            if (fileType === 'PDF') {
+                message = 'Please upload a PDF file only.';
+            } else if (fileType === 'DOCX') {
+                message = 'Please upload a DOCX file only.';
+            } else {
+                message = 'Please upload a PDF or DOCX file only.';
+            }
+            alert(message);
+            return false;
+        }
+        
+        return true;
+    }
 
     function handleFile(file) {
         selectedFiles.innerHTML = '';

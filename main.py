@@ -928,13 +928,13 @@ def assignment_creation(course_code):
                             assignment_dir = os.path.join(ASSIGNMENT_FILES_DIR, course_code, form_data['title'])
                             os.makedirs(assignment_dir, exist_ok=True)
                             
-                            for file in files:
-                                if file and file.filename:
-                                    filename = secure_filename(file.filename)
+                            for f in files:
+                                if f and f.filename:
+                                    filename = secure_filename(f.filename)
                                     file_path = os.path.join(assignment_dir, filename)
-                                    file.save(file_path)
+                                    f.save(file_path)
                                     uploaded_files.append(filename)
-                    
+                    print(form_data)
                     # Create assignment
                     assignment_id, existing_assignment = create_assignment(
                         cursor, 
@@ -942,7 +942,8 @@ def assignment_creation(course_code):
                         form_data['description'], 
                         form_data['due_date'],
                         course_code,
-                        total_points,                     
+                        total_points,
+                        form_data['file_type']                
                         )
                     if existing_assignment:
                         flash(f"You cannot create an assignment with this title. An assignment titled '{form_data['title']}' already exists in this course.", "error")
@@ -958,7 +959,7 @@ def assignment_creation(course_code):
                     cursor.close()
                     
                     flash(f"Assignment '{form_data['title']}' created successfully with {len(valid_rubrics)} rubrics totaling {total_points} points!", "success")
-                    return redirect(url_for('teacher_course_assignments', course_code=course_code))
+                    return redirect(url_for('view_assignments', course_code=course_code))
                     
                 except Exception as e:
                     gradeai_db.connection.rollback()
@@ -1113,7 +1114,8 @@ def assignment_submit_student(course_code, course_name, assignment_id):
         'submission': {
             'files': files,
             'submitted_at': current_time if files else None
-        } 
+        }, 
+        'file_type': assignment_data[-1]
     }
     
     cursor.close()
@@ -1346,8 +1348,8 @@ def download_submission(course_code, assignment_id, user_id, filename):
         return send_from_directory(submission_dir, filename, as_attachment=True)
     except FileNotFoundError:
         abort(404)
-
-# Modified submit_assignment route
+        
+# Modified submit_assignment route with file type validation
 @app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
 def submit_assignment(course_code, course_name, assignment_id):
@@ -1360,9 +1362,10 @@ def submit_assignment(course_code, course_name, assignment_id):
         return redirect(url_for("assignments_student", course_code=course_code, course_name=course_name))
 
     assignment_title = assignment[1]
+    # Get file type requirement (assuming it's the last element in assignment tuple)
+    file_type_requirement = assignment[-1] if len(assignment) > 4 else None
 
     submission_dir_student = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1], current_user.user_id)
-    print(submission_dir_student)
     delete_file = request.form.get("delete-file")
     delete_all = request.form.get("delete-all")
     
@@ -1413,14 +1416,42 @@ def submit_assignment(course_code, course_name, assignment_id):
                                assignment_id=assignment_id))
 
     # Handle new submission - MODIFIED FOR SINGLE FILE
-    file = request.files.get('file')  # Changed from getlist to get single file
-    if not file or not file.filename:
+    f = request.files.get('file')  # Changed from getlist to get single file
+    if not f or not f.filename:
         flash("Please select a file to submit", "error")
         cursor.close()
         return redirect(url_for("assignment_submit_student",
                                 course_code=course_code,
                                 course_name=assignment[2],
                                 assignment_id=assignment_id))
+    
+    # VALIDATE FILE TYPE
+    filename = secure_filename(f.filename)
+    file_extension = filename.split(".")[-1].lower() if "." in filename else ""
+    
+    # Check if file type matches requirement
+    if file_type_requirement:
+        if file_type_requirement.upper() == 'PDF' and file_extension != 'pdf':
+            flash("Only PDF files are allowed for this assignment", "error")
+            cursor.close()
+            return redirect(url_for("assignment_submit_student",
+                                    course_code=course_code,
+                                    course_name=assignment[2],
+                                    assignment_id=assignment_id))
+        elif file_type_requirement.upper() == 'DOCX' and file_extension != 'docx':
+            flash("Only DOCX files are allowed for this assignment", "error")
+            cursor.close()
+            return redirect(url_for("assignment_submit_student",
+                                    course_code=course_code,
+                                    course_name=assignment[2],
+                                    assignment_id=assignment_id))
+        elif file_type_requirement.upper() not in ['PDF', 'DOCX'] and file_extension not in ['pdf', 'docx']:
+            flash("Only PDF or DOCX files are allowed for this assignment", "error")
+            cursor.close()
+            return redirect(url_for("assignment_submit_student",
+                                    course_code=course_code,
+                                    course_name=assignment[2],
+                                    assignment_id=assignment_id))
     
     try:
         # Create submission directory using correct path
@@ -1438,9 +1469,8 @@ def submit_assignment(course_code, course_name, assignment_id):
                 print(f"Error deleting existing files: {e}")
 
         # Save the single file
-        filename = secure_filename(file.filename)
         file_path = os.path.join(submission_dir, filename)
-        file.save(file_path)
+        f.save(file_path)
         
         submission_id = SubmissionIDManager.create_submission_id(
             assignment_id, current_user.user_id, filename
@@ -1491,8 +1521,6 @@ def submit_assignment(course_code, course_name, assignment_id):
             teacher_id = teacher_result[0] if teacher_result else None
             
             # Grade the single file
-            file_extension = filename.split(".")[-1] if "." in filename else "docx"
-            
             try:
                 # Grade the file using the grading assistant
                 submission_score = grading_assistant.grade_file(file_path, file_extension, rubrics)

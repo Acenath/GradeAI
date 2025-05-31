@@ -3,14 +3,17 @@ from helpers import *
 import hashlib
 import datetime
 import uuid
-from typing import Optional
 import gc
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import os
-import docx
 import re
+import json
 import ast
+import gc
+import docx
+import PyPDF2
+import pdfplumber
+
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 class User(UserMixin):
     def __init__(self, user_id, email, *, first_name, last_name):
@@ -75,13 +78,6 @@ class User(UserMixin):
         else:
             return "<User: Not authenticated>"
     
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import re
-import json
-import ast
-import gc
-import docx
 
 # Fixed GradingAssistant class methods for better rubric protection
 
@@ -507,20 +503,54 @@ The final rubric system must total exactly 100 points when combined with existin
         return rubrics
 
     def grade_file(self, file_path, file_type, rubrics):
-        # Read essay content
+        # Read essay content - MODIFIED TO SUPPORT PDF
         text_l = []
+
         if file_type == "docx":
             f = docx.Document(file_path)
             for docpara in f.paragraphs:
                 text_l.append(docpara.text + "\n")
+        elif file_type == "pdf":
+            # PDF support using PyPDF2
+            
+            try:
+                with open(file_path, 'rb') as pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    num_pages = len(pdf_reader.pages)
+                    
+                    for page_num in range(num_pages):
+                        page = pdf_reader.pages[page_num]
+                        text = page.extract_text()
+                        if text:
+                            text_l.append(text + "\n")
+            except Exception as e:
+                print(f"Error reading PDF file: {e}")
+                # Try alternative PDF reader if PyPDF2 fails
+                try:
+                    with pdfplumber.open(file_path) as pdf:
+                        for page in pdf.pages:
+                            text = page.extract_text()
+                            if text:
+                                text_l.append(text + "\n")
+                except:
+                    print("Failed to read PDF with both PyPDF2 and pdfplumber")
+                    text_l.append("Error: Could not extract text from PDF file.\n")
         elif file_type == "txt":
             with open(file_path, 'r', encoding='utf-8') as f:
                 text_l = f.readlines()
-        
+        else:
+            # Handle other file types or unknown extensions
+            print(f"Warning: Unknown file type '{file_type}', attempting to read as text")
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text_l = f.readlines()
+            except:
+                text_l.append(f"Error: Could not read file of type '{file_type}'.\n")
+
         # Handle both tuple and dict formats for rubrics
         formatted_rubrics = []
         total_possible_points = 0
-        
+
         for item in rubrics:
             print(f"Processing rubric item: {item}, type: {type(item)}")
             
@@ -554,27 +584,27 @@ The final rubric system must total exactly 100 points when combined with existin
         print("THIS IS THE ESSAY_CONTENT:", essay_content)
         # Enhanced grading instructions emphasizing the 100-point scale
         grading_instructions = f"""
-Grade this essay using the provided rubrics. The rubrics total {total_possible_points} points out of 100.
+        Grade this essay using the provided rubrics. The rubrics total {total_possible_points} points out of 100.
 
-GRADING RUBRICS (Total: {total_possible_points} points):
-{[{'criteria': r['description'][:60], 'max_points': r['point']} for r in formatted_rubrics]}
+        GRADING RUBRICS (Total: {total_possible_points} points):
+        {[{'criteria': r['description'][:60], 'max_points': r['point']} for r in formatted_rubrics]}
 
-ESSAY TO GRADE:
-{essay_content[:1500]}...
+        ESSAY TO GRADE:
+        {essay_content[:1500]}...
 
-GRADING GUIDELINES:
-- Evaluate each criterion carefully based on essay quality
-- Award points proportionally (0 to max points for each criterion)
-- Consider the academic level and assignment requirements
-- Be fair but maintain standards
+        GRADING GUIDELINES:
+        - Evaluate each criterion carefully based on essay quality
+        - Award points proportionally (0 to max points for each criterion)
+        - Consider the academic level and assignment requirements
+        - Be fair but maintain standards
 
-REQUIRED OUTPUT FORMAT (valid JSON only):
-[{{"rubric_desc": "criteria name", "rubric_score": awarded_points}}, ...]
+        REQUIRED OUTPUT FORMAT (valid JSON only):
+        [{{"rubric_desc": "criteria name", "rubric_score": awarded_points}}, ...]
 
-Example: [{{"rubric_desc": "Thesis statement", "rubric_score": 20}}, {{"rubric_desc": "Supporting evidence", "rubric_score": 18}}]
+        Example: [{{"rubric_desc": "Thesis statement", "rubric_score": 20}}, {{"rubric_desc": "Supporting evidence", "rubric_score": 18}}]
 
-JSON RESPONSE:"""
-        
+        JSON RESPONSE:"""
+
         chat = [
             {"role": "system", "content": f"You are grading an essay using specific rubrics totaling {total_possible_points} points. Output only valid JSON array with rubric scores. Be fair but maintain academic standards."},
             {"role": "user", "content": grading_instructions}
@@ -586,7 +616,7 @@ JSON RESPONSE:"""
             tokenize=False,
             add_generation_prompt=True
         )
-        
+
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
 
         with torch.no_grad():
@@ -604,22 +634,22 @@ JSON RESPONSE:"""
 
         # Extract response
         full_response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
+
         if "assistant" in full_response:
             response = full_response.split("assistant")[-1]
         else:
             input_length = len(self.tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True))
             response = full_response[input_length:]
-        
+
         response = response.strip()
         for stop_token in ["<|eot_id|>", "</s>", "<|end|>"]:
             if stop_token in response:
                 response = response.split(stop_token)[0]
-        
+
         print("Essay grading response:")
         print(response)
         print("-" * 50)
-        
+
         # Enhanced JSON parsing with proper fallback handling
         try:
             # Extract JSON from response

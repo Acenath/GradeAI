@@ -565,10 +565,10 @@ def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
             JOIN assignment as a ON a.assignment_id = s.assignment_id
             JOIN class as c ON c.class_id = a.class_id
             JOIN users as u ON u.user_id = s.student_id 
-            WHERE s.student_id = %s
+            WHERE s.student_id = %s AND a.deadline <= %s
             ORDER BY s.submitted_at DESC
             LIMIT %s
-        ''', (user_id, limit))
+        ''', (user_id, datetime.datetime.now(), limit, ))
         
     return cursor.fetchall()
 

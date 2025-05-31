@@ -624,7 +624,6 @@ def student_dashboard():
     profile_pic = fetch_profile_picture(None, current_user.user_id)
     cursor.close()
 
-    print("Debug - student_dashboard recent_feedback: ", recent_feedback)
     return render_template("student_dashboard.html",
                          courses_and_instructors=courses_and_instructors,
                          upcoming_deadlines=upcoming_deadlines,
@@ -1033,7 +1032,7 @@ def assignment_grades_student(course_name, course_code):
     cursor.execute("""
         SELECT a.title as assignment_title, g.score, g.feedback, 
                g.adjusted_at as graded_at, c.name as course_name, 
-               c.class_id as course_code
+               c.class_id as course_code, a.deadline
         FROM grade g 
         JOIN submission s ON g.submission_id = s.submission_id 
         JOIN assignment a ON s.assignment_id = a.assignment_id 
@@ -1046,7 +1045,8 @@ def assignment_grades_student(course_name, course_code):
     return render_template("assignment_grades_student.html",
                            grades=grades,
                            course_name=course_name,
-                           course_code=course_code)
+                           course_code=course_code,
+                           current_time = datetime.datetime.now())
 
 #DONE
 @app.route('/assignments_student/<course_code>/<course_name>')
@@ -1661,16 +1661,16 @@ def edit_email():
 def course_grades_student(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
     cursor.execute("""
-        SELECT a.title, g.score, g.feedback, 
-               g.adjusted_at , c.name , 
-               c.class_id 
-        FROM grade g 
-        JOIN submission s ON g.submission_id = s.submission_id 
-        JOIN assignment a ON s.assignment_id = a.assignment_id 
-        JOIN class c ON a.class_id = c.class_id 
-        WHERE s.student_id = %s
-        ORDER BY g.adjusted_at DESC
-    """, (current_user.user_id,))
+    SELECT a.title, g.score, g.feedback,
+    g.adjusted_at , c.name ,
+    c.class_id
+    FROM grade g
+    JOIN submission s ON g.submission_id = s.submission_id
+    JOIN assignment a ON s.assignment_id = a.assignment_id
+    JOIN class c ON a.class_id = c.class_id
+    WHERE s.student_id = %s AND a.deadline <= %s
+    ORDER BY g.adjusted_at DESC
+    """, (current_user.user_id, datetime.datetime.now(), ))
     grades = cursor.fetchall()
     cursor.close()
     return render_template("course_grades_student.html",

@@ -18,13 +18,15 @@
                 </thead>
                 <tbody>
                     {% for grade in grades %}
-                    <tr>
-                        <td>{{ grade[0] }}</td>
-                        <td>{{ grade[4] }} ({{ grade[5] }})</td>
-                        <td>{{ grade[1] }}</td>
-                        <td>{{ grade[2] }}</td>
-                        <td>{{ grade[3].strftime('%B %d, %Y') if grade[3] else "-"}}</td>
-                    </tr>
+                        {% if grade[-1] <= current_time %} <!-- Check if deadline is up-->
+                        <tr>
+                            <td>{{ grade[0] }}</td>
+                            <td>{{ grade[4] }} ({{ grade[5] }})</td>
+                            <td>{{ grade[1] }}</td>
+                            <td>{{ grade[2] }}</td>
+                            <td>{{ grade[3].strftime('%B %d, %Y') if grade[3] else "-"}}</td>
+                        </tr>
+                        {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

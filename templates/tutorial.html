@@ -11,10 +11,10 @@
 <body>
     <div class="nav-bar">
         <div class="d-flex align-items-center">
+            <button onclick="goBack()" class="back-button" style="margin-right: 10px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
             <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
-                <button onclick="goBack()" class="back-button">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
                 <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
                 <strong> Gradia</strong>
             </a>

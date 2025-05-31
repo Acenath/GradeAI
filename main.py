@@ -621,15 +621,16 @@ def student_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 0)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 0)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 0)
-    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    profile_pic = fetch_profile_picture(None, current_user.user_id)
     cursor.close()
 
     print("Debug - student_dashboard recent_feedback: ", recent_feedback)
     return render_template("student_dashboard.html",
-                           courses_and_instructors=courses_and_instructors,
-                           upcoming_deadlines=upcoming_deadlines,
-                           recent_feedback=recent_feedback,
-                           recent_announcements=recent_announcements,)
+                         courses_and_instructors=courses_and_instructors,
+                         upcoming_deadlines=upcoming_deadlines,
+                         recent_feedback=recent_feedback,
+                         recent_announcements=recent_announcements,
+                         profile_pic=profile_pic)
 
 
 @app.route('/teacher_dashboard')
@@ -641,16 +642,16 @@ def teacher_dashboard():
     upcoming_deadlines = fetch_upcoming_deadlines(cursor, current_user.user_id, 1)
     recent_feedback = fetch_recent_feedback(cursor, current_user.user_id, 1)
     recent_announcements = fetch_recent_announcements(cursor, current_user.user_id, 1)
-    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    profile_pic = fetch_profile_picture(None, current_user.user_id)
     cursor.close()
 
     return render_template("teacher_dashboard.html",
-                           courses=courses,
-                           upcoming_deadlines=upcoming_deadlines,
-                           recent_feedback=recent_feedback,
-                           recent_announcements=recent_announcements,
-                           total_student_dict=total_student_dict,
-                           )
+                         courses=courses,
+                         upcoming_deadlines=upcoming_deadlines,
+                         recent_feedback=recent_feedback,
+                         recent_announcements=recent_announcements,
+                         total_student_dict=total_student_dict,
+                         profile_pic=profile_pic)
 
 #DONE
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>/<title>')
@@ -696,38 +697,6 @@ def announcement_teacher(course_name, course_code):
                            course_code=course_code,
                            announcements=announcements)
 
-
-@app.route('/announcement_edit/<course_name>/<course_code>/<announcement_id>', methods=["GET", "POST"])
-@login_required
-def announcement_edit(course_name, course_code, announcement_id):
-    cursor = gradeai_db.connection.cursor()
-    #TODO
-    # Change the whole function
-    if request.method == "POST":
-        title = request.form.get("title")
-        content = request.form.get("description")
-        attachments = request.files.get("attachments")
-        _ = edit_announcement(announcement_id, title, content)
-        gradeai_db.connection.commit()
-        cursor.close()
-
-        return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
-
-    else:
-        fetch_announcement_details(cursor, announcement_id)
-        announcement = cursor.fetchone()
-        
-        cursor.close()
-        if not announcement:
-            return redirect(url_for('announcement_teacher', course_name=course_name, course_code=course_code))
-        
-        
-        return render_template("announcement_edit.html",
-                            course_name=course_name,
-                            course_code=course_code,
-                            announcement=announcement)
-
-#DONE
 @app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>')
 @login_required
 def announcement_delete(course_name, course_code, announcement_id):
@@ -1230,7 +1199,21 @@ def edit_image():
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(file.filename)}"
             
-            # Save the file
+            # Create the profile pics directory if it doesn't exist
+            os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
+            
+            # Delete old profile picture if it exists
+            old_pic = fetch_profile_picture(None, current_user.user_id)
+            if old_pic:
+                old_path = os.path.join('static', old_pic)
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                        app.logger.info(f"Successfully deleted old profile picture at: {old_path}")
+                    except Exception as e:
+                        app.logger.warning(f"Could not delete old profile picture: {str(e)}")
+            
+            # Save the new file
             file_path = os.path.join(PROFILE_PICS_DIR, unique_filename)
             file.save(file_path)
             
@@ -1239,62 +1222,8 @@ def edit_image():
                 raise Exception(f"Failed to save file at {file_path}")
             
             app.logger.info(f"File saved successfully at: {file_path}")
+            flash('Profile picture updated successfully!', 'success')
             
-            # Get relative path for database storage (without 'static/' prefix)
-            relative_path = os.path.join('uploads', 'profile_pics', unique_filename).replace('\\', '/')
-            app.logger.info(f"Relative path for database: {relative_path}")
-            
-            # Update database
-            cursor = gradeai_db.connection.cursor()
-            try:
-                # First, get the current profile picture url
-                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
-                result = cursor.fetchone()
-                app.logger.info(f"Current profile picture in database: {result[0] if result else 'None'}")
-                
-                if result and result[0]:
-                    old_filepath = result[0]
-                    # Delete old file if it exists
-                    try:
-                        old_full_path = os.path.join(app.root_path, 'static', old_filepath)
-                        app.logger.info(f"Attempting to delete old profile picture at: {old_full_path}")
-                        if os.path.exists(old_full_path):
-                            os.remove(old_full_path)
-                            app.logger.info(f"Successfully deleted old profile picture")
-                        else:
-                            app.logger.warning(f"Old profile picture not found at: {old_full_path}")
-                    except Exception as e:
-                        app.logger.warning(f"Could not delete old profile picture: {str(e)}")
-                
-                # Update the database with new filepath
-                cursor.execute("UPDATE users SET profile_picture_url = %s WHERE user_id = %s", (relative_path, current_user.user_id))
-                gradeai_db.connection.commit()
-                
-                # Verify the update
-                cursor.execute("SELECT profile_picture_url FROM users WHERE user_id = %s", (current_user.user_id,))
-                updated_path = cursor.fetchone()
-                app.logger.info(f"Updated profile picture path in database: {updated_path[0] if updated_path else 'None'}")
-                
-                # Verify the file exists at the new path
-                new_full_path = os.path.join(app.root_path, 'static', relative_path)
-                app.logger.info(f"Checking if new profile picture exists at: {new_full_path}")
-                if os.path.exists(new_full_path):
-                    app.logger.info("New profile picture file exists")
-                else:
-                    app.logger.error("New profile picture file not found!")
-                
-                flash('Profile picture updated successfully!', 'success')
-            except Exception as e:
-                gradeai_db.connection.rollback()
-                app.logger.error(f"Database error: {str(e)}")
-                flash('Database update failed. Please try again.', 'error')
-                # Clean up the file if database update failed
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                return redirect(url_for('edit_image'))
-            finally:
-                cursor.close()
-
             # Redirect based on user role
             user_role = role_parser(current_user.email)
             if isinstance(user_role, bytes):
@@ -1315,46 +1244,30 @@ def edit_image():
     if isinstance(user_role, bytes):
         user_role = int.from_bytes(user_role, byteorder='big')
 
-    cursor = gradeai_db.connection.cursor()
-    try:
-        profile_pic = fetch_profile_picture(cursor, current_user.user_id)
-        if profile_pic:
-            app.logger.info(f"Current profile picture path: {profile_pic}")
-            # Verify the file exists
-            full_path = os.path.join(app.root_path, 'static', profile_pic)
-            app.logger.info(f"Checking profile picture at: {full_path}")
-            if not os.path.exists(full_path):
-                app.logger.warning(f"Profile picture file not found at: {full_path}")
-                profile_pic = None
-            else:
-                app.logger.info("Profile picture file exists")
-                # Log the URL that will be used
-                url = url_for('static', filename=profile_pic)
-                app.logger.info(f"Profile picture URL will be: {url}")
-        return render_template("edit_image.html", user_role=user_role, profile_pic=profile_pic)
-    except Exception as e:
-        app.logger.error(f"Error fetching profile picture: {str(e)}")
-        return render_template("edit_image.html", user_role=user_role, profile_pic=None)
-    finally:
-        cursor.close()
+    profile_pic = fetch_profile_picture(None, current_user.user_id)
+    return render_template("edit_image.html", user_role=user_role, profile_pic=profile_pic)
 
 @app.route('/profile_student')
 @login_required
 def profile_student():
     cursor = gradeai_db.connection.cursor()
     courses_and_instructors = fetch_enrollments(cursor, current_user.user_id)
-    #profile_pic = fetch_profile_picture(cursor, current_user.user_idlll)
+    profile_pic = fetch_profile_picture(None, current_user.user_id)
     cursor.close()
-    return render_template("profile_student.html", courses_and_instructors=courses_and_instructors)
+    return render_template("profile_student.html", 
+                         courses_and_instructors=courses_and_instructors,
+                         profile_pic=profile_pic)
 
 @app.route('/profile_teacher')
 @login_required
 def profile_teacher():
     cursor = gradeai_db.connection.cursor()
     courses = fetch_classes(cursor, current_user.user_id)
-    #profile_pic = fetch_profile_picture(cursor, current_user.user_id)
+    profile_pic = fetch_profile_picture(None, current_user.user_id)
     cursor.close()
-    return render_template("profile_teacher.html", courses=courses)
+    return render_template("profile_teacher.html", 
+                         courses=courses,
+                         profile_pic=profile_pic)
 
 #DONE
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>/<student_id>', methods=['GET', 'POST'])
@@ -1765,6 +1678,29 @@ def course_grades_student(course_name, course_code):
                            course_name=course_name,
                            course_code=course_code)
 
+@app.route('/delete_assignment/<course_code>/<assignment_id>', methods=['POST'])
+@login_required
+def delete_assignment_route(course_code, assignment_id):
+    # Only allow teachers (role == 1)
+    user_role = role_parser(current_user.email)
+    if isinstance(user_role, bytes):
+        user_role = int.from_bytes(user_role, byteorder='big')
+    if user_role != 1:
+        flash('You are not authorized to delete assignments.', 'error')
+        return redirect(url_for('view_assignments', course_code=course_code))
+
+    cursor = gradeai_db.connection.cursor()
+    try:
+        from helpers import delete_assignment
+        delete_assignment(cursor, assignment_id)
+        gradeai_db.connection.commit()
+        flash('Assignment deleted successfully.', 'success')
+    except Exception as e:
+        gradeai_db.connection.rollback()
+        flash(f'Error deleting assignment: {str(e)}', 'error')
+    finally:
+        cursor.close()
+    return redirect(url_for('view_assignments', course_code=course_code))
 
 if __name__ == "__main__":
     app.run(debug=True)

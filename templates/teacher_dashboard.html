@@ -30,7 +30,7 @@
   <div class="profile-section">
     <div class="profile-pic">
       {% if profile_pic %}
-        <img src="{{ url_for('static', filename=profile_pic) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-user\' style=\'font-size: 40px;\'></i>';">
+        <img src="{{ url_for('static', filename='uploads/profile_pics/' + profile_pic.split('/')[-1]) }}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'fas fa-user\' style=\'font-size: 40px;\'></i>';">
       {% else %}
         <i class="fas fa-user" style="font-size: 40px;"></i>
       {% endif %}

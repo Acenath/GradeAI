@@ -8,20 +8,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/grade_submission.css') }}">
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="nav-bar">
-        <div class="logo-container">
-            <span class="logo-icon">🎓</span>
-            <span>Gradia</span>
+    <div class="nav-bar">
+        <div class="d-flex align-items-center">
+            <button onclick="goBack()" class="back-button" style="margin-right: 10px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
+                <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+                <strong> Gradia</strong>
+            </a>
         </div>
         <div class="nav-links">
-            <a href="{{ url_for('assignment_view_teacher', course_code=course_code, assignment_id=assignment.assignment_id) }}" class="back-link">
-                <i class="fas fa-arrow-left"></i> Back to Assignment
-            </a>
-            <a href="{{ url_for('teacher_dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('profile_teacher') }}">Profile</a>
+            {% if not current_user %}
+            <a href="/login">Log in</a>
+            <a href="/signup">Sign up</a>
+            {% endif %}
+            <a href="/about">About Us</a>
+            <a href="/tutorial">Quick Tutorial</a>
         </div>
-    </nav>
+    </div>
 
     <!-- Main Grading Interface -->
     <div class="grading-container">
@@ -75,12 +80,12 @@
                                 <div class="file-name">{{ file.filename }}</div>
                                 <div class="file-size">{{ "%.1f"|format(file.size / 1024) }} KB</div>
                             </div>
-                            <a href="{{ url_for('download_submission', 
-                                           course_code=course_code, 
-                                           assignment_id=assignment.assignment_id, 
-                                           user_id=student.user_id, 
-                                           filename=file.filename) }}" 
-                                        class="download-btn" 
+                            <a href="{{ url_for('download_submission',
+                                           course_code=course_code,
+                                           assignment_id=assignment.assignment_id,
+                                           user_id=student.user_id,
+                                           filename=file.filename) }}"
+                                        class="download-btn"
                                         download>
                             <i class="fas fa-download"></i>
                             Download
@@ -118,12 +123,12 @@
                     <form id="gradingForm" method="POST" action="{{ url_for('update_grade', submission_id=submission.submission_id) }}">
                         <div class="grade-input-group">
                             <label for="gradeInput">Final Grade</label>
-                            <input type="number" 
-                                   id="gradeInput" 
-                                   name="score" 
-                                   class="grade-input" 
-                                   min="0" 
-                                   max="{{ assignment.total_score }}" 
+                            <input type="number"
+                                   id="gradeInput"
+                                   name="score"
+                                   class="grade-input"
+                                   min="0"
+                                   max="{{ assignment.total_score }}"
                                    value="{{ submission.score }}">
                             <div class="grade-display">out of {{ assignment.total_score }} points</div>
                         </div>
@@ -142,9 +147,9 @@
 
                         <div class="feedback-group">
                             <label for="feedbackText">Feedback for Student</label>
-                            <textarea id="feedbackText" 
-                                      name="feedback" 
-                                      class="feedback-textarea" 
+                            <textarea id="feedbackText"
+                                      name="feedback"
+                                      class="feedback-textarea"
                                       placeholder="Provide detailed feedback...">{{ submission.feedback }}</textarea>
                         </div>
 
@@ -160,5 +165,13 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Back button functionality
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+
 </body>
 </html>

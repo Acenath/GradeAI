@@ -92,12 +92,24 @@ document.addEventListener('DOMContentLoaded', () => {
     ul.style.listStyle = 'none';
     ul.style.padding = '0';
 
-    files.forEach(file => {
+    files.forEach((file, idx) => {
       const li = document.createElement('li');
       li.style.display = 'flex';
       li.style.alignItems = 'center';
       li.style.marginBottom = '10px';
-      li.innerHTML = `<i class="fas fa-file-alt me-2" style="color: #555;"></i><span>${file.name}</span>`;
+
+      li.innerHTML = `
+        <i class="fas fa-file-alt me-2" style="color: #555;"></i>
+        <span style="flex:1">${file.name}</span>
+        <button type="button" class="remove-file-btn" style="color:red; background:none; border:none; font-size:18px; margin-left:8px; cursor:pointer;" title="Remove file">&times;</button>
+      `;
+
+      // Add click event to remove button
+      li.querySelector('.remove-file-btn').addEventListener('click', () => {
+        files.splice(idx, 1);
+        displayFiles(files);
+      });
+
       ul.appendChild(li);
     });
 
@@ -386,6 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Please fill in all rubric descriptions or remove empty rubrics.');
       return false;
     }
+
+    // Set the input's files to match allFiles
+    const dataTransfer = new DataTransfer();
+    allFiles.forEach(file => dataTransfer.items.add(file));
+    attachmentInput.files = dataTransfer.files;
   });
 });
 </script>

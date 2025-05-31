@@ -205,21 +205,14 @@ def fetch_classes(cursor, user_id):
     return courses
 
 def fetch_profile_picture(cursor, user_id):
-    # Look for profile pictures in the uploads directory
+    # Look for profile picture in the uploads directory
     profile_pics_dir = os.path.join('static', 'uploads', 'profile_pics')
-    if not os.path.exists(profile_pics_dir):
-        os.makedirs(profile_pics_dir, exist_ok=True)
-        return None
-        
-    # Look for files that start with the user_id
-    for filename in os.listdir(profile_pics_dir):
-        if filename.startswith(f"{user_id}_"):
-            # Convert Windows path to URL path
-            relative_path = 'uploads/profile_pics/' + filename
-            # Verify the file exists using OS path
-            full_path = os.path.join('static', 'uploads', 'profile_pics', filename)
-            if os.path.exists(full_path):
-                return relative_path
+    if os.path.exists(profile_pics_dir):
+        # Get all files that start with the user_id
+        for filename in os.listdir(profile_pics_dir):
+            if filename.startswith(str(user_id)):
+                # Return the path relative to the static directory
+                return os.path.join('uploads', 'profile_pics', filename).replace('\\', '/')
     return None
 
 def enroll_student(cursor, student_id, class_id):
@@ -363,7 +356,9 @@ def get_files(section, course_code, title):
     elif section == 'submission':
         intended_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, title)
     elif section == 'announcement':
-        intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, course_code, title)
+        intended_dir = os.path.join(ASSIGNMENT_FILES_DIR, 'announcements', course_code, title)
+        # Create directory if it doesn't exist
+        os.makedirs(intended_dir, exist_ok=True)
 
     if os.path.exists(intended_dir):
         attachments = [f for f in os.listdir(intended_dir) if os.path.isfile(os.path.join(intended_dir, f))]
@@ -501,19 +496,6 @@ def delete_announcement(cursor, announcement_id):
     
     except:
         return False
-    
-def edit_announcement(cursor, announcement_id, title, content):
-    try:
-        cursor.execute('''
-        UPDATE announcement
-        SET title = %s, content = %s, posted_at = %s
-        WHERE announcement_id = %s
-        ''', (title, content, datetime.datetime.now(), announcement_id, ))
-        return True
-    
-    except:
-        return False
-
 
 def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
     """Fetch upcoming assignment deadlines for the teacher's courses"""
@@ -678,3 +660,29 @@ def allowed_file(filename):
     
     extension = filename.rsplit('.', 1)[1].lower()
     return extension in ALLOWED_EXTENSIONS
+
+def delete_assignment(cursor, assignment_id):
+    """
+    Deletes an assignment and all related rubrics, submissions, and grades from the database.
+    """
+    # Delete grades related to submissions of this assignment
+    cursor.execute('''
+        DELETE g FROM grade g
+        JOIN submission s ON g.submission_id = s.submission_id
+        WHERE s.assignment_id = %s
+    ''', (assignment_id,))
+
+    # Delete submissions for this assignment
+    cursor.execute('''
+        DELETE FROM submission WHERE assignment_id = %s
+    ''', (assignment_id,))
+
+    # Delete rubrics for this assignment
+    cursor.execute('''
+        DELETE FROM rubric WHERE assignment_id = %s
+    ''', (assignment_id,))
+
+    # Delete the assignment itself
+    cursor.execute('''
+        DELETE FROM assignment WHERE assignment_id = %s
+    ''', (assignment_id,))

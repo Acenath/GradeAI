@@ -17,10 +17,7 @@
             <strong> Gradia</strong>
         </div>
         <div class="nav-links">
-            <a href="{{url_for('login')}}">Log in</a>
-            <a href="{{url_for('signup')}}">Sign up</a>
-            <a href="{{url_for('about')}}">About Us</a>
-            <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
+            <a href="{{ url_for('profile_teacher') if current_user.email.endswith('.edu') else url_for('profile_student') }}">Back to Profile</a>
         </div>
     </div>
 
@@ -49,6 +46,10 @@
                 </div>
                 <button type="submit" class="signup-btn">Send Confirmation Email</button>
             </form>
+            
+            <div class="login-redirect">
+                <a href="{{ url_for('profile_teacher') if current_user.email.endswith('.edu') else url_for('profile_student') }}">Cancel and go back to profile</a>
+            </div>
         </div>
     </div>
 

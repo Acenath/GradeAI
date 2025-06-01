@@ -44,22 +44,20 @@ onclick="return confirm('Are you sure you want to delete this announcement?')">
 {% if attachments %}
 <div class="attached-files mt-3">
 <div class="section-title mb-2">
-<i class="fas fa-paperclip"></i> Attached Files ({{ attachments[-1]|length }})
+<i class="fas fa-paperclip"></i> Attached Files
 </div>
 <div class="attachments-grid">
- {% for attachment in attachments %}
-<div class="attachment-card">
-<i class="far fa-file-alt file-icon"></i>
-<div class="file-text">
-{%for file in attachment[-1]%}
-</div>
-{{file}}
-<a href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + announcement[3] + '/' + file) }}" class="download-link" download>
-<i class="fas fa-download"></i> Download
-</a>
-{%endfor%}
-</div>
- {% endfor %}
+    {% for attachment in attachments %}
+        {% for file in attachment[-1] %}
+            <div class="attachment-card">
+                <i class="far fa-file-alt file-icon"></i>
+                <div class="file-text">{{ file }}</div>
+                <a href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + announcement[3] + '/' + file) }}" class="download-link" download>
+                    <i class="fas fa-download"></i> Download
+                </a>
+            </div>
+        {% endfor %}
+    {% endfor %}
 </div>
 </div>
 {% endif %}

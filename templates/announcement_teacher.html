@@ -54,7 +54,7 @@ onclick="return confirm('Are you sure you want to delete this announcement?')">
 {%for file in attachment[-1]%}
 </div>
 {{file}}
-<a href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + announcement[3] + '/' + file) }}" class="download-link">
+<a href="{{ url_for('static', filename='uploads/announcements/' + course_code + '/' + announcement[3] + '/' + file) }}" class="download-link" download>
 <i class="fas fa-download"></i> Download
 </a>
 {%endfor%}

@@ -40,8 +40,8 @@
                     <div class="attachment-item">
                         <i class="fas fa-file-alt"></i>
                         <span>{{ file }}</span>
-                        <a href="{{ url_for('static', filename='uploads/' + course_code + '/' + assignment_title + '/' + file) }}" 
-                           class="btn btn-sm btn-primary" target="_blank">
+                        <a href="{{ url_for('static', filename='uploads/assignments/' + course_code + '/' + assignment_title + '/' + file) }}" 
+                           class="btn btn-sm btn-primary" download>
                             <i class="fas fa-download"></i> Download
                         </a>
                     </div>

@@ -1692,6 +1692,17 @@ def upload_profile_pic():
         upload_dir = os.path.join('static', 'uploads', 'profile_pics')
         os.makedirs(upload_dir, exist_ok=True)
 
+        # Delete old profile picture if it exists
+        old_pic = fetch_profile_picture(None, current_user.user_id)
+        if old_pic:
+            old_path = os.path.join('static', old_pic)
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                    app.logger.info(f"Successfully deleted old profile picture at: {old_path}")
+                except Exception as e:
+                    app.logger.warning(f"Could not delete old profile picture: {str(e)}")
+
         # Generate unique filename
         filename = secure_filename(f"{current_user.user_id}_{f.filename}")
         file_path = os.path.join(upload_dir, filename)

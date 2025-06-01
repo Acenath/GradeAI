@@ -30,11 +30,13 @@
     {% if announcement %}
       <div class="announcement-header">
         <div class="announcement-title-section">
-          <h2>{{ announcement[-1] }}</h2>
-          <span class="announcement-date">
-            <i class="far fa-calendar-alt"></i>
-            Posted: {{ announcement[2].strftime('%B %d, %Y') }}
-          </span>
+          <div class="title-wrapper">
+            <h2>{{ announcement[-1] }}</h2>
+            <span class="announcement-date">
+              <i class="far fa-calendar-alt"></i>
+              Posted: {{ announcement[2].strftime('%B %d, %Y') }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -90,4 +92,5 @@
     {% endif %}
   </div>
 </div>
+
 {% endblock content %}

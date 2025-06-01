@@ -56,7 +56,7 @@
                 <div class="file-text">
                     {{ attachment.filename }}
                 </div>
-                <a href="{{ url_for('static', filename='uploads/assignments/' + course_code + '/' + assignment.title + '/' + attachment.filename) }}" class="download-link">
+                <a href="{{ url_for('static', filename='uploads/assignments/' + course_code + '/' + assignment.title + '/' + attachment.filename) }}" class="download-link" download>
                     <i class="fas fa-download"></i> Download
                 </a>
             </div>

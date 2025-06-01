@@ -109,8 +109,8 @@ def handle_student_removal(cursor, students_to_remove, course_code):
         try:
             # Remove student from enrollment table
             cursor.execute("""
-                DELETE FROM enrollments 
-                WHERE student_id = %s AND course_code = %s
+                DELETE FROM enrollment 
+                WHERE student_id = %s AND class_id = %s
             """, (student_id.strip(), course_code))
             
             # Check if the deletion was successful

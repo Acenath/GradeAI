@@ -16,9 +16,6 @@
             <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
             <strong> Gradia</strong>
         </div>
-        <div class="nav-links">
-            <a href="{{ url_for('profile_teacher') if current_user.email.endswith('.edu') else url_for('profile_student') }}">Back to Profile</a>
-        </div>
     </div>
 
     <div class="main-content">
@@ -48,10 +45,9 @@
             </form>
             
             <div class="login-redirect">
-                <a href="{{ url_for('profile_teacher') if current_user.email.endswith('.edu') else url_for('profile_student') }}">Cancel and go back to profile</a>
+                <a href="{{ url_for('profile_teacher') if current_user.email.endswith('un.edu.tr') else url_for('profile_student') }}">Cancel and go back to profile</a>
             </div>
         </div>
     </div>
-
 </body>
 </html>

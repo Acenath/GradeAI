@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request, redirect, flash, jsonify, send_from_directory, abort
+from flask import Flask, render_template, url_for, request, redirect, flash, jsonify, send_from_directory, abort, get_flashed_messages
 from flask_mysqldb import MySQL
 from flask_login import *
 from helpers import *
@@ -7,6 +7,7 @@ import os
 from werkzeug.utils import secure_filename
 import datetime
 from flask_mail import Mail, Message
+import json
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")
@@ -44,7 +45,7 @@ def forgot_password():
         email = request.form.get('email')
 
         if not email:
-            flash('Please enter your email address.', 'error')
+            print('Please enter your email address.', 'error')
             return render_template('forgot_password.html')
         cursor = gradeai_db.connection.cursor()
         cursor.execute("SELECT user_id, first_name FROM users WHERE email = %s", (email,))
@@ -55,13 +56,13 @@ def forgot_password():
                 token = generate_reset_token(app, email)
                 reset_url = url_for('new_password', token=token, _external=True)
                 send_password_reset_email(email, user[1], reset_url)
-                flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
+                print('If the email is registered, a password reset link has been sent to your email address.', 'info')
             except Exception as e:
                 app.logger.error(f"Error sending email: {str(e)}")
-                flash('There was an error sending the email. Please try again later.', 'error')
+                print('There was an error sending the email. Please try again later.', 'error')
                 return render_template('forgot_password.html')
         else:
-            flash('If the email is registered, a password reset link has been sent to your email address.', 'info')
+            print('If the email is registered, a password reset link has been sent to your email address.', 'info')
         
         cursor.close()
         return redirect(url_for('login'))
@@ -72,7 +73,7 @@ def forgot_password():
 def new_password(token):
     email = verify_reset_token(app, token)
     if not email:
-        flash('The password reset link is invalid or has expired.', 'error')
+        print('The password reset link is invalid or has expired.', 'error')
         return redirect(url_for('forgot_password'))
 
     if request.method == 'POST':
@@ -80,18 +81,18 @@ def new_password(token):
         confirm_password = request.form.get('confirm_password')
 
         if new_password != confirm_password:
-            flash('Passwords do not match.', 'error')
+            print('Passwords do not match.', 'error')
             return render_template("new_password.html", token=token)
 
         cursor = gradeai_db.connection.cursor()
         try:
             change_password(cursor, email, new_password)
             gradeai_db.connection.commit()
-            flash('Your password has been reset successfully.', 'success')
+            print('Your password has been reset successfully.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             app.logger.error(f"Error resetting password: {str(e)}")
-            flash('An error occurred while resetting your password. Please try again.', 'error')
+            print('An error occurred while resetting your password. Please try again.', 'error')
             return render_template("new_password.html", token=token)
         finally:
             cursor.close()
@@ -325,7 +326,6 @@ def logout():
     # Flask-Login logout
     logout_user()
     
-    flash("You have been logged out successfully", "info")
     return redirect(url_for("index"))
 
 @app.route('/tutorial')
@@ -345,6 +345,7 @@ def blockview_teacher():
     
     if request.method == 'GET':
         # Initialize empty form for new class creation
+        _ = get_flashed_messages()
         return render_template('blockview_teacher.html', 
                              course_name='', 
                              course_code='', 
@@ -365,7 +366,6 @@ def blockview_teacher():
         temp_students = []
         if temp_students_json:
             try:
-                import json
                 temp_students = json.loads(temp_students_json)
             except:
                 temp_students = []
@@ -387,7 +387,6 @@ def blockview_teacher():
             return handle_create_course(cursor, course_name, course_code, enrolled_students)
         
         else:
-            flash('Invalid action', 'danger')
             return render_template('blockview_teacher.html', 
                                  course_name=course_name, 
                                  course_code=course_code, 
@@ -641,7 +640,7 @@ def handle_remove_student(cursor, course_name, course_code, current_students, te
                 current_students = get_enrolled_students(cursor, course_code)
                 temp_students_json = create_temp_students_json([])
             else:
-                flash(f'Failed to remove student {student_to_remove}', 'danger')
+                print(f'Failed to remove student {student_to_remove}', 'danger')
                 temp_students_json = create_temp_students_json([])
         else:
             # Course doesn't exist yet, remove from temporary list
@@ -776,7 +775,6 @@ def announcement_student(course_code, course_name, announcement_id, title):
 
     announcement = fetch_announcement_details(cursor, announcement_id)
     attachments =  get_files('announcement', course_code, title)
-    print("DEBUG - announcement_student files: ", attachments)
     cursor.close()
 
     return render_template('announcement_student.html',
@@ -846,7 +844,6 @@ def announcement_view_teacher(course_name, course_code):
 @login_required
 def view_assignments(course_code):
     cursor = gradeai_db.connection.cursor()
-
     course = get_course_name(cursor, course_code)
     if not course:
         flash("Course not found", "error")
@@ -869,7 +866,7 @@ def assignment_creation(course_code):
     # Get course name
     course_name = get_course_name(cursor, course_code)
     if not course_name:
-        flash("Course not found", "error")
+        print("Course not found", "error")
         cursor.close()
         return redirect(url_for('teacher_dashboard'))
     
@@ -1029,7 +1026,7 @@ def assignment_creation(course_code):
             
             if errors:
                 for error in errors:
-                    flash(error, "error")
+                    print(error, "error")
             else:
                 try:
                     # Create assignment in database
@@ -1049,7 +1046,7 @@ def assignment_creation(course_code):
                                     file_path = os.path.join(assignment_dir, filename)
                                     f.save(file_path)
                                     uploaded_files.append(filename)
-                    print(form_data)
+
                     # Create assignment
                     assignment_id, existing_assignment = create_assignment(
                         cursor, 
@@ -1073,13 +1070,14 @@ def assignment_creation(course_code):
                     gradeai_db.connection.commit()
                     cursor.close()
                     
-                    flash(f"Assignment '{form_data['title']}' created successfully with {len(valid_rubrics)} rubrics totaling {total_points} points!", "success")
+                    print(f"Assignment '{form_data['title']}' created successfully with {len(valid_rubrics)} rubrics totaling {total_points} points!", "success")
                     return redirect(url_for('view_assignments', course_code=course_code))
                     
                 except Exception as e:
                     gradeai_db.connection.rollback()
                     print(f"Error creating assignment: {e}")
                     flash("An error occurred while creating the assignment. Please try again.", "error")
+                    return redirect(url_for("assignment_creation", course_code = course_code))
     
     # Ensure at least one rubric entry exists
     if not form_data['rubrics'] or all(not r['description'].strip() and r['points'] == 0 for r in form_data['rubrics']):
@@ -1249,7 +1247,7 @@ def assignment_view_teacher(course_code, assignment_id):
     # Get assignment details
     assignment = get_assignment_details(cursor, assignment_id, course_code)
     if not assignment:
-        flash("Assignment not found", "error")
+        print("Assignment not found", "error")
         cursor.close()
         return redirect(url_for("teacher_dashboard"))
 
@@ -1264,8 +1262,6 @@ def assignment_view_teacher(course_code, assignment_id):
 
     students = get_students_submissions(cursor, assignment_id, course_code)
     cursor.close()
-    
-    print(f"Debug - Students with submissions: {len(students) if students else 0}")
     
     return render_template("assignment_view_teacher.html",
                            course_name=assignment[4],
@@ -1283,38 +1279,38 @@ def assignment_view_teacher(course_code, assignment_id):
 def edit_image():
     if request.method == 'POST':
         if 'profile_image' not in request.files:
-            flash('No file part', 'error')
+            print('No file part', 'error')
             return redirect(url_for('edit_image'))
         
-        file = request.files['profile_image']
+        f = request.files['profile_image']
 
-        if file.filename == '':
-            flash('No selected file', 'error')
+        if f.filename == '':
+            print('No selected file', 'error')
             return redirect(url_for('edit_image'))
         
         # Check file extension
-        if not allowed_file(file.filename):
-            flash('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
+        if not allowed_file(f.filename):
+            print('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
             return redirect(url_for('edit_image'))
         
-        if file.content_type not in ['image/png', 'image/jpeg', 'image/jpg']:
-            app.logger.warning(f"Invalid MIME type: {file.content_type}")
-            flash('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
+        if f.content_type not in ['image/png', 'image/jpeg', 'image/jpg']:
+            app.logger.warning(f"Invalid MIME type: {f.content_type}")
+            print('Invalid file type. Please upload a PNG, JPG, or JPEG image.', 'error')
             return redirect(url_for('edit_image'))
         
         try:
             # Read file content to check size
-            file_content = file.read()
-            file.seek(0)  # Reset file pointer
+            file_content = f.read()
+            f.seek(0)  # Reset file pointer
             
             # Check file size (limit 5MB = 5*1024*1024 bytes)
             if len(file_content) > 5*1024*1024:
-                flash('File size exceeds the limit of 5MB. Please upload a smaller file.', 'error')
+                print('File size exceeds the limit of 5MB. Please upload a smaller file.', 'error')
                 return redirect(url_for('edit_image'))
 
             # Generate unique filename
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(file.filename)}"
+            unique_filename = f"{current_user.user_id}_{timestamp}_{secure_filename(f.filename)}"
             
             # Create the profile pics directory if it doesn't exist
             os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
@@ -1332,7 +1328,7 @@ def edit_image():
             
             # Save the new file
             file_path = os.path.join(PROFILE_PICS_DIR, unique_filename)
-            file.save(file_path)
+            f.save(file_path)
             
             # Verify file was saved
             if not os.path.exists(file_path):
@@ -1458,8 +1454,6 @@ def download_submission(course_code, assignment_id, user_id, filename):
             abort(404)
         
         submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment[1], user_id)
-        
-        print(f"Download path: {submission_dir}")
         return send_from_directory(submission_dir, filename, as_attachment=True)
     except FileNotFoundError:
         abort(404)
@@ -1470,7 +1464,6 @@ def download_submission(course_code, assignment_id, user_id, filename):
 def submit_assignment(course_code, course_name, assignment_id):
     cursor = gradeai_db.connection.cursor()
     assignment = get_assignment_details(cursor, assignment_id, None)
-    print(assignment)
     if not assignment:
         flash("Assignment not found", "error")
         cursor.close()
@@ -1513,7 +1506,6 @@ def submit_assignment(course_code, course_name, assignment_id):
         
         delete_submissions(cursor, current_user.user_id, assignment_id)
         gradeai_db.connection.commit()
-        print(submission_dir_student)
         if os.path.exists(submission_dir_student):
             try:
                 for filename in os.listdir(submission_dir_student):
@@ -1616,7 +1608,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         db_rubrics = get_rubrics(cursor, assignment_id)
         if not db_rubrics:
             print("Debug - No rubrics found for assignment")
-            flash("Warning: No grading rubrics found for this assignment", "warning")
+            print("Warning: No grading rubrics found for this assignment", "warning")
         else:
             print(f"Debug - Found {len(db_rubrics)} rubrics")
             # Convert tuples to expected format
@@ -1646,11 +1638,11 @@ def submit_assignment(course_code, course_name, assignment_id):
                 gradeai_db.connection.commit()
                 print(f"Debug - Auto-grading completed. Score: {submission_score}")
                 
-                flash(f"Assignment graded automatically! Score: {submission_score}/{assignment[3]}", "success")
+                print(f"Assignment graded automatically! Score: {submission_score}/{assignment[3]}", "success")
                 
             except Exception as grading_error:
                 print(f"Error grading file {filename}: {grading_error}")
-                flash(f"Error grading {filename}: {str(grading_error)}", "warning")
+                print(f"Error grading {filename}: {str(grading_error)}", "warning")
                 
                 # Create grade entry with score value of 0
                 create_grade(cursor, submission_id, 0, "This submission is graded by system!", teacher_id)
@@ -1661,7 +1653,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         print(f"Error in submission: {str(e)}")
         import traceback
         traceback.print_exc()
-        flash(f"Error submitting assignment: {str(e)}", "error")
+        print(f"Error submitting assignment: {str(e)}", "error")
 
     cursor.close()
     return redirect(url_for("assignment_submit_student",
@@ -1676,25 +1668,25 @@ def submit_assignment(course_code, course_name, assignment_id):
 @login_required
 def upload_profile_pic():
     if 'profile_pic' not in request.files:
-        flash('No file selected', 'error')
+        print('No file selected', 'error')
         return redirect(request.referrer)
 
-    file = request.files['profile_pic']
-    if file.filename == '':
-        flash('No file selected', 'error')
+    f = request.files['profile_pic']
+    if f.filename == '':
+        print('No file selected', 'error')
         return redirect(request.referrer)
 
-    if file and allowed_file(file.filename):
+    if f and allowed_file(f.filename):
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join('static', 'uploads', 'profile_pics')
         os.makedirs(upload_dir, exist_ok=True)
 
         # Generate unique filename
-        filename = secure_filename(f"{current_user.user_id}_{file.filename}")
+        filename = secure_filename(f"{current_user.user_id}_{f.filename}")
         file_path = os.path.join(upload_dir, filename)
 
         # Save the file
-        file.save(file_path)
+        f.save(file_path)
 
         # Update database with profile picture path
         cursor = gradeai_db.connection.cursor()
@@ -1706,9 +1698,9 @@ def upload_profile_pic():
         gradeai_db.connection.commit()
         cursor.close()
 
-        flash('Profile picture updated successfully', 'success')
+        print('Profile picture updated successfully', 'success')
     else:
-        flash('Invalid file type. Please upload an image.', 'error')
+        print('Invalid file type. Please upload an image.', 'error')
 
     return redirect(request.referrer)
 
@@ -1727,8 +1719,7 @@ def update_grade(submission_id):
     
     update_grade_db(cursor, submission_id, score, feedback)
     gradeai_db.connection.commit()
-    print("Merhaba")
-    flash("Grade and feedback updated successfully!", "success")
+    print("Grade and feedback updated successfully!", "success")
     
     result = get_submission_details(cursor, submission_id)
     
@@ -1789,7 +1780,7 @@ def delete_assignment_route(course_code, assignment_id):
         flash('Assignment deleted successfully.', 'success')
     except Exception as e:
         gradeai_db.connection.rollback()
-        flash(f'Error deleting assignment: {str(e)}', 'error')
+        print(f'Error deleting assignment: {str(e)}', 'error')
     finally:
         cursor.close()
     return redirect(url_for('view_assignments', course_code=course_code))

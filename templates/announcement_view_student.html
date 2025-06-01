@@ -1,6 +1,19 @@
 {% extends "student_course_base.html" %}
 
 {% block content %}
+  <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
 <div class="content-container">
     <div class="page-title">{{ course_name }} / Announcements</div>
 

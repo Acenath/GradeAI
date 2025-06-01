@@ -9,6 +9,19 @@
 
 {% block content %}
 {% set deadline_passed = current_datetime > assignment.due_date %}
+  <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
 <div class="content-container">
     <div class="page-header">
         <h1 class="page-title">{{ assignment.title }}</h1>

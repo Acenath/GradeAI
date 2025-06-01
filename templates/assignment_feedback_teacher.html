@@ -2,6 +2,19 @@
 {% block title %}Feedback - Gradia{% endblock %}
 {% block page_title %}Feedback{% endblock %}
 {% block content %}
+  <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
 <div class="feedback-list">
     {% for fb in feedbacks %}
     <div class="feedback-item">

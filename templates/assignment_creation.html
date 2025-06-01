@@ -4,10 +4,23 @@
 {% block page_title %}Assignment Creation{% endblock %}
 
 {% block content %}
-<h3 class="text-center fw-bold mb-4">{{ course_name }}/ Assignment - 1</h3>
+<h3 class="text-center fw-bold mb-4">{{ course_name[0] }}/ Assignment Creation</h3>
 
 <form method="POST" action="{{ url_for('assignment_creation', course_code=course_code) }}" enctype="multipart/form-data" id="assignment-form">
   
+  <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
   <!-- Title -->
   <div class="section-box">
     <div class="section-title">Title</div>

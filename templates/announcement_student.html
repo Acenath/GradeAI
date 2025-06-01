@@ -2,6 +2,19 @@
 
 {% block content %}
 <div class="content-container">
+    <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
   <div class="announcement-header-section">
     <div class="breadcrumb">
       <a href="{{ url_for('announcement_view_student', course_code=course_code, course_name=course_name) }}" class="back-link">

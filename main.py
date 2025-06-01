@@ -1755,7 +1755,7 @@ def course_grades_student(course_name, course_code):
     cursor.execute("""
     SELECT a.title, g.score, g.feedback,
     g.adjusted_at , c.name ,
-    c.class_id
+    c.class_id, s.submitted_at
     FROM grade g
     JOIN submission s ON g.submission_id = s.submission_id
     JOIN assignment a ON s.assignment_id = a.assignment_id

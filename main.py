@@ -118,9 +118,140 @@ def send_password_reset_email(to_email, first_name, reset_url):
     </body>
     </html>
     """
-    
     mail.send(msg)
 
+@app.route('/edit_email', methods=["GET", "POST"])
+@login_required
+def edit_email():
+    if request.method == 'POST':
+        new_email = request.form.get('new_email')
+        if not new_email:
+            flash('Please enter a new email address.', 'error')
+            return render_template('edit_email.html')
+        
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, new_email):
+            flash('Please enter a valid email address.', 'error')
+            return render_template('edit_email.html')
+        
+        # Check if the new email is the same as current email
+        if new_email == current_user.email:
+            flash('This is already your current email address.', 'info')
+            return render_template('edit_email.html')
+        
+        cursor = gradeai_db.connection.cursor()
+        
+        # Check if email is already registered
+        cursor.execute("SELECT user_id FROM users WHERE email = %s AND user_id != %s", (new_email, current_user.user_id))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            flash('This email address is already registered. Please use a different email address.', 'error')
+            cursor.close()
+            return render_template('edit_email.html')
+        
+        try:
+            # Generate confirmation token
+            token = generate_email_change_token(app, current_user.user_id, new_email)
+            confirmation_url = url_for('confirm_email_change', token=token, _external=True)
+            
+            # Send confirmation email to new email address
+            send_email_change_confirmation(new_email, current_user.first_name, confirmation_url)
+            
+            flash(f'A confirmation email has been sent to {new_email}. Please check your email and click the confirmation link to complete the email change.', 'info')
+            
+        except Exception as e:
+            app.logger.error(f"Error sending confirmation email: {str(e)}")
+            flash('There was an error sending the confirmation email. Please try again later.', 'error')
+            return render_template('edit_email.html')
+        finally:
+            cursor.close()
+        
+        # Redirect to profile page based on user role
+        user_role = role_parser(current_user.email)
+        if isinstance(user_role, bytes):
+            user_role = int.from_bytes(user_role, byteorder='big')
+        
+        if user_role == 1:
+            return redirect(url_for('profile_teacher'))
+        else:
+            return redirect(url_for('profile_student'))
+    
+    return render_template('edit_email.html')
+
+# ADD this new route for email confirmation:
+@app.route('/confirm_email_change/<token>')
+def confirm_email_change(token):
+    email_change_data = verify_email_change_token(app, token)
+    
+    if not email_change_data:
+        flash('The email confirmation link is invalid or has expired (24 hours).', 'error')
+        return redirect(url_for('login'))
+    
+    user_id, new_email = email_change_data
+    
+    cursor = gradeai_db.connection.cursor()
+    
+    try:
+        # Double-check that the email is still not taken
+        cursor.execute("SELECT user_id FROM users WHERE email = %s AND user_id != %s", (new_email, user_id))
+        existing_user = cursor.fetchone()
+        
+        if existing_user:
+            flash('This email address is already registered. Email change cancelled.', 'error')
+            return redirect(url_for('login'))
+        
+        # Update the user's email
+        cursor.execute("UPDATE users SET email = %s WHERE user_id = %s", (new_email, user_id))
+        gradeai_db.connection.commit()
+        
+        flash('Your email address has been successfully updated!', 'success')
+        
+        # If user is logged in, redirect to their profile
+        if current_user.is_authenticated and current_user.user_id == user_id:
+            user_role = role_parser(new_email)  # Use new email for role check
+            if isinstance(user_role, bytes):
+                user_role = int.from_bytes(user_role, byteorder='big')
+            
+            if user_role == 1:
+                return redirect(url_for('profile_teacher'))
+            else:
+                return redirect(url_for('profile_student'))
+        else:
+            return redirect(url_for('login'))
+            
+    except Exception as e:
+        app.logger.error(f"Error updating email: {str(e)}")
+        gradeai_db.connection.rollback()
+        flash('An error occurred while updating your email. Please try again.', 'error')
+        return redirect(url_for('login'))
+    finally:
+        cursor.close()
+
+def send_email_change_confirmation(to_email, first_name, confirmation_url):
+    """Send email change confirmation email"""
+    msg = Message(
+        "Gradia - Email Change Confirmation",
+        sender=app.config['MAIL_DEFAULT_SENDER'],
+        recipients=[to_email]
+    )
+    
+    msg.html = f"""
+    <html>
+    <body>
+        <h2>Email Change Confirmation</h2>
+        <p>Hello {first_name},</p>
+        <p>You requested to change your Gradia email address to this email. Click the link below to confirm:</p>
+        <a href="{confirmation_url}" style="background-color: #1a73e8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Confirm Email Change</a>
+        <p><strong>This link expires in 24 hours.</strong></p>
+        <p>If you didn't request this change, please ignore this email and contact support if you have concerns.</p>
+        <br>
+        <p>Best regards,<br>The Gradia Team</p>
+    </body>
+    </html>
+    """
+    mail.send(msg)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1614,44 +1745,7 @@ def update_grade(submission_id):
         return redirect(url_for("teacher_dashboard"))
             
 
-@app.route('/edit_email', methods=['GET', 'POST'])
-@login_required
-def edit_email():
-    if request.method == 'POST':
-        new_email = request.form.get('new_email')
-        cursor = gradeai_db.connection.cursor()
-        try:
-            # Check if email already exists
-            cursor.execute("SELECT user_id FROM users WHERE email = %s AND user_id != %s", 
-                         (new_email, current_user.user_id))
-            if cursor.fetchone():
-                flash('Email already in use by another account', 'error')
-                return redirect(url_for('edit_email'))
-            
-            # Update email
-            cursor.execute("UPDATE users SET email = %s WHERE user_id = %s",
-                         (new_email, current_user.user_id))
-            gradeai_db.connection.commit()
-            flash('Email updated successfully', 'success')
-            
-            # Redirect based on user role
-            user_role = role_parser(current_user.email)
-            if isinstance(user_role, bytes):
-                user_role = int.from_bytes(user_role, byteorder='big')
-            
-            if user_role == 1:
-                return redirect(url_for('profile_teacher'))
-            else:
-                return redirect(url_for('profile_student'))
-                
-        except Exception as e:
-            gradeai_db.connection.rollback()
-            flash('Error updating email', 'error')
-            return redirect(url_for('edit_email'))
-        finally:
-            cursor.close()
-            
-    return render_template('edit_email.html')
+
 
 #LOOK AGAIN
 @app.route('/course_grades_student/<course_name>/<course_code>')

@@ -7,23 +7,26 @@
   <title>Gradia - CSV Upload</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/teacher_course_base.css') }}" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/blockview_teacher.css') }}" />
 </head>
 <body>
+  <!-- Navbar -->
   <div class="nav-bar">
-        <div class="d-flex align-items-center">
-            <button onclick="goBack()" class="back-button" style="margin-right: 10px;">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
-                <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-                <strong> Gradia</strong>
-            </a>
-        </div>
+    <div class="logo-container">
+      <i class="fas fa-brain logo-icon"></i>
+      <strong>Gradia</strong>
+    </div>
     <div class="nav-links">
       <a href="{{ url_for('about') }}">About Us</a>
       <a href="{{ url_for('tutorial') }}">Quick Tutorial</a>
     </div>
+  </div>
+
+  <!-- Back Button -->
+  <div class="back-button-container">
+    <a href="{{ url_for('teacher_dashboard') }}" class="back-button">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
   </div>
 
   <!--Flash Messages-->
@@ -50,7 +53,7 @@
       <div class="section course-section">
         <div class="course-header">
           <h5 class="section-title">Course Information</h5>
-          <div class="course-inputs d-flex align-items-center">
+          <div class="course-inputs">
             <input type="text" class="form-control me-2" style="max-width: 250px;" name="course_name" required placeholder="Course Name" value="{{ course_name or '' }}">
             /
             <input type="text" class="form-control ms-2" style="max-width: 150px;" name="course_code" required placeholder="Code" value="{{ course_code or '' }}">
@@ -63,7 +66,7 @@
         <h5 class="section-title">Student Management</h5>
         
         <!-- Add Student Section -->
-        <div class="add-student-section mb-4">
+        <div class="add-student-section">
           <div class="input-group mb-3" style="max-width: 320px;">
             <input type="text" name="studentNo" class="form-control" placeholder="Student Number e.g. 21SOFT1013">
             <button type="submit" class="btn btn-primary">
@@ -150,12 +153,5 @@
     </form>
     {% endif %}
   </div>
-  <script>
-  // Back button functionality
-        function goBack() {
-            window.history.back();
-        }
-  </script>
-
 </body>
 </html>

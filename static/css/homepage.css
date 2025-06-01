@@ -26,10 +26,6 @@ body {
     font-size: 0.9rem;
 }
 
-.nav-links a:hover {
-    color: #1e73e4;
-}
-
 .logo-container {
     display: flex;
     align-items: center;

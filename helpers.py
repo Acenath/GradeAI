@@ -3,7 +3,7 @@ from hashlib import sha256
 import csv
 import os
 import json
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from collections import defaultdict
 from werkzeug.utils import secure_filename
 from classes import (
@@ -35,6 +35,17 @@ def verify_reset_token(app, token, max_age=3600):
         return None
     return email
 
+def generate_email_change_token(app, user_id, new_email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps({'user_id': user_id, 'new_email': new_email}, salt=app.config['SECUIRTY_PASSWORD_SALT'])
+
+def verify_email_change_token(app, token, expiration=86400):  # 24 hours= 86400 seconds
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        data = serializer.loads(token, salt=app.config['SECUIRTY_PASSWORD_SALT'], max_age=expiration)
+        return data['user_id'], data['new_email']
+    except (SignatureExpired, BadSignature):
+        return None
 
 def calculate_total_sum(array):
     return sum([int(i) for i in array])

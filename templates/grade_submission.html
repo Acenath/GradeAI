@@ -8,24 +8,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/grade_submission.css') }}">
 </head>
 <body>
+    <!-- Navbar -->
     <div class="nav-bar">
-        <div class="d-flex align-items-center">
-            <button onclick="goBack()" class="back-button" style="margin-right: 10px;">
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <a href="{{ url_for('index') }}" class="logo-container" style="text-decoration: none; color: inherit;">
-                <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
-                <strong> Gradia</strong>
-            </a>
-        </div>
+        <a href="{{ url_for('index') }}" class="logo-container">
+            <i class="fas fa-brain logo-icon"></i>
+            <strong>Gradia</strong>
+        </a>
         <div class="nav-links">
-            {% if not current_user %}
-            <a href="/login">Log in</a>
-            <a href="/signup">Sign up</a>
-            {% endif %}
-            <a href="/about">About Us</a>
-            <a href="/tutorial">Quick Tutorial</a>
+            <a href="{{url_for('about')}}">About Us</a>
+            <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
         </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="back-button-container">
+        <a href="{{ url_for('teacher_dashboard') }}" class="back-button">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
 
     <!-- Main Grading Interface -->
@@ -165,13 +164,5 @@
             </div>
         </div>
     </div>
-
-    <script>
-        // Back button functionality
-        function goBack() {
-            window.history.back();
-        }
-    </script>
-
 </body>
 </html>

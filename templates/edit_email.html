@@ -1,39 +1,56 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradia - Change Email</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/edit_email.css') }}"/>
+</head>
+<body>
 
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="text-center">Edit Email</h3>
-                </div>
-                <div class="card-body">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }}">{{ message }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-                    
-                    <form method="POST">
-                        <div class="form-group">
-                            <label for="new_email">New Email Address</label>
-                            <input type="email" class="form-control" id="new_email" name="new_email" 
-                                   value="{{ current_user.email }}" required>
-                        </div>
-                        <div class="text-center mt-4">
-                            <button type="submit" class="btn btn-primary">Update Email</button>
-                            <a href="{{ url_for('profile_teacher') if current_user.is_teacher else url_for('profile_student') }}" 
-                               class="btn btn-secondary">Cancel</a>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    <!-- Navbar -->
+    <div class="nav-bar">
+        <div class="d-flex align-items-center">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <i class="fas fa-brain" style="font-size: 25px; color: #000;"></i>
+            <strong> Gradia</strong>
+        </div>
+        <div class="nav-links">
+            <a href="{{url_for('login')}}">Log in</a>
+            <a href="{{url_for('signup')}}">Sign up</a>
+            <a href="{{url_for('about')}}">About Us</a>
+            <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
         </div>
     </div>
-</div>
-{% endblock %}
 
+    <div class="main-content">
+        <div class="email-form">
+            <h2>Change Email Address</h2>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="current-email">
+                <p><strong>Current Email:</strong> {{ current_user.email }}</p>
+            </div>
+            
+            <p><strong>Enter your new email address and we will send you a confirmation link.</strong></p>
+            
+            <form method="POST">
+                <input type="email" class="form-control" name="new_email" placeholder="New email address*" required>
+                <div class="form-text">
+                    A confirmation email will be sent to the new address.
+                </div>
+                <button type="submit" class="signup-btn">Send Confirmation Email</button>
+            </form>
+        </div>
+    </div>
 
+</body>
+</html>

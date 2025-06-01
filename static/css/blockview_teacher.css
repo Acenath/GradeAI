@@ -13,10 +13,24 @@ body {
     border-bottom: 1px solid black;
     background-color: #bcdde5;
 }
-.nav-bar i {
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    gap: 10px;
+}
+
+.logo-icon {
     font-size: 25px;
     color: #000;
-    margin-right: 10px;
+}
+
+.nav-links {
+    text-align: right;
+    display: flex;
+    align-items: center;
 }
 
 .nav-links a {
@@ -26,236 +40,170 @@ body {
     font-size: 0.9rem;
 }
 
-.nav-links a:hover {
-    color: #1e73e4;
+.back-button-container {
+    padding: 1.5rem 2rem;
+    background-color: #bcdde5;
 }
 
 .back-button {
-    background: none;
-    border: none;
-    padding: 5px 10px;
-    margin-right: 15px;
-    cursor: pointer;
-    font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     color: #000;
-    transition: transform 0.2s ease;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.3s ease;
 }
 
 .back-button:hover {
-    transform: translateX(-3px);
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #000;
 }
 
-.back-button:focus {
-    outline: none;
+.content-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
 }
 
-.flash-messages {
-  margin: 10px auto;
-  width: 90%;
+.section {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #000;
 }
 
-.course-section {
-  background: #f5fbfc;
-  padding: 20px 24px;
-  border-bottom: 1px solid #ccc;
+.section-title {
+    margin-bottom: 1.5rem;
+    color: #333;
+    font-size: 16px;
 }
 
 .course-header {
-  display: flex;
-  align-items: center;
-  font-size: 1.1rem;
-  font-style: italic;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
 }
 
 .course-inputs {
-  display: flex;
-  gap: 12px;
-  margin-left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .course-name-input,
 .course-code-input {
-  padding: 8px 10px;
-  border: 1px solid #000;
-  border-radius: 4px;
-}
-
-/* Main Content */
-.main-content {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+    padding: 8px 10px;
+    border: 1px solid #000;
+    border-radius: 4px;
+    font-size: 14px;
 }
 
 .student-management {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
+    margin-top: 2rem;
 }
 
 /* Add Student Section */
 .add-student-section {
-  flex: 1;
-  min-width: 300px;
-  border-right: 1px solid #ccc;
-  padding-right: 24px;
+    margin-bottom: 2rem;
 }
 
-.section-heading {
-  font-style: italic;
-  margin-bottom: 20px;
-}
-
-.input-group {
-  margin-bottom: 15px;
-}
-
-.input-label {
-  font-weight: 500;
-  margin-bottom: 6px;
-  display: block;
-}
-
-.student-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #999;
-  border-radius: 4px;
-}
-
-.add-student-button {
-  background-color: #28a745;
-  color: #fff;
-  padding: 10px 20px;
-  font-size: 0.95rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.add-student-button:hover {
-  background-color: #218838;
-}
-
-/* CSV Upload */
 .csv-option {
-  text-align: center;
-  margin-top: 24px;
-  font-style: italic;
-  color: #555;
+    margin-top: 1rem;
 }
 
-.file-input-container {
-  margin-top: 10px;
-}
-
-#fileInput {
-  display: none;
-}
-
-.file-upload-btn {
-  display: inline-block;
-  padding: 8px 16px;
-  background-color: #f8f9fa;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-/* Student List Section */
 .student-list-section {
-  flex: 2;
-  min-width: 350px;
-  max-height: 500px;
-  overflow-y: auto;
+    margin-top: 2rem;
 }
 
-.search-bar {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  gap: 10px;
+.table-scroll-container {
+    overflow-x: auto;
 }
 
-.search-input {
-  padding: 6px 12px;
-  border: 1px solid #aaa;
-  border-radius: 20px;
-  width: 200px;
-}
-
-/* Table */
 .student-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 14px;
 }
 
 .student-table th,
 .student-table td {
-  border: 1px solid #ddd;
-  padding: 10px;
-  text-align: center;
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .student-table th {
-  background-color: #e9ecef;
-  font-weight: 600;
-  position: sticky;
-  top: 0;
+    background-color: #f8f9fa;
+    font-weight: 600;
 }
 
-/* Remove Button */
-.btn-danger {
-  padding: 6px 12px;
-  font-size: 0.85rem;
-}
-
-/* Empty State */
 .no-students-message {
-  padding: 20px;
-  color: #666;
-  text-align: center;
-  font-style: italic;
-}
-
-/* Loader */
-.loader {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  animation: spin 1.2s linear infinite;
-  display: inline-block;
-  margin-left: 10px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Create Button */
-.create-button-section {
-  text-align: center;
-  margin-top: 30px;
+    text-align: center;
+    color: #6c757d;
+    padding: 2rem;
+    font-size: 14px;
 }
 
 .create-button {
-  background-color: #007bff;
-  color: white;
-  padding: 12px 32px;
-  font-size: 1rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 2rem auto;
+    padding: 0.75rem 1.5rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 14px;
 }
 
 .create-button:hover {
-  background-color: #0056b3;
+    background-color: #0069d9;
+}
+
+.flash-messages {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.alert {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.25rem;
+    font-size: 14px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
 }

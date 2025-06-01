@@ -585,7 +585,10 @@ def fetch_recent_class_announcements(cursor, course_code):
 def create_announcement(cursor, course_code, title, desc):
 
     announcement_id = AnnouncementIDManager.create_announcement_id()
-    
+    cursor.execute(""" SELECT * FROM announcement WHERE title = %s""", (title,))
+    existing_announcement = cursor.fetchall() 
+    if existing_announcement:
+        return "THERE IS SOMETHING"
     cursor.execute('''
     INSERT INTO announcement (announcement_id, class_id, title, content, posted_at)
     VALUES (%s, %s, %s, %s, %s)

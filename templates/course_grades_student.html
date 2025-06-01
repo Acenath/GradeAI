@@ -9,18 +9,7 @@
   <link href="{{ url_for('static', filename='css/course_grades_student.css') }}" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-    <!--Flash Messages-->
-  <div class="container flash-messages mt-3">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }}" role="alert">
-            {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-  </div>
+
 
     <div class="nav-bar">
         <div class="d-flex align-items-center">
@@ -35,7 +24,18 @@
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
     </div>
   </div>
-
+    <!--Flash Messages-->
+  <div class="container flash-messages mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
   <div class="container mt-4">
     <div class="profile-section mb-4">
       <div class="profile-pic">

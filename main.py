@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 import datetime
 from flask_mail import Mail, Message
 import json
+import shutil
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "CANSU_BÜŞRA_ORHAN_SUPER_SECRET_KEY"  # os.environ.get("SECRET_KEY")
@@ -38,6 +39,8 @@ mail = Mail(app)
 os.makedirs(ASSIGNMENT_SUBMISSIONS_DIR, exist_ok=True)
 os.makedirs(ASSIGNMENT_FILES_DIR, exist_ok=True)
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
+os.makedirs(ANNOUNCEMENT_FILES_DIR, exist_ok=True)
+os.makedirs(ENROLLMENTS_FILES_DIR, exist_ok=True)
 
 @app.route('/forgot_password', methods=["GET", "POST"])
 def forgot_password():
@@ -802,26 +805,30 @@ def announcement_view_student(course_name, course_code):
 def announcement_teacher(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
     announcements = fetch_recent_class_announcements(cursor, course_code)
-    # Add attachments to each announcement
+    
     announcements_with_files = []
     for announcement in announcements:
-        announcement_list = list(announcement)
-        # Get files using the get_files function from helpers.py
-        attachments = get_files('announcement', course_code, announcement[3])  # announcement[3] is the title
-        announcement_list.append(attachments)  # Add attachments as a new element
-        announcements_with_files.append(tuple(announcement_list))
+        announcement_dict = {
+            'id': announcement[0],
+            'content': announcement[1], 
+            'date': announcement[2],
+            'title': announcement[3],
+            'files': get_files('announcement', course_code, announcement[3])
+        }
+        announcements_with_files.append(announcement_dict)
+    
     cursor.close()
     return render_template("announcement_teacher.html",
-                           course_name=course_name,
-                           course_code=course_code,
-                           announcements=announcements,
-                           attachments = announcements_with_files)
+                         course_name=course_name,
+                         course_code=course_code,
+                         announcements=announcements_with_files)
 
-@app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>')
+@app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>/<title>')
 @login_required
-def announcement_delete(course_name, course_code, announcement_id):
+def announcement_delete(course_name, course_code, announcement_id, title):
     cursor = gradeai_db.connection.cursor()
     _ = delete_announcement(cursor, announcement_id)
+    shutil.rmtree(os.path.join(ANNOUNCEMENT_FILES_DIR, course_code, title))
     gradeai_db.connection.commit()
     cursor.close()
 
@@ -837,7 +844,10 @@ def announcement_view_teacher(course_name, course_code):
         desc = request.form.get("description")
         attachments = request.files.getlist("attachments")
 
-        create_announcement(cursor, course_code, title, desc)
+        existing_announcement = create_announcement(cursor, course_code, title, desc)
+        if existing_announcement == "THERE IS SOMETHING":
+            flash("This announcement is already exist!")
+            return redirect(url_for("announcement_teacher", course_name = course_name, course_code = course_code))
         save_files(attachments, "announcements", course_code, title)
 
         gradeai_db.connection.commit()
@@ -1207,6 +1217,7 @@ def assignment_submit_student(course_code, course_name, assignment_id):
 
     delete_submissions(cursor, current_user.user_id, assignment_id)
     gradeai_db.connection.commit()
+    
 
     files = []
     current_time = ''
@@ -1497,6 +1508,8 @@ def submit_assignment(course_code, course_name, assignment_id):
             os.remove(file_path)
         
         gradeai_db.connection.commit()
+        if os.path.exists(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id, delete_file)):
+            shutil.rmtree(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id, delete_file))
         cursor.close()
         return redirect(url_for("assignment_submit_student", 
                                course_code=course_code, 
@@ -1523,6 +1536,7 @@ def submit_assignment(course_code, course_name, assignment_id):
                 print(f"Error deleting files: {e}")
 
         gradeai_db.connection.commit()
+        shutil.rmtree(os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, current_user.user_id))
         cursor.close()
         return redirect(url_for("assignment_submit_student", 
                                course_code=course_code, 
@@ -1778,9 +1792,9 @@ def course_grades_student(course_name, course_code):
                            course_name=course_name,
                            course_code=course_code)
 
-@app.route('/delete_assignment/<course_code>/<assignment_id>', methods=['POST'])
+@app.route('/delete_assignment/<course_code>/<assignment_id>/<title>', methods=['POST'])
 @login_required
-def delete_assignment_route(course_code, assignment_id):
+def delete_assignment_route(course_code, assignment_id, title):
     # Only allow teachers (role == 1)
     user_role = role_parser(current_user.email)
     if isinstance(user_role, bytes):
@@ -1791,9 +1805,9 @@ def delete_assignment_route(course_code, assignment_id):
 
     cursor = gradeai_db.connection.cursor()
     try:
-        from helpers import delete_assignment
         delete_assignment(cursor, assignment_id)
         gradeai_db.connection.commit()
+        shutil.rmtree(os.path.join(ASSIGNMENT_FILES_DIR, course_code, title))
         flash('Assignment deleted successfully.', 'success')
     except Exception as e:
         gradeai_db.connection.rollback()

@@ -9,13 +9,7 @@
   <link href="{{ url_for('static', filename='css/profile_student.css') }}" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-              {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+
   <!-- Navbar -->
   <div class="nav-bar">
     <div class="logo-container">
@@ -27,7 +21,13 @@
       <a href="{{url_for('tutorial')}}">Quick Tutorial</a>
     </div>
   </div>
-
+              {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
   <!-- Back Button -->
   <div class="back-button-container">
     <a href="{{ url_for('student_dashboard') }}" class="back-button">

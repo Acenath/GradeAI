@@ -85,7 +85,7 @@
     <div class="sidebar-section">
       <h3>Upcoming Deadlines</h3>
       {% for deadline in upcoming_deadlines %}
-        <a href="{{ url_for('assignments_student', course_code=deadline[3], course_name = deadline[4], assignment_id=deadline[0]) }}" class="deadline-item">
+        <a href="{{ url_for('assignment_submit_student', course_code=deadline[3], course_name = deadline[4], assignment_id=deadline[0]) }}" class="deadline-item">
           <div class="deadline-icon">
             <i class="far fa-file-alt" style="font-size: 24px;"></i>
           </div>
@@ -131,7 +131,7 @@
     <div class="sidebar-section">
       <h3>Announcements</h3>
       {% for announcement in recent_announcements %}
-        <a href="{{ url_for('announcement_view_student', course_name=announcement[-1], course_code=announcement[0]) }}" class="announcement-item">
+        <a href="{{ url_for('announcement_student', course_name=announcement[-2], course_code=announcement[0], announcement_id = announcement[-1], title = announcement[2]) }}" class="announcement-item">
           <div class="announcement-icon">
             <i class="fas fa-bullhorn" style="font-size: 24px;"></i>
           </div>

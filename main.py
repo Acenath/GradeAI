@@ -776,7 +776,7 @@ def announcement_student(course_code, course_name, announcement_id, title):
 
     announcement = fetch_announcement_details(cursor, announcement_id)
     attachments =  get_files('announcement', course_code, title)
-
+    print("DEBUG - announcement_student files: ", attachments)
     cursor.close()
 
     return render_template('announcement_student.html',

@@ -332,9 +332,10 @@ def get_files(section, course_code, title):
     elif section == 'submission':
         intended_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, title)
     elif section == 'announcement':
-        intended_dir = os.path.join(ASSIGNMENT_FILES_DIR, 'announcements', course_code, title)
+        intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, course_code, title)
         # Create directory if it doesn't exist
-        os.makedirs(intended_dir, exist_ok=True)
+    print(intended_dir)
+    os.makedirs(intended_dir, exist_ok=True)
 
     if os.path.exists(intended_dir):
         attachments = [f for f in os.listdir(intended_dir) if os.path.isfile(os.path.join(intended_dir, f))]
@@ -575,7 +576,7 @@ def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
         """, (user_id, limit))
 
     elif not is_teacher:
-        cursor.execute(''' SELECT c.class_id, a.content, a.title, a.posted_at, c.name
+        cursor.execute(''' SELECT c.class_id, a.content, a.title, a.posted_at, c.name, a.announcement_id
                        FROM enrollment as e NATURAL JOIN announcement as a NATURAL JOIN class as c
                        WHERE e.student_id = %s
                        ORDER BY a.posted_at DESC

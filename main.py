@@ -1455,7 +1455,7 @@ def download_submission(course_code, assignment_id, user_id, filename):
     try:
         cursor = gradeai_db.connection.cursor()
 
-        assignment = get_assignment_details(cursor, assignment_id, course_code)
+        assignment = get_assignment_details(cursor, assignment_id, None) # PLEASE DON'T DELETE NONE PART
         cursor.close()
         
         if not assignment:

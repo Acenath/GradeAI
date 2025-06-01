@@ -15,6 +15,7 @@ import PyPDF2
 import pdfplumber
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 class User(UserMixin):
     def __init__(self, user_id, email, *, first_name, last_name):
         self.user_id = user_id
@@ -43,7 +44,6 @@ class User(UserMixin):
         )
 
     def logout(self):
-        """Clear all user data when logging out"""
         self.user_id = None
         self.email = None
         self.first_name = None
@@ -52,34 +52,26 @@ class User(UserMixin):
         self._is_active = False
 
     def clear_session(self):
-        """Alternative method to clear user data"""
         self.logout()
 
     def is_authenticated(self):
-        """Check if user is authenticated"""
         return self._is_authenticated and self.user_id is not None
 
     def is_active(self):
-        """Check if user is active"""
         return self._is_active and self.user_id is not None
 
     def is_anonymous(self):
-        """Check if user is anonymous"""
         return not self.is_authenticated()
 
     def get_id(self):
-        """Return user ID for Flask-Login"""
         return self.user_id if self.is_authenticated() else None
 
     def __repr__(self):
-        """String representation for debugging"""
         if self.is_authenticated():
             return f"<User {self.user_id}: {self.first_name} {self.last_name}>"
         else:
             return "<User: Not authenticated>"
     
-
-# Fixed GradingAssistant class methods for better rubric protection
 
 class GradingAssistant():
     def __init__(self):
@@ -106,7 +98,7 @@ class GradingAssistant():
     def create_rubric_instructions(self, current_rubrics, current_points):
         """FIXED: Better handling of manual rubrics with improved validation"""
         
-        # FIXED: Validate and sanitize input data
+        # Validate and sanitize input data
         if current_rubrics is None:
             current_rubrics = []
         if current_points is None:
@@ -117,7 +109,7 @@ class GradingAssistant():
         current_rubrics = current_rubrics[:min_length]
         current_points = current_points[:min_length]
         
-        # FIXED: Only count rubrics with points > 0 for remaining calculation
+        # Only count rubrics with points > 0 for remaining calculation
         valid_existing_points = [p for p in current_points if p > 0]
         existing_total = sum(valid_existing_points)
         remaining_points = 100 - existing_total
@@ -128,7 +120,7 @@ class GradingAssistant():
         self.remaining_points = max(0, remaining_points)  # Ensure non-negative
         self.existing_total = existing_total
         
-        # FIXED: Better display of existing rubrics with validation
+        # Better display of existing rubrics with validation
         existing_rubrics_display = ""
         if current_rubrics and current_points:
             # Only show rubrics with points > 0 in the instructions
@@ -137,7 +129,7 @@ class GradingAssistant():
             if valid_rubrics:
                 existing_rubrics_display = "EXISTING RUBRICS (already added by teacher - DO NOT MODIFY OR RECREATE THESE):\n"
                 for i, (rubric, points) in enumerate(valid_rubrics, 1):
-                    # FIXED: Sanitize rubric text to prevent instruction injection
+                    # Sanitize rubric text to prevent instruction injection
                     safe_rubric = str(rubric).replace('\n', ' ').strip()[:100]  # Limit length
                     existing_rubrics_display += f"{i}. {safe_rubric} ({points} pt)\n"
                 existing_rubrics_display += f"\nTotal existing points: {existing_total}/100\n"
@@ -147,7 +139,7 @@ class GradingAssistant():
         else:
             existing_rubrics_display = "EXISTING RUBRICS: None (you are creating the first rubrics)\n"
 
-        # FIXED: Enhanced rubric instructions with better validation
+        # Enhanced rubric instructions with better validation
         self.rubric_instructions = f"""
 You are helping a teacher create essay grading rubrics. The teacher may have already added some rubrics manually.
 
@@ -187,7 +179,6 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         """
 
     def consume_question(self, question):
-        """FIXED: Sanitize question input"""
         self.question = str(question).strip()[:500] if question else "Essay writing assignment"
 
     def flush_memory(self):
@@ -196,7 +187,6 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         gc.collect()
 
     def _check_response_format(self, response):
-        """FIXED: Enhanced format validation with better error reporting"""
         lines = response.strip().split('\n')
         valid_lines = 0
         total_points = 0
@@ -229,13 +219,12 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         return format_correct and points_correct
 
     def _create_manual_rubric_response(self):
-        """FIXED: Better fallback rubric creation with point validation"""
         remaining_points = getattr(self, 'remaining_points', 100)
         
         if remaining_points <= 0:
             return "All 100 points have been allocated. No additional rubrics needed."
         
-        # FIXED: Better essay rubric templates with flexible point distribution
+        # Better essay rubric templates with flexible point distribution
         essay_templates = [
             ("Clear thesis statement and main argument", 0.25),
             ("Strong supporting evidence and examples", 0.25),
@@ -244,7 +233,7 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
             ("Critical analysis and depth of thought", 0.15)
         ]
         
-        # FIXED: Ensure exact point allocation
+        # Ensure exact point allocation
         rubric_response = ""
         allocated_points = 0
         
@@ -267,7 +256,7 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
             if allocated_points >= remaining_points:
                 break
         
-        # FIXED: Verification that we allocated exactly the right amount
+        # Verification that we allocated exactly the right amount
         if allocated_points != remaining_points:
             print(f"⚠️ Fallback allocation mismatch: {allocated_points} != {remaining_points}")
             # Simple fix: adjust the last item
@@ -288,7 +277,6 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
         return rubric_response.strip()
 
     def _generate_response_with_retry(self, messages, max_retries=5):
-        """FIXED: Enhanced retry logic with better error handling"""
         for attempt in range(max_retries):
             print(f"Generation attempt {attempt + 1}/{max_retries}")
             
@@ -358,7 +346,7 @@ START YOUR RESPONSE WITH "1." (or appropriate number):
             print("All 100 points already allocated. No additional rubrics needed.")
             return []
         
-        # FIXED: Enhanced system message with clearer instructions
+        # Enhanced system message with clearer instructions
         system_message = f"""You are an essay grading rubric generator for teachers. 
 
 CRITICAL RULES:
@@ -385,7 +373,7 @@ The final rubric system must total exactly 100 points when combined with existin
         # Parse and validate point totals
         rubrics = self._parse_rubric(rubric_text)
         
-        # FIXED: Enhanced validation
+        #  Enhanced validation
         if rubrics:
             total_generated = sum(int(float(item['rubric_score'])) for item in rubrics)
             print(f"Generated {len(rubrics)} rubric items totaling {total_generated} points (needed {remaining_points})")
@@ -414,7 +402,7 @@ The final rubric system must total exactly 100 points when combined with existin
             print("No points remaining for additional rubrics")
             return []
         
-        # FIXED: Better essay rubric templates
+        # Better essay rubric templates
         base_rubrics = [
             "Clear thesis statement and main argument",
             "Strong supporting evidence and examples", 
@@ -425,7 +413,7 @@ The final rubric system must total exactly 100 points when combined with existin
             "Conclusion and synthesis of ideas"
         ]
         
-        # FIXED: Calculate exact point distribution
+        # Calculate exact point distribution
         num_rubrics = min(len(base_rubrics), max(1, remaining_points // 3))  # At least 3 points per rubric
         
         essay_rubrics = []
@@ -447,7 +435,7 @@ The final rubric system must total exactly 100 points when combined with existin
                 })
                 allocated_points += points
         
-        # FIXED: Verify exact allocation
+        # Verify exact allocation
         final_total = sum(int(item["rubric_score"]) for item in essay_rubrics)
         print(f"Created {len(essay_rubrics)} essay rubrics totaling {final_total} points (needed {remaining_points}):")
         for item in essay_rubrics:
@@ -860,7 +848,6 @@ class RubricIDManager:
         """
         return f"rubric_{assignment_id}_{rubric_index:03d}"
 
-# Updated helper functions for your existing code
 def create_assignment_fixed(cursor, assignment_title, assignment_desc, assignment_deadline, class_id, total_score):
     """Updated create_assignment function with proper ID generation"""
     assignment_id = AssignmentIDManager.create_assignment_id(class_id, assignment_title)
@@ -913,7 +900,6 @@ class AnnouncementIDManager:
         unique_id = str(uuid.uuid4()).replace('-', '')[:16]
         return f"announce_{unique_id}"
 
-# Clean implementation
 def create_announcement_fixed(cursor, announcement_title, announcement_content, class_id, created_by):
     """Create announcement with stable UUID-based ID"""
     # Primary key - never changes, always unique

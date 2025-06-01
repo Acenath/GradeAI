@@ -13,7 +13,7 @@ from classes import (
 
 
 #VARIABLES
-ENROLLMENTS_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "enrollments")
+ENROLLMENTS_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "enrollments")
 ASSIGNMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "assignments")
 ANNOUNCEMENT_FILES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "announcements")
 ASSIGNMENT_SUBMISSIONS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "submissions")
@@ -77,17 +77,6 @@ def save_files(given_files, section, course_code, title: None):
             f.save(file_path)
 
 def handle_student_removal(cursor, students_to_remove, course_code):
-    """
-    Remove students from a course
-    
-    Args:
-        cursor: Database cursor
-        students_to_remove: Either a single student ID (string) or list of student IDs
-        course_code: Course code string
-    
-    Returns:
-        List of successfully removed student IDs
-    """
     removed_students = []
     
     # Convert single student to list for uniform processing
@@ -154,7 +143,6 @@ def create_assignment(cursor, assignment_title, assignment_desc, assignment_dead
     return assignment_id, flag
 
 def create_grade(cursor, submission_id, score, feedback, teacher_id):
-    """Helper function to create grade with proper ID"""
     grade_id = GradeIDManager.create_grade_id(submission_id)
     
     cursor.execute("""
@@ -165,7 +153,6 @@ def create_grade(cursor, submission_id, score, feedback, teacher_id):
     return grade_id
 
 def create_submission(cursor, assignment_id, student_id, filename):
-    """Helper function to create submission with proper ID"""
     submission_id = SubmissionIDManager.create_submission_id(assignment_id, student_id, filename)
     
     cursor.execute("""
@@ -252,7 +239,6 @@ def fetch_feedbacks_by_teacher(cursor, teacher_id):
 def fetch_student_info(cursor, student_id):
     cursor.execute("""SELECT first_name, last_name FROM users WHERE user_id = %s""", (student_id.split(",")[0],))
     student = cursor.fetchone()
-    print(student)
     if student:
         return {
             'success': True,
@@ -474,7 +460,6 @@ def delete_announcement(cursor, announcement_id):
         return False
 
 def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
-    """Fetch upcoming assignment deadlines for the teacher's courses"""
     if is_teacher:
         cursor.execute("""
             SELECT 
@@ -501,7 +486,6 @@ def fetch_upcoming_deadlines(cursor, user_id, is_teacher, limit=5):
     return cursor.fetchall()
 
 def fetch_recent_feedback(cursor, user_id, is_teacher, limit=5):
-    """Fetch recent feedback given by the teacher"""
     if is_teacher:
         cursor.execute("""
             SELECT 
@@ -557,7 +541,6 @@ def fetch_announcement_details(cursor, announcement_id):
     return cursor.fetchone()
 
 def fetch_recent_announcements(cursor, user_id, is_teacher, limit=5):
-    """Fetch recent announcements made by the teacher"""
     if is_teacher:
         cursor.execute("""
             SELECT 
@@ -600,7 +583,6 @@ def fetch_recent_class_announcements(cursor, course_code):
     return cursor.fetchall()
 
 def create_announcement(cursor, course_code, title, desc):
-    """Create announcement with stable UUID-based ID"""
 
     announcement_id = AnnouncementIDManager.create_announcement_id()
     

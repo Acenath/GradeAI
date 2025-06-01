@@ -181,7 +181,6 @@ def edit_email():
     
     return render_template('edit_email.html')
 
-# ADD this new route for email confirmation:
 @app.route('/confirm_email_change/<token>')
 def confirm_email_change(token):
     email_change_data = verify_email_change_token(app, token)
@@ -766,7 +765,7 @@ def teacher_dashboard():
                          total_student_dict=total_student_dict,
                          profile_pic=profile_pic)
 
-#DONE
+
 @app.route('/announcement_student/<course_code>/<course_name>/<announcement_id>/<title>')
 @login_required
 def announcement_student(course_code, course_name, announcement_id, title):
@@ -784,7 +783,7 @@ def announcement_student(course_code, course_name, announcement_id, title):
                            attachments=attachments,
                            folder_name=title)
 
-#DONE
+
 @app.route('/announcement_view_student/<course_name>/<course_code>')
 @login_required
 def announcement_view_student(course_name, course_code):
@@ -797,7 +796,7 @@ def announcement_view_student(course_name, course_code):
                            course_code=course_code,
                            announcements=announcements)
 
-#DONE
+
 @app.route('/announcement_teacher/<course_name>/<course_code>')
 @login_required
 def announcement_teacher(course_name, course_code):
@@ -811,8 +810,6 @@ def announcement_teacher(course_name, course_code):
         attachments = get_files('announcement', course_code, announcement[3])  # announcement[3] is the title
         announcement_list.append(attachments)  # Add attachments as a new element
         announcements_with_files.append(tuple(announcement_list))
-        print(course_code)
-        print(announcements_with_files)
     cursor.close()
     return render_template("announcement_teacher.html",
                            course_name=course_name,
@@ -850,7 +847,7 @@ def announcement_view_teacher(course_name, course_code):
 
     return render_template("announcement_view_teacher.html", course_name=course_name, course_code=course_code)
 
-#DONE
+
 @app.route('/assignments/<course_code>')
 @login_required
 def view_assignments(course_code):
@@ -1140,7 +1137,7 @@ def generate_rubric():
     except Exception as e:
         return jsonify({'error': f'Error generating rubric: {str(e)}'}), 500
 
-#DONE
+
 @app.route('/assignment_feedback_teacher/<course_name>/<course_code>')
 @login_required
 def assignment_feedback_teacher(course_name, course_code):
@@ -1173,7 +1170,7 @@ def assignment_grades_student(course_name, course_code):
                            course_code=course_code,
                            current_time = datetime.datetime.now())
 
-#DONE
+
 @app.route('/assignments_student/<course_code>/<course_name>')
 @login_required
 def assignments_student(course_code, course_name):
@@ -1185,7 +1182,7 @@ def assignments_student(course_code, course_name):
                            course_name=course_name,
                            course_code=course_code,
                            assignments=assignments)
-#DONE
+
 @app.route('/assignment_submit_student/<course_code>/<course_name>/<assignment_id>', methods=["GET", "POST"])
 @login_required
 def assignment_submit_student(course_code, course_name, assignment_id):
@@ -1249,7 +1246,7 @@ def assignment_submit_student(course_code, course_name, assignment_id):
                            course_name=course_name,
                            current_datetime=datetime.datetime.now())
 
-#DONE
+
 @app.route('/assignment_view_teacher/<course_code>/<assignment_id>')
 @login_required
 def assignment_view_teacher(course_code, assignment_id):
@@ -1393,7 +1390,7 @@ def profile_teacher():
                          courses=courses,
                          profile_pic=profile_pic)
 
-#DONE
+
 @app.route('/grade_submission/<course_code>/<assignment_id>/<submission_id>/<student_id>', methods=['GET', 'POST'])
 @login_required
 def grade_submission(course_code, assignment_id, submission_id, student_id):
@@ -1451,7 +1448,7 @@ def grade_submission(course_code, assignment_id, submission_id, student_id):
                          rubrics=rubric_l,
                          course_code=course_code)
 
-#DONE
+
 @app.route('/download/<course_code>/<assignment_id>/<user_id>/<filename>')
 @login_required
 def download_submission(course_code, assignment_id, user_id, filename):
@@ -1469,7 +1466,7 @@ def download_submission(course_code, assignment_id, user_id, filename):
     except FileNotFoundError:
         abort(404)
         
-# Modified submit_assignment route with file type validation
+
 @app.route('/submit_assignment/<course_code>/<course_name>/<assignment_id>', methods=['POST'])
 @login_required
 def submit_assignment(course_code, course_name, assignment_id):
@@ -1511,7 +1508,6 @@ def submit_assignment(course_code, course_name, assignment_id):
         # Get all submissions for this student and assignment
         submissions = get_student_submissions(cursor, current_user.user_id, assignment_id)
         # Delete grades and submissions
-        print("Debug - submit_assignment: ", submissions)
         for submission in submissions:
             cursor.execute("DELETE FROM grade WHERE submission_id = %s", (submission[0], ))
         
@@ -1533,7 +1529,7 @@ def submit_assignment(course_code, course_name, assignment_id):
                                course_name=course_name, 
                                assignment_id=assignment_id))
 
-    # Handle new submission - MODIFIED FOR SINGLE FILE
+    # Handle new submission 
     f = request.files.get('file')  # Changed from getlist to get single file
     if not f or not f.filename:
         flash("Please select a file to submit", "error")
@@ -1576,7 +1572,7 @@ def submit_assignment(course_code, course_name, assignment_id):
         submission_dir = os.path.join(ASSIGNMENT_SUBMISSIONS_DIR, course_code, assignment_title, str(current_user.user_id))
         os.makedirs(submission_dir, exist_ok=True)
 
-        # MODIFIED: Delete any existing files in the submission directory before saving new one
+        # Delete any existing files in the submission directory before saving new one
         if os.path.exists(submission_dir):
             try:
                 for existing_file in os.listdir(submission_dir):
@@ -1760,7 +1756,6 @@ def update_grade(submission_id):
 
 
 
-#LOOK AGAIN
 @app.route('/course_grades_student/<course_name>/<course_code>')
 @login_required
 def course_grades_student(course_name, course_code):

@@ -1,0 +1,2 @@
+- flush düzelt ilk class oluşturunca
+* aynı isim assignment varsa error düzgün yansıt

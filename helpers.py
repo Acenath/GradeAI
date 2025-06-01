@@ -334,7 +334,6 @@ def get_files(section, course_code, title):
     elif section == 'announcement':
         intended_dir = os.path.join(ANNOUNCEMENT_FILES_DIR, course_code, title)
         # Create directory if it doesn't exist
-    print(intended_dir)
     os.makedirs(intended_dir, exist_ok=True)
 
     if os.path.exists(intended_dir):

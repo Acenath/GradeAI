@@ -803,11 +803,22 @@ def announcement_view_student(course_name, course_code):
 def announcement_teacher(course_name, course_code):
     cursor = gradeai_db.connection.cursor()
     announcements = fetch_recent_class_announcements(cursor, course_code)
+    # Add attachments to each announcement
+    announcements_with_files = []
+    for announcement in announcements:
+        announcement_list = list(announcement)
+        # Get files using the get_files function from helpers.py
+        attachments = get_files('announcement', course_code, announcement[3])  # announcement[3] is the title
+        announcement_list.append(attachments)  # Add attachments as a new element
+        announcements_with_files.append(tuple(announcement_list))
+        print(course_code)
+        print(announcements_with_files)
     cursor.close()
     return render_template("announcement_teacher.html",
                            course_name=course_name,
                            course_code=course_code,
-                           announcements=announcements)
+                           announcements=announcements,
+                           attachments = announcements_with_files)
 
 @app.route('/announcement_delete/<course_name>/<course_code>/<announcement_id>')
 @login_required

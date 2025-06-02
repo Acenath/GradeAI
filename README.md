@@ -29,7 +29,7 @@
 
 ## 🌟 About The Project
 
-GradeAI is an innovative automated essay grading system designed to revolutionize the way educators assess student essays. Built as a final graduation project, this platform leverages the power of Large Language Models (LLMs) to provide intelligent, consistent, and timely feedback on essay assignments.
+GradeAI is an innovative automated essay grading system born from our firsthand experience as students waiting weeks for essay feedback. As Cansu, Büşra, and Orhan, we recognized the burden on our professors grading hundreds of essays while students anxiously awaited results. For our graduation project, we decided to leverage Large Language Models (LLMs) to bridge this gap, creating a solution that provides instant, intelligent feedback while giving teachers more time to focus on actual teaching.
 
 ### 🎯 Project Goals
 
@@ -38,14 +38,6 @@ GradeAI is an innovative automated essay grading system designed to revolutioniz
 - **Ensure consistent grading** using AI-powered rubric evaluation
 - **Support multiple file formats** including PDF, DOCX, and TXT
 - **Generate intelligent rubrics** based on assignment descriptions
-
-### 🔍 What Makes GradeAI Stand Out?
-
-1. **AI-Powered Grading**: Uses Meta's Llama 3.2 model for intelligent essay evaluation
-2. **Dynamic Rubric Generation**: Automatically creates grading rubrics from assignment descriptions
-3. **Real-time Processing**: Students receive grades immediately after submission
-4. **Comprehensive Dashboard**: Intuitive interfaces for both teachers and students
-5. **Secure Authentication**: Email-based authentication with password reset functionality
 
 ## ✨ Features
 
@@ -175,8 +167,6 @@ GradeAI is an innovative automated essay grading system designed to revolutioniz
 ```bash
 python main.py
 ```
-
-Navigate to `http://localhost:5000` in your web browser.
 
 ### For Teachers
 
@@ -325,20 +315,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 Project Team:
-- Cansu - [GitHub Profile](https://github.com/cansu)
-- Büşra - [GitHub Profile](https://github.com/busra)
-- Orhan - [GitHub Profile](https://github.com/orhan)
-
-Project Link: [https://github.com/yourusername/gradeai](https://github.com/yourusername/gradeai)
+- Cansu - [GitHub Profile](https://github.com/cansuzeynep)
+- Büşra - [GitHub Profile](https://github.com/ecebusracivelek)
+- Orhan - [GitHub Profile](https://github.com/Acenath)
 
 ## 🙏 Acknowledgments
 
 - [Meta AI](https://ai.meta.com/) for the Llama 3.2 model
 - [Hugging Face](https://huggingface.co/) for the Transformers library
 - [Flask](https://flask.palletsprojects.com/) for the web framework
-- Our university professors for guidance and support
-- All contributors who helped shape this project
 
 ---
 
-<p align="center">Made with ❤️ by the GradeAI Team</p>
+<p align="center">Made with ❤️ by the Cansu Büşra Orhan</p>

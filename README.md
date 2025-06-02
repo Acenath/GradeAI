@@ -130,7 +130,7 @@ GradeAI is an innovative automated essay grading system designed to revolutioniz
    USE gradeai;
    
    -- Run the schema creation script
-   source database/gradeai.sql 
+   source database/schema.sql 
    ```
 
 5. **Configure environment variables**
